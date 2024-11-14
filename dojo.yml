@@ -3,7 +3,7 @@ name: Yuwei Dojo
 description: Welcome to Yuwei's example dojo!
 type: example
 award:
-  emoji: 😂
+  emoji: 👍
 modules:
   - id: hello
   - id: world

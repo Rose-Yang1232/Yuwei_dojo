@@ -4,6 +4,7 @@ description: Welcome to Yuwei's example dojo!
 type: example
 award:
   emoji: 👍
+image: pwncollege/challenge-simple
 modules:
   - id: hello
   - id: world

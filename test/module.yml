@@ -1,0 +1,4 @@
+name: Hello
+challenges:
+  - id: setup_test
+    name: Setup Test

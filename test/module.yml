@@ -1,4 +1,4 @@
-name: Hello
+name: Test
 challenges:
-  - id: setup_test
+  - id: setuptest
     name: Setup Test

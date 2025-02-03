@@ -130,37 +130,24 @@ Click anywhere on the page to capture a screenshot. The image will appear below 
 <img id="screenshot-img" style="border: 2px solid black; margin-top: 10px; display: none;" />
 <p id="coordinates" style="font-weight: bold; margin-top: 10px;"></p>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <script>
   document.addEventListener("click", async function(event) {
     try {
-      // Ask user for permission to share their screen
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      // Capture a screenshot of the webpage
+      const canvas = await html2canvas(document.body);
 
-      // Get the video track
-      const track = stream.getVideoTracks()[0];
-      const imageCapture = new ImageCapture(track);
-      const bitmap = await imageCapture.grabFrame();
-
-      // Stop sharing after capturing
-      track.stop();
-
-      // Draw the image on a canvas
-      const canvas = document.createElement("canvas");
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(bitmap, 0, 0);
-
-      // Convert to an image and display
+      // Convert the canvas to an image and display it
       const img = document.getElementById("screenshot-img");
       img.src = canvas.toDataURL("image/png");
       img.style.display = "block";
 
-      // Display click coordinates
-      document.getElementById("coordinates").textContent = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
+      // Display the click coordinates
+      const coordinates = document.getElementById("coordinates");
+      coordinates.textContent = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
     } catch (error) {
-      console.error("Screen capture failed:", error);
-      alert("Screen capture is blocked or not allowed.");
+      console.error("Screenshot capture failed:", error);
     }
   });
 </script>

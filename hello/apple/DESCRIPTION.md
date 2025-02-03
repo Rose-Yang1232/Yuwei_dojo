@@ -121,3 +121,36 @@ Below is a button that triggers a JavaScript alert when clicked:
     });
   });
 </script>
+
+
+# Click Screenshot with Indicator
+
+Click anywhere on the page to take a screenshot. The image will display below with a red dot where you clicked.
+
+<img id="screenshot-img" style="border: 2px solid black; margin-top: 10px; display: none;" />
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script>
+  document.addEventListener("click", async function(event) {
+    // Capture screenshot of the webpage
+    const canvas = await html2canvas(document.body);
+    const ctx = canvas.getContext("2d");
+
+    // Get click coordinates relative to the viewport
+    const clickX = event.clientX;
+    const clickY = event.clientY;
+
+    // Draw a red dot where the user clicked
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.arc(clickX, clickY, 10, 0, 2 * Math.PI); // Draw circle
+    ctx.fill();
+
+    // Convert to image and display
+    const img = document.getElementById("screenshot-img");
+    img.src = canvas.toDataURL("image/png");
+    img.style.display = "block";
+  });
+</script>
+

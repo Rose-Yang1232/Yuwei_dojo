@@ -123,42 +123,31 @@ Below is a button that triggers a JavaScript alert when clicked:
 </script>
 
 
-# Click Screenshot with Indicator
+# Click Screenshot with Coordinates
 
-Click anywhere on the page to take a screenshot. The image will display below with a red dot where you clicked.
+Click anywhere on the page to capture a screenshot. The image will appear below along with the coordinates of your click.
 
 <img id="screenshot-img" style="border: 2px solid black; margin-top: 10px; display: none;" />
+<p id="coordinates" style="font-weight: bold; margin-top: 10px;"></p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function() {
-    setTimeout(() => {
-      document.body.addEventListener("click", async function(event) {
-        try {
-          // Capture screenshot of the webpage
-          const canvas = await html2canvas(document.body);
-          const ctx = canvas.getContext("2d");
+  document.addEventListener("click", async function(event) {
+    try {
+      // Capture a screenshot of the webpage
+      const canvas = await html2canvas(document.body);
 
-          // Get click coordinates relative to the viewport
-          const clickX = event.clientX;
-          const clickY = event.clientY;
+      // Convert the canvas to an image and display it
+      const img = document.getElementById("screenshot-img");
+      img.src = canvas.toDataURL("image/png");
+      img.style.display = "block";
 
-          // Draw a red dot where the user clicked
-          ctx.fillStyle = "red";
-          ctx.beginPath();
-          ctx.arc(clickX, clickY, 10, 0, 2 * Math.PI); // Draw circle
-          ctx.fill();
-
-          // Convert to image and display
-          const img = document.getElementById("screenshot-img");
-          img.src = canvas.toDataURL("image/png");
-          img.style.display = "block";
-        } catch (error) {
-          console.error("Screenshot capture failed:", error);
-        }
-      });
-    }, 500); // Delay to ensure scripts are fully loaded
+      // Display the click coordinates
+      const coordinates = document.getElementById("coordinates");
+      coordinates.textContent = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
+    } catch (error) {
+      console.error("Screenshot capture failed:", error);
+    }
   });
 </script>
-

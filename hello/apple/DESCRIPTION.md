@@ -44,10 +44,14 @@ Click anywhere on the page to see the coordinates of your mouse click.
         return;
       }
 
-      // Force content update
+      // Update text
       coordinates.innerText = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
 
-      // Debug: Check if the element actually updates
+      // 🔹 Force browser to repaint
+      coordinates.style.display = "none";
+      void coordinates.offsetHeight;  // Trigger reflow
+      coordinates.style.display = "block";
+
       console.log("Updated coordinates text:", coordinates.innerText);
     });
   });

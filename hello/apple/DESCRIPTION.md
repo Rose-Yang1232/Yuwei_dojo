@@ -32,6 +32,8 @@ Click anywhere on the page to see the coordinates of your mouse click.
 
 <script>
   document.addEventListener("click", function(event) {
+    alert("Mouse clicked")
+    
     // Get the paragraph element
     const coordinates = document.getElementById("coordinates");
     

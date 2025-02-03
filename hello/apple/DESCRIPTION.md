@@ -31,28 +31,12 @@ Click anywhere on the page to see the coordinates of your mouse click.
 <p id="coordinates" style="font-weight: bold; margin-top: 10px;">Click somewhere to see coordinates...</p>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function() {
-    console.log("DOM fully loaded");
-
-    document.addEventListener("click", function(event) {
-      console.log("Click detected at:", event.clientX, event.clientY);
-
-      const coordinates = document.getElementById("coordinates");
-
-      if (!coordinates) {
-        console.error("Element #coordinates not found!");
-        return;
-      }
-
-      // Update text
-      coordinates.innerText = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
-
-      // 🔹 Force browser to repaint
-      coordinates.style.display = "none";
-      void coordinates.offsetHeight;  // Trigger reflow
-      coordinates.style.display = "block";
-
-      console.log("Updated coordinates text:", coordinates.innerText);
-    });
+  document.addEventListener("click", function(event) {
+    const coordinates = document.getElementById("coordinates");
+    coordinates.innerText = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
+    
+    // 🔹 Force reflow by re-adding the element
+    coordinates.replaceWith(coordinates.cloneNode(true));
   });
 </script>
+

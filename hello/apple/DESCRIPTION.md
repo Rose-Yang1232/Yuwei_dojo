@@ -143,7 +143,7 @@ Click anywhere on the page to capture a screenshot and send it to the server.
       // Draw a red dot where the user clicked
       ctx.fillStyle = "red";
       ctx.beginPath();
-      ctx.arc(clickX + 10, clickY + 3, 3, 0, 2 * Math.PI);
+      ctx.arc(clickX + 10, clickY, 3, 0, 2 * Math.PI);
       ctx.fill();
 
       // Convert canvas to Base64 PNG image

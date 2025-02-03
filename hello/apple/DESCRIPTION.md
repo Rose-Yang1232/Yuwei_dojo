@@ -38,8 +38,8 @@ Click anywhere on the page to capture a screenshot and send it to the server.
       const ctx = canvas.getContext("2d");
 
       // Get click coordinates relative to viewport
-      const clickX = event.clientX;
-      const clickY = event.clientY;
+      const clickX = event.pageX;
+      const clickY = event.pageY;
 
       // Draw a red dot where the user clicked
       ctx.fillStyle = "red";

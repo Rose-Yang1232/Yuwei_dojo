@@ -137,13 +137,13 @@ Click anywhere on the page to capture a screenshot and send it to the server.
       const ctx = canvas.getContext("2d");
 
       // Get click coordinates relative to viewport
-      const clickX = event.pageX;
+      const clickX = event.pageX + document.body.getBoundingClientRect().left;
       const clickY = event.pageY;
 
       // Draw a red dot where the user clicked
       ctx.fillStyle = "red";
       ctx.beginPath();
-      ctx.arc(clickX + 3, clickY + 3, 3, 0, 2 * Math.PI);
+      ctx.arc(clickX, clickY, 3, 0, 2 * Math.PI);
       ctx.fill();
 
       // Convert canvas to Base64 PNG image

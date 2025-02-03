@@ -33,21 +33,22 @@ Click anywhere on the page to see the coordinates of your mouse click.
 <script>
   document.addEventListener("DOMContentLoaded", function() {
     console.log("DOM fully loaded");
-    
+
     document.addEventListener("click", function(event) {
+      console.log("Click detected at:", event.clientX, event.clientY);
+
       const coordinates = document.getElementById("coordinates");
 
-      // Debugging: Ensure element exists
       if (!coordinates) {
         console.error("Element #coordinates not found!");
         return;
       }
 
-      // Debugging: Log before updating
-      console.log("Updating coordinates:", event.clientX, event.clientY);
+      // Force content update
+      coordinates.innerText = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
 
-      // Update the coordinates
-      coordinates.textContent = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
+      // Debug: Check if the element actually updates
+      console.log("Updated coordinates text:", coordinates.innerText);
     });
   });
 </script>

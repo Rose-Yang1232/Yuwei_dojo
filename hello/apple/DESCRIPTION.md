@@ -28,16 +28,26 @@ Below is a button that triggers a JavaScript alert when clicked:
 
 Click anywhere on the page to see the coordinates of your mouse click.
 
-<p id="coordinates" style="font-weight: bold; margin-top: 10px;">Test</p>
+<p id="coordinates" style="font-weight: bold; margin-top: 10px;">Click somewhere to see coordinates...</p>
 
 <script>
-  document.addEventListener("click", function(event) {
-    alert(`Click Position: X=${event.clientX}, Y=${event.clientY}`)
+  document.addEventListener("DOMContentLoaded", function() {
+    console.log("DOM fully loaded");
     
-    // Get the paragraph element
-    const coordinates = document.getElementById("coordinates");
-    
-    // Display the X, Y coordinates
-    coordinates.textContent = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
+    document.addEventListener("click", function(event) {
+      const coordinates = document.getElementById("coordinates");
+
+      // Debugging: Ensure element exists
+      if (!coordinates) {
+        console.error("Element #coordinates not found!");
+        return;
+      }
+
+      // Debugging: Log before updating
+      console.log("Updating coordinates:", event.clientX, event.clientY);
+
+      // Update the coordinates
+      coordinates.textContent = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
+    });
   });
 </script>

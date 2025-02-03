@@ -24,19 +24,49 @@ Below is a button that triggers a JavaScript alert when clicked:
 </script>
 
 
-# Click Coordinates Display
+# Click Screenshot Capture & Upload to PHP Server
 
-Click anywhere on the page to see the coordinates of your mouse click.
+Click anywhere on the page to capture a screenshot and send it to the server.
 
-<p id="coordinates" style="font-weight: bold; margin-top: 10px;">Click somewhere to see coordinates...</p>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-  document.addEventListener("click", function(event) {
-    const coordinates = document.getElementById("coordinates");
-    coordinates.innerText = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
-    
-    // 🔹 Force reflow by re-adding the element
-    coordinates.replaceWith(coordinates.cloneNode(true));
+  document.addEventListener("click", async function(event) {
+    try {
+      // Capture screenshot of the entire visible page
+      const canvas = await html2canvas(document.body);
+      const ctx = canvas.getContext("2d");
+
+      // Get click coordinates relative to viewport
+      const clickX = event.clientX;
+      const clickY = event.clientY;
+
+      // Draw a red dot where the user clicked
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(clickX, clickY, 10, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Convert canvas to Base64 PNG image
+      const imageData = canvas.toDataURL("image/png");
+
+      // Prepare data to send
+      const payload = new FormData();
+      payload.append("screenshot", imageData);
+      payload.append("clickX", clickX);
+      payload.append("clickY", clickY);
+
+      // Send data to PHP server
+      fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
+        method: "POST",
+        body: payload
+      })
+      .then(response => response.json())
+      .then(data => console.log("Upload successful:", data))
+      .catch(error => console.error("Error uploading:", error));
+
+    } catch (error) {
+      console.error("Screenshot capture failed:", error);
+    }
   });
 </script>
-

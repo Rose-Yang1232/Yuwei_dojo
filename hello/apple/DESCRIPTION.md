@@ -30,14 +30,4 @@ Click anywhere on the page to see the coordinates of your mouse click.
 
 <p id="coordinates" style="font-weight: bold; margin-top: 10px;"></p>
 
-<script>
-  document.addEventListener("click", function(event) {
-    alert("Mouse clicked")
-    
-    // Get the paragraph element
-    const coordinates = document.getElementById("coordinates");
-    
-    // Display the X, Y coordinates
-    coordinates.textContent = `Click Position: X=${event.clientX}, Y=${event.clientY}`;
-  });
-</script>
+<script src="desc.js"></script>

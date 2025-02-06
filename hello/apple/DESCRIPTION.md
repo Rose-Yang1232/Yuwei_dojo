@@ -181,7 +181,7 @@ Click anywhere to take a screenshot of the **entire page**, including the Linux 
         formData.append("clickX", clickX);
         formData.append("clickY", clickY);
 
-        fetch("save_screenshot.php", {
+        fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
           method: "POST",
           body: formData
         })

@@ -23,6 +23,8 @@ Below is a button that triggers a JavaScript alert when clicked:
   });
 </script>
 
+
+
 ## Webcam with Edge Detection Filter
 
 Below is a live feed from your webcam with an edge detection filter applied (if you allow access):
@@ -120,6 +122,7 @@ Below is a live feed from your webcam with an edge detection filter applied (if 
       requestAnimationFrame(processVideo); // Loop the function
     }
   });
+</script>
 
 
 

@@ -184,7 +184,7 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
       // Draw a red dot where the user clicked
       finalCtx.fillStyle = "red";
       finalCtx.beginPath();
-      finalCtx.arc(clickX, clickY, 5, 0, 2 * Math.PI);
+      finalCtx.arc(clickX + 10, clickY + 3, 3, 0, 2 * Math.PI);
       finalCtx.fill();
 
       // Convert the final canvas to an image and send it to the server
@@ -194,7 +194,7 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
         formData.append("clickX", clickX);
         formData.append("clickY", clickY);
 
-        fetch("save_screenshot.php", {
+        fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
           method: "POST",
           body: formData
         })

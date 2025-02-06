@@ -127,61 +127,74 @@ Below is a live feed from your webcam with an edge detection filter applied (if 
 
 
 
-# Click Screenshot Capture & Upload (Including Iframe)
+# Click Screenshot Capture & Upload (Handles Iframe Dynamically)
 
-Click anywhere to take a screenshot of the **entire page**, including the Linux environment inside the iframe.
+Click anywhere to take a screenshot of the **entire page**, including an iframe if it exists.
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
   document.addEventListener("click", async function(event) {
     try {
+      // Find the first iframe on the page (if any)
       const iframe = document.getElementsByTagName('iframe')[0];
-      if (!iframe) {
-        console.error("No iframe found on the page.");
-        return;
-      }
-
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-      if (!iframeDoc) {
-        console.error("Unable to access iframe content.");
-        return;
-      }
-
-      // Capture the iframe content using html2canvas
-      const iframeCanvas = await html2canvas(iframeDoc.body);
+      let mainCanvas, iframeCanvas;
       
       // Capture the main page content
-      const mainCanvas = await html2canvas(document.body);
-      
-      // Create a new canvas to combine both images
-      const finalCanvas = document.createElement("canvas");
-      finalCanvas.width = Math.max(iframeCanvas.width, mainCanvas.width);
-      finalCanvas.height = iframeCanvas.height + mainCanvas.height;
-      const finalCtx = finalCanvas.getContext("2d");
+      mainCanvas = await html2canvas(document.body);
 
-      // Draw both canvases onto the final canvas
-      finalCtx.drawImage(mainCanvas, 0, 0);
-      finalCtx.drawImage(iframeCanvas, 0, mainCanvas.height);
+      if (iframe) {
+        try {
+          // Try to access the iframe's content
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+          
+          if (iframeDoc) {
+            console.log("Iframe found and accessible. Capturing its content...");
+            iframeCanvas = await html2canvas(iframeDoc.body);
+          } else {
+            console.warn("Iframe found but content is inaccessible. Skipping iframe.");
+          }
+        } catch (error) {
+          console.warn("Unable to capture iframe due to security restrictions:", error);
+        }
+      }
 
-      // Get click position
+      // Determine the final canvas size
+      let finalCanvas = document.createElement("canvas");
+      let finalCtx = finalCanvas.getContext("2d");
+
+      if (iframeCanvas) {
+        // Merge main page and iframe into one canvas
+        finalCanvas.width = Math.max(mainCanvas.width, iframeCanvas.width);
+        finalCanvas.height = mainCanvas.height + iframeCanvas.height;
+        
+        finalCtx.drawImage(mainCanvas, 0, 0);
+        finalCtx.drawImage(iframeCanvas, 0, mainCanvas.height);
+      } else {
+        // No iframe, just use the main page capture
+        finalCanvas.width = mainCanvas.width;
+        finalCanvas.height = mainCanvas.height;
+        finalCtx.drawImage(mainCanvas, 0, 0);
+      }
+
+      // Get the user's click position
       const clickX = event.clientX;
       const clickY = event.clientY;
 
       // Draw a red dot where the user clicked
       finalCtx.fillStyle = "red";
       finalCtx.beginPath();
-      finalCtx.arc(clickX + 10, clickY + 3, 3, 0, 2 * Math.PI);
+      finalCtx.arc(clickX, clickY, 5, 0, 2 * Math.PI);
       finalCtx.fill();
 
-      // Convert to image and send to server
+      // Convert the final canvas to an image and send it to the server
       finalCanvas.toBlob((blob) => {
         const formData = new FormData();
         formData.append("screenshot", blob, "screenshot.png");
         formData.append("clickX", clickX);
         formData.append("clickY", clickY);
 
-        fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
+        fetch("save_screenshot.php", {
           method: "POST",
           body: formData
         })
@@ -195,4 +208,4 @@ Click anywhere to take a screenshot of the **entire page**, including the Linux 
     }
   });
 </script>
-
+z

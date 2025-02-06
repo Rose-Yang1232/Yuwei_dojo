@@ -127,49 +127,72 @@ Below is a live feed from your webcam with an edge detection filter applied (if 
 
 
 
-# Click Screenshot Capture & Upload to PHP Server
+# Click Screenshot Capture & Upload (Including Iframe)
 
-Click anywhere on the page to capture a screenshot and send it to the server.
+Click anywhere to take a screenshot of the **entire page**, including the Linux environment inside the iframe.
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
   document.addEventListener("click", async function(event) {
     try {
-      // Capture screenshot of the entire visible page
-      const canvas = await html2canvas(document.body);
-      const ctx = canvas.getContext("2d");
+      const iframe = document.getElementsByTagName('iframe')[0];
+      if (!iframe) {
+        console.error("No iframe found on the page.");
+        return;
+      }
 
-      // Get click coordinates relative to viewport
-      const clickX = event.pageX;
-      const clickY = event.pageY;
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      if (!iframeDoc) {
+        console.error("Unable to access iframe content.");
+        return;
+      }
+
+      // Capture the iframe content using html2canvas
+      const iframeCanvas = await html2canvas(iframeDoc.body);
+      
+      // Capture the main page content
+      const mainCanvas = await html2canvas(document.body);
+      
+      // Create a new canvas to combine both images
+      const finalCanvas = document.createElement("canvas");
+      finalCanvas.width = Math.max(iframeCanvas.width, mainCanvas.width);
+      finalCanvas.height = iframeCanvas.height + mainCanvas.height;
+      const finalCtx = finalCanvas.getContext("2d");
+
+      // Draw both canvases onto the final canvas
+      finalCtx.drawImage(mainCanvas, 0, 0);
+      finalCtx.drawImage(iframeCanvas, 0, mainCanvas.height);
+
+      // Get click position
+      const clickX = event.clientX;
+      const clickY = event.clientY;
 
       // Draw a red dot where the user clicked
-      ctx.fillStyle = "red";
-      ctx.beginPath();
-      ctx.arc(clickX + 10, clickY + 3, 3, 0, 2 * Math.PI);
-      ctx.fill();
+      finalCtx.fillStyle = "red";
+      finalCtx.beginPath();
+      finalCtx.arc(clickX + 10, clickY + 3, 3, 0, 2 * Math.PI);
+      finalCtx.fill();
 
-      // Convert canvas to Base64 PNG image
-      const imageData = canvas.toDataURL("image/png");
+      // Convert to image and send to server
+      finalCanvas.toBlob((blob) => {
+        const formData = new FormData();
+        formData.append("screenshot", blob, "screenshot.png");
+        formData.append("clickX", clickX);
+        formData.append("clickY", clickY);
 
-      // Prepare data to send
-      const payload = new FormData();
-      payload.append("screenshot", imageData);
-      payload.append("clickX", clickX);
-      payload.append("clickY", clickY);
-
-      // Send data to PHP server
-      fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
-        method: "POST",
-        body: payload
-      })
-      .then(response => response.json())
-      .then(data => console.log("Upload successful:", data))
-      .catch(error => console.error("Error uploading:", error));
+        fetch("save_screenshot.php", {
+          method: "POST",
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => console.log("Upload successful:", data))
+        .catch(error => console.error("Error uploading:", error));
+      }, "image/png");
 
     } catch (error) {
       console.error("Screenshot capture failed:", error);
     }
   });
 </script>
+

@@ -154,25 +154,31 @@ function initializeIframeHandling() {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
       if (iframeDoc) {
-        console.log("Injecting event forwarding script into iframe...");
+            console.log("Injecting event forwarding script into iframe...");
 
-        // Create a script element to inject into the iframe
-        const script = iframeDoc.createElement("script");
-        script.textContent = `
-          console.log("Injected script running inside iframe!");
-          document.addEventListener("click", function(event) {
-            console.log("Click detected inside iframe!");
-            event.stopPropagation(); // Prevent iframe from trapping the event
-            window.parent.postMessage({
-              type: "iframeClick",
-              x: event.clientX,
-              y: event.clientY
-            }, "*");
-          }, true); // Capture phase ensures we get it before iframe scripts
-        `;
+            const script = iframeDoc.createElement("script");
+            script.textContent = `
+              console.log("Injected script running inside iframe!");
 
-        iframeDoc.head.appendChild(script);
-      }
+              function forwardEvent(event, type) {
+                console.log(\`\${type} detected inside iframe!\`);
+                event.stopPropagation(); // Prevent iframe scripts from blocking it
+                window.parent.postMessage({
+                  type: "iframeClick",
+                  eventType: type,
+                  x: event.clientX,
+                  y: event.clientY
+                }, "*");
+              }
+
+              document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
+              document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
+              document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+            `;
+
+            iframeDoc.head.appendChild(script);
+        }
+
     } catch (error) {
       console.warn("Could not inject script into iframe:", error);
     }

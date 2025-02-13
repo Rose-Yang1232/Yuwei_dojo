@@ -13,15 +13,17 @@ a button that js
 <canvas id="gazeCanvas" width="800" height="500" style="border: 1px solid black;"></canvas>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
+   document.addEventListener("DOMContentLoaded", function () {
     const startButton = document.getElementById("startTracking");
     const stopButton = document.getElementById("stopTracking");
     const trackingStatus = document.getElementById("trackingStatus");
     const canvas = document.getElementById("gazeCanvas");
     const ctx = canvas.getContext("2d");
+
     let gazeData = [];
 
-    startButton.addEventListener("click", function () {
+    // Function to start tracking
+    function startTracking() {
         webgazer.setGazeListener((data, elapsedTime) => {
             if (data) {
                 console.log(`Gaze X: ${data.x}, Gaze Y: ${data.y}, Time: ${elapsedTime}ms`);
@@ -34,32 +36,37 @@ a button that js
                 ctx.fill();
             }
         }).begin();
-        
+
         webgazer.showPredictionPoints(true);
         startButton.disabled = true;
         stopButton.disabled = false;
-        trackingStatus.innerHTML = "Tracking: **ON**";
-    });
+        trackingStatus.innerHTML = "Tracking: ON";
+    }
 
-    stopButton.addEventListener("click", function () {
+    // Function to stop tracking
+    function stopTracking() {
         webgazer.end();
         startButton.disabled = false;
         stopButton.disabled = true;
-        trackingStatus.innerHTML = "Tracking: **OFF**";
+        trackingStatus.innerHTML = "Tracking: OFF";
 
         // Send gaze data to backend
         sendDataToServer(gazeData);
-    });
+    }
 
+    // Function to send gaze data to backend
     function sendDataToServer(data) {
         fetch("https://yourserver.com/save_gaze_data.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ gazeData: data }),
         })
-        .then(response => response.json())
-        .then(result => console.log("Data saved:", result))
+        .then(response => console.log("Data saved successfully"))
         .catch(error => console.error("Error sending data:", error));
     }
+
+    // Attach event listeners to buttons
+    startButton.addEventListener("click", startTracking);
+    stopButton.addEventListener("click", stopTracking);
 });
 </script>

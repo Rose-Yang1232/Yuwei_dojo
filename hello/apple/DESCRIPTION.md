@@ -138,6 +138,7 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
   const iframe = document.getElementsByTagName("iframe")[0];
 
   if (iframe) {
+    console.log("Iframe found");
     try {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 

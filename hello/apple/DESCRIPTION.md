@@ -159,7 +159,9 @@ function initializeIframeHandling() {
         // Create a script element to inject into the iframe
         const script = iframeDoc.createElement("script");
         script.textContent = `
+          console.log("Injected script running inside iframe!");
           document.addEventListener("click", function(event) {
+            console.log("Click detected inside iframe!");
             event.stopPropagation(); // Prevent iframe from trapping the event
             window.parent.postMessage({
               type: "iframeClick",

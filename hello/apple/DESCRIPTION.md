@@ -176,6 +176,7 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 
     // Listen for iframe click events in the parent window
     $(window).on("message", function (event) {
+        console.log("Parent window click?") 
         if (event.originalEvent.data && event.originalEvent.data.type === "iframeClick") {
             console.log("Captured event inside iframe:", event.originalEvent.data.eventType, 
                         "at", event.originalEvent.data.x, event.originalEvent.data.y);

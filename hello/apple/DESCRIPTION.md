@@ -11,7 +11,7 @@ Below is a button that triggers a JavaScript alert when clicked:
 
 <script>
   // Simple JavaScript to display an alert when the page is loaded
-  document.addEventListener("DOMContentLoaded", function () {
+  $(document).ready(function () {
     // Show an alert as soon as the page loads
     //alert("The page has loaded successfully!");
 
@@ -33,7 +33,7 @@ Below is a live feed from your webcam with an edge detection filter applied (if 
 <canvas id="canvas" style="width: 100%; max-width: 600px; border: 2px solid black;"></canvas>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
+  $(document).ready(function () {
     const videoElement = document.getElementById("webcam");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");

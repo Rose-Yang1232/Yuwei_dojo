@@ -158,7 +158,7 @@ function initializeIframeHandling() {
 
             const script = iframeDoc.createElement("script");
             script.textContent = `
-              console.log("Injected script running inside iframe!");
+              console.log("Injected script running inside iframe. Test.");
 
               function forwardEvent(event, type) {
                 console.log(\`\${type} detected inside iframe!\`);

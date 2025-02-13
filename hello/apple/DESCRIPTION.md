@@ -134,11 +134,12 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
+  window.addEventListener("load", function () {
+  console.log("Window fully loaded!");
+
   const iframe = document.getElementsByTagName("iframe")[0];
 
   if (iframe) {
-    console.log("Iframe found");
     try {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
@@ -149,10 +150,7 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
         const script = iframeDoc.createElement("script");
         script.textContent = `
           document.addEventListener("click", function(event) {
-            // Prevent iframe from trapping the event
-            event.stopPropagation();
-
-            // Send the click position to the parent window
+            event.stopPropagation(); // Prevent iframe from trapping the event
             window.parent.postMessage({
               type: "iframeClick",
               x: event.clientX,
@@ -161,26 +159,22 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
           }, true); // Capture phase ensures we get it before iframe scripts
         `;
 
-        // Append script to the iframe's document
         iframeDoc.head.appendChild(script);
       }
     } catch (error) {
       console.warn("Could not inject script into iframe:", error);
     }
-  } else {
-    console.log("No iframe");
   }
 
   // Listen for iframe click events in the parent window
   window.addEventListener("message", function (event) {
     if (event.data && event.data.type === "iframeClick") {
       console.log("Captured click inside iframe:", event.data.x, event.data.y);
-
-      // Trigger the screenshot function
       takeScreenshot(event.data.x, event.data.y);
     }
   });
 });
+
 
 async function takeScreenshot(clickX, clickY) {
   try {

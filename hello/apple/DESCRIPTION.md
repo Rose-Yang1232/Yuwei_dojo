@@ -134,82 +134,115 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-  // Capture mouse clicks before they reach the iframe
-  window.addEventListener("mousedown", function(event) {
-    console.log("Click captured before iframe traps it:", event.clientX, event.clientY);
+  document.addEventListener("DOMContentLoaded", function () {
+  const iframe = document.getElementsByTagName("iframe")[0];
 
-    // If needed, trigger the screenshot manually
-    takeScreenshot(event);
-
-  }, true); // The "true" enables capture phase (before the iframe can trap it)
-
-  async function takeScreenshot(event) {
+  if (iframe) {
     try {
-      const iframe = document.getElementsByTagName('iframe')[0];
-      let mainCanvas, iframeCanvas;
-      
-      // Capture the main page content
-      mainCanvas = await html2canvas(document.body);
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
-      if (iframe) {
-        try {
-          const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-          
-          if (iframeDoc) {
-            console.log("Iframe found and accessible. Capturing its content...");
-            iframeCanvas = await html2canvas(iframeDoc.body);
-          } else {
-            console.warn("Iframe found but content is inaccessible. Skipping iframe.");
-          }
-        } catch (error) {
-          console.warn("Unable to capture iframe due to security restrictions:", error);
+      if (iframeDoc) {
+        console.log("Injecting event forwarding script into iframe...");
+
+        // Create a script element to inject into the iframe
+        const script = iframeDoc.createElement("script");
+        script.textContent = `
+          document.addEventListener("click", function(event) {
+            // Prevent iframe from trapping the event
+            event.stopPropagation();
+
+            // Send the click position to the parent window
+            window.parent.postMessage({
+              type: "iframeClick",
+              x: event.clientX,
+              y: event.clientY
+            }, "*");
+          }, true); // Capture phase ensures we get it before iframe scripts
+        `;
+
+        // Append script to the iframe's document
+        iframeDoc.head.appendChild(script);
+      }
+    } catch (error) {
+      console.warn("Could not inject script into iframe:", error);
+    }
+  }
+
+  // Listen for iframe click events in the parent window
+  window.addEventListener("message", function (event) {
+    if (event.data && event.data.type === "iframeClick") {
+      console.log("Captured click inside iframe:", event.data.x, event.data.y);
+
+      // Trigger the screenshot function
+      takeScreenshot(event.data.x, event.data.y);
+    }
+  });
+});
+
+async function takeScreenshot(clickX, clickY) {
+  try {
+    const iframe = document.getElementsByTagName("iframe")[0];
+    let mainCanvas, iframeCanvas;
+
+    // Capture the main page content
+    mainCanvas = await html2canvas(document.body);
+
+    if (iframe) {
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+        if (iframeDoc) {
+          console.log("Iframe found and accessible. Capturing its content...");
+          iframeCanvas = await html2canvas(iframeDoc.body);
+        } else {
+          console.warn("Iframe found but content is inaccessible. Skipping iframe.");
         }
+      } catch (error) {
+        console.warn("Unable to capture iframe due to security restrictions:", error);
       }
+    }
 
-      // Determine the final canvas size
-      let finalCanvas = document.createElement("canvas");
-      let finalCtx = finalCanvas.getContext("2d");
+    // Determine the final canvas size
+    let finalCanvas = document.createElement("canvas");
+    let finalCtx = finalCanvas.getContext("2d");
 
-      if (iframeCanvas) {
-        finalCanvas.width = Math.max(mainCanvas.width, iframeCanvas.width);
-        finalCanvas.height = mainCanvas.height + iframeCanvas.height;
-        
-        finalCtx.drawImage(mainCanvas, 0, 0);
-        finalCtx.drawImage(iframeCanvas, 0, mainCanvas.height);
-      } else {
-        finalCanvas.width = mainCanvas.width;
-        finalCanvas.height = mainCanvas.height;
-        finalCtx.drawImage(mainCanvas, 0, 0);
-      }
+    if (iframeCanvas) {
+      finalCanvas.width = Math.max(mainCanvas.width, iframeCanvas.width);
+      finalCanvas.height = mainCanvas.height + iframeCanvas.height;
 
-      // Get the user's click position
-      const clickX = event.clientX;
-      const clickY = event.clientY;
+      finalCtx.drawImage(mainCanvas, 0, 0);
+      finalCtx.drawImage(iframeCanvas, 0, mainCanvas.height);
+    } else {
+      finalCanvas.width = mainCanvas.width;
+      finalCanvas.height = mainCanvas.height;
+      finalCtx.drawImage(mainCanvas, 0, 0);
+    }
 
-      // Draw a red dot where the user clicked
-      finalCtx.fillStyle = "red";
-      finalCtx.beginPath();
-      finalCtx.arc(clickX + 10, clickY + 3, 3, 0, 2 * Math.PI);
-      finalCtx.fill();
+    // Draw a red dot where the user clicked
+    finalCtx.fillStyle = "red";
+    finalCtx.beginPath();
+    finalCtx.arc(clickX + 10, clickY + 3, 3, 0, 2 * Math.PI);
+    finalCtx.fill();
 
-      // Convert the final canvas to an image and send it to the server
-      finalCanvas.toBlob((blob) => {
-        const formData = new FormData();
-        formData.append("screenshot", blob, "screenshot.png");
-        formData.append("clickX", clickX);
-        formData.append("clickY", clickY);
+    // Convert the final canvas to an image and send it to the server
+    finalCanvas.toBlob((blob) => {
+      const formData = new FormData();
+      formData.append("screenshot", blob, "screenshot.png");
+      formData.append("clickX", clickX);
+      formData.append("clickY", clickY);
 
-        fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
-          method: "POST",
-          body: formData
-        })
+      fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
+        method: "POST",
+        body: formData
+      })
         .then(response => response.json())
         .then(data => console.log("Upload successful:", data))
         .catch(error => console.error("Error uploading:", error));
-      }, "image/png");
+    }, "image/png");
 
-    } catch (error) {
-      console.error("Screenshot capture failed:", error);
-    }
+  } catch (error) {
+    console.error("Screenshot capture failed:", error);
   }
+}
+
 </script>

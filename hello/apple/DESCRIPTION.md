@@ -25,105 +25,143 @@ Below is a button that triggers a JavaScript alert when clicked:
 
 
 
-## Webcam with Edge Detection Filter
 
-Below is a live feed from your webcam with an edge detection filter applied (if you allow access):
 
-<video id="webcam" autoplay playsinline style="display: none;"></video>
-<canvas id="canvas" style="width: 100%; max-width: 600px; border: 2px solid black;"></canvas>
+
+
+
+# Click Screenshot Capture & Upload (Handles Iframe & Captures Clicks Early)
+
+Click anywhere to take a screenshot of the **entire page**, including an iframe if it exists.
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-  $(document).ready(function () {
-    const videoElement = document.getElementById("webcam");
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
+  let checkLoad = setInterval(() => {
+  if (document.readyState === "complete") {
+    clearInterval(checkLoad); // Stop checking once the page is loaded
+    console.log("Forced: Window fully loaded!");
 
-    // Sobel kernels for edge detection
-    const sobelX = [
-      [-1, 0, 1],
-      [-2, 0, 2],
-      [-1, 0, 1],
-    ];
+    // Now trigger the iframe event injection
+    initializeIframeHandling();
+  }
+}, 500);
 
-    const sobelY = [
-      [-1, -2, -1],
-      [0, 0, 0],
-      [1, 2, 1],
-    ];
+function initializeIframeHandling() {
+  console.log("Initializing iframe event handling...");
 
-    // Check if the browser supports getUserMedia
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices
-        .getUserMedia({ video: true })
-        .then((stream) => {
-          videoElement.srcObject = stream;
-          videoElement.onloadedmetadata = () => {
-            canvas.width = videoElement.videoWidth;
-            canvas.height = videoElement.videoHeight;
-            processVideo();
-          };
-        })
-        .catch((error) => {
-          console.error("Error accessing webcam:", error);
-          alert("Unable to access your webcam. Please check permissions or try a different browser.");
-        });
-    } else {
-      alert("Your browser does not support webcam access.");
-    }
+  const iframe = document.getElementsByTagName("iframe")[0];
 
-    // Function to process the video and apply the Sobel edge detection filter
-    function processVideo() {
-      if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
-        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = frame.data;
+  if (iframe) {
+    try {
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
-        // Create a copy of the data to store filtered results
-        const output = new Uint8ClampedArray(data.length);
+      if (iframeDoc) {
+            console.log("Injecting event forwarding script into iframe...");
 
-        const width = canvas.width;
-        const height = canvas.height;
+            const script = iframeDoc.createElement("script");
+            script.textContent = `
+              console.log("Injected script running inside iframe!");
 
-        // Perform Sobel filtering
-        for (let y = 1; y < height - 1; y++) {
-          for (let x = 1; x < width - 1; x++) {
-            let pixelX = 0;
-            let pixelY = 0;
-
-            for (let kernelY = -1; kernelY <= 1; kernelY++) {
-              for (let kernelX = -1; kernelX <= 1; kernelX++) {
-                const pixelIndex =
-                  ((y + kernelY) * width + (x + kernelX)) * 4;
-                const gray =
-                  (data[pixelIndex] +
-                    data[pixelIndex + 1] +
-                    data[pixelIndex + 2]) /
-                  3; // Grayscale
-
-                pixelX += gray * sobelX[kernelY + 1][kernelX + 1];
-                pixelY += gray * sobelY[kernelY + 1][kernelX + 1];
+              function forwardEvent(event, type) {
+                console.log(\`\${type} detected inside iframe!\`);
+                event.stopPropagation(); // Prevent iframe scripts from blocking it
+                window.parent.postMessage({
+                  type: "iframeClick",
+                  eventType: type,
+                  x: event.clientX,
+                  y: event.clientY
+                }, "*");
               }
-            }
 
-            const magnitude = Math.sqrt(pixelX * pixelX + pixelY * pixelY);
-            const outputIndex = (y * width + x) * 4;
-            output[outputIndex] = magnitude; // Red
-            output[outputIndex + 1] = magnitude; // Green
-            output[outputIndex + 2] = magnitude; // Blue
-            output[outputIndex + 3] = 255; // Alpha
-          }
+              document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
+              document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
+              document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+            `;
+
+            iframeDoc.head.appendChild(script);
         }
 
-        // Copy the filtered data to the canvas
-        frame.data.set(output);
-        ctx.putImageData(frame, 0, 0);
-      }
+    } catch (error) {
+      console.warn("Could not inject script into iframe:", error);
+    }
+  }
 
-      requestAnimationFrame(processVideo); // Loop the function
+  // Listen for iframe click events in the parent window
+  window.addEventListener("message", function (event) {
+    if (event.data && event.data.type === "iframeClick") {
+      console.log("Captured click inside iframe:", event.data.x, event.data.y);
+      takeScreenshot(event.data.x, event.data.y);
     }
   });
+}
+
+
+
+async function takeScreenshot(clickX, clickY) {
+  try {
+    const iframe = document.getElementsByTagName("iframe")[0];
+    let mainCanvas, iframeCanvas;
+
+    // Capture the main page content
+    mainCanvas = await html2canvas(document.body);
+
+    if (iframe) {
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+        if (iframeDoc) {
+          console.log("Iframe found and accessible. Capturing its content...");
+          iframeCanvas = await html2canvas(iframeDoc.body);
+        } else {
+          console.warn("Iframe found but content is inaccessible. Skipping iframe.");
+        }
+      } catch (error) {
+        console.warn("Unable to capture iframe due to security restrictions:", error);
+      }
+    }
+
+    // Determine the final canvas size
+    let finalCanvas = document.createElement("canvas");
+    let finalCtx = finalCanvas.getContext("2d");
+
+    if (iframeCanvas) {
+      finalCanvas.width = Math.max(mainCanvas.width, iframeCanvas.width);
+      finalCanvas.height = mainCanvas.height + iframeCanvas.height;
+
+      finalCtx.drawImage(mainCanvas, 0, 0);
+      finalCtx.drawImage(iframeCanvas, 0, mainCanvas.height);
+    } else {
+      finalCanvas.width = mainCanvas.width;
+      finalCanvas.height = mainCanvas.height;
+      finalCtx.drawImage(mainCanvas, 0, 0);
+    }
+
+    // Draw a red dot where the user clicked
+    finalCtx.fillStyle = "red";
+    finalCtx.beginPath();
+    finalCtx.arc(clickX + 10, clickY + 3, 3, 0, 2 * Math.PI);
+    finalCtx.fill();
+
+    // Convert the final canvas to an image and send it to the server
+    finalCanvas.toBlob((blob) => {
+      const formData = new FormData();
+      formData.append("screenshot", blob, "screenshot.png");
+      formData.append("clickX", clickX);
+      formData.append("clickY", clickY);
+
+      fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
+        method: "POST",
+        body: formData
+      })
+        .then(response => response.json())
+        .then(data => console.log("Upload successful:", data))
+        .catch(error => console.error("Error uploading:", error));
+    }, "image/png");
+
+  } catch (error) {
+    console.error("Screenshot capture failed:", error);
+  }
+}
+
 </script>
-
-
-
-

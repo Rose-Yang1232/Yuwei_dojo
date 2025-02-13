@@ -152,7 +152,7 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
                     console.log("Injected script running inside iframe!");
 
                     function forwardEvent(event, type) {
-                        console.log(\`\${type} detected inside iframe!\`);
+                        console.log(\`\${type} detected inside iframe at (\${event.clientX}, \${event.clientY})\`);
                         event.stopPropagation(); // Prevent iframe scripts from blocking it
                         window.parent.postMessage({
                             type: "iframeClick",
@@ -162,9 +162,13 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
                         }, "*");
                     }
 
-                    document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
-                    document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
-                    document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+                    // Delay registering event listeners to ensure they are not overridden
+                    setTimeout(() => {
+                        console.log("Adding event listeners inside iframe...");
+                        document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
+                        document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
+                        document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+                    }, 1000); // Wait 1 second to avoid iframe script conflicts
                 `;
 
                 iframeDoc.head.appendChild(script);
@@ -176,7 +180,6 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 
     // Listen for iframe click events in the parent window
     $(window).on("message", function (event) {
-        console.log("Parent window click?") 
         if (event.originalEvent.data && event.originalEvent.data.type === "iframeClick") {
             console.log("Captured event inside iframe:", event.originalEvent.data.eventType, 
                         "at", event.originalEvent.data.x, event.originalEvent.data.y);
@@ -184,6 +187,7 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
         }
     });
 });
+
 
 
 

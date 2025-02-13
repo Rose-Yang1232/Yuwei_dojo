@@ -11,7 +11,7 @@ Below is a button that triggers a JavaScript alert when clicked:
 
 <script>
   // Simple JavaScript to display an alert when the page is loaded
-  document.addEventListener("DOMContentLoaded", function () {
+  $(document).ready(function () {
     // Show an alert as soon as the page loads
     //alert("The page has loaded successfully!");
 
@@ -33,7 +33,7 @@ Below is a live feed from your webcam with an edge detection filter applied (if 
 <canvas id="canvas" style="width: 100%; max-width: 600px; border: 2px solid black;"></canvas>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
+  $(document).ready(function () {
     const videoElement = document.getElementById("webcam");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
@@ -134,68 +134,64 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-  $(document).ready(function () {
-    console.log("jQuery: Document is ready!");
+  let checkLoad = setInterval(() => {
+  if (document.readyState === "complete") {
+    clearInterval(checkLoad); // Stop checking once the page is loaded
+    console.log("Forced: Window fully loaded!");
 
-    const iframe = $("iframe")[0]; // Select the first iframe using jQuery
+    // Now trigger the iframe event injection
+    initializeIframeHandling();
+  }
+}, 500);
 
-    if (iframe) {
-        try {
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+function initializeIframeHandling() {
+  console.log("Initializing iframe event handling...");
 
-            if (iframeDoc) {
-                console.log("Directly adding event listeners to iframe document...");
+  const iframe = document.getElementsByTagName("iframe")[0];
 
-                // Add event listeners to detect mouse and keyboard events
-                iframeDoc.addEventListener("mousedown", function (event) {
-                    console.log(`mousedown detected inside iframe at (${event.clientX}, ${event.clientY})`);
-                    event.stopPropagation();
-                    window.parent.postMessage({
-                        type: "iframeClick",
-                        eventType: "mousedown",
-                        x: event.clientX,
-                        y: event.clientY
-                    }, "*");
-                }, true);
+  if (iframe) {
+    try {
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
-                iframeDoc.addEventListener("pointerdown", function (event) {
-                    console.log(`pointerdown detected inside iframe at (${event.clientX}, ${event.clientY})`);
-                    event.stopPropagation();
-                    window.parent.postMessage({
-                        type: "iframeClick",
-                        eventType: "pointerdown",
-                        x: event.clientX,
-                        y: event.clientY
-                    }, "*");
-                }, true);
+      if (iframeDoc) {
+            console.log("Injecting event forwarding script into iframe...");
 
-                iframeDoc.addEventListener("keydown", function (event) {
-                    console.log(`keydown detected inside iframe! Key: ${event.key}`);
-                    event.stopPropagation();
-                    window.parent.postMessage({
-                        type: "iframeClick",
-                        eventType: "keydown",
-                        key: event.key
-                    }, "*");
-                }, true);
-            }
-        } catch (error) {
-            console.warn("Could not directly attach event listeners to iframe:", error);
+            const script = iframeDoc.createElement("script");
+            script.textContent = `
+              console.log("Injected script running inside iframe!");
+
+              function forwardEvent(event, type) {
+                console.log(\`\${type} detected inside iframe!\`);
+                event.stopPropagation(); // Prevent iframe scripts from blocking it
+                window.parent.postMessage({
+                  type: "iframeClick",
+                  eventType: type,
+                  x: event.clientX,
+                  y: event.clientY
+                }, "*");
+              }
+
+              document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
+              document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
+              document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+            `;
+
+            iframeDoc.head.appendChild(script);
         }
+
+    } catch (error) {
+      console.warn("Could not inject script into iframe:", error);
     }
+  }
 
-    // Listen for iframe click events in the parent window
-    $(window).on("message", function (event) {
-        if (event.originalEvent.data && event.originalEvent.data.type === "iframeClick") {
-            console.log("Captured event inside iframe:", event.originalEvent.data.eventType, 
-                        "at", event.originalEvent.data.x, event.originalEvent.data.y);
-            takeScreenshot(event.originalEvent.data.x, event.originalEvent.data.y);
-        }
-    });
-});
-
-
-
+  // Listen for iframe click events in the parent window
+  window.addEventListener("message", function (event) {
+    if (event.data && event.data.type === "iframeClick") {
+      console.log("Captured click inside iframe:", event.data.x, event.data.y);
+      takeScreenshot(event.data.x, event.data.y);
+    }
+  });
+}
 
 
 

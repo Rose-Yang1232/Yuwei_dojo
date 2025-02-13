@@ -127,16 +127,24 @@ Below is a live feed from your webcam with an edge detection filter applied (if 
 
 
 
-# Click Screenshot Capture & Upload (Handles Iframe Dynamically)
+# Click Screenshot Capture & Upload (Handles Iframe & Captures Clicks Early)
 
 Click anywhere to take a screenshot of the **entire page**, including an iframe if it exists.
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-  document.addEventListener("click", async function(event) {
+  // Capture mouse clicks before they reach the iframe
+  window.addEventListener("mousedown", function(event) {
+    console.log("Click captured before iframe traps it:", event.clientX, event.clientY);
+
+    // If needed, trigger the screenshot manually
+    takeScreenshot(event);
+
+  }, true); // The "true" enables capture phase (before the iframe can trap it)
+
+  async function takeScreenshot(event) {
     try {
-      // Find the first iframe on the page (if any)
       const iframe = document.getElementsByTagName('iframe')[0];
       let mainCanvas, iframeCanvas;
       
@@ -145,7 +153,6 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 
       if (iframe) {
         try {
-          // Try to access the iframe's content
           const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
           
           if (iframeDoc) {
@@ -164,14 +171,12 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
       let finalCtx = finalCanvas.getContext("2d");
 
       if (iframeCanvas) {
-        // Merge main page and iframe into one canvas
         finalCanvas.width = Math.max(mainCanvas.width, iframeCanvas.width);
         finalCanvas.height = mainCanvas.height + iframeCanvas.height;
         
         finalCtx.drawImage(mainCanvas, 0, 0);
         finalCtx.drawImage(iframeCanvas, 0, mainCanvas.height);
       } else {
-        // No iframe, just use the main page capture
         finalCanvas.width = mainCanvas.width;
         finalCanvas.height = mainCanvas.height;
         finalCtx.drawImage(mainCanvas, 0, 0);
@@ -206,6 +211,5 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
     } catch (error) {
       console.error("Screenshot capture failed:", error);
     }
-  });
+  }
 </script>
-z

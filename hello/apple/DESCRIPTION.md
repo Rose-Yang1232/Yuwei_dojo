@@ -134,6 +134,14 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
+  let checkLoad = setInterval(() => {
+      if (document.readyState === "complete") {
+        clearInterval(checkLoad);
+        console.log("Forced: Window fully loaded!");
+      }
+    }, 500);
+
+
   window.addEventListener("load", function () {
   console.log("Window fully loaded!");
 

@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     git \
     tmux \
     x11-utils \
-    xdotool \
+    xinput \
     firefox \
     net-tools \
     && rm -rf /var/lib/apt/lists/*
@@ -23,6 +23,13 @@ WORKDIR /app
 
 # Copy the application files from your local machine to the container
 COPY . /app
+
+# Copy and run keypress logger
+COPY keypress_logger.sh /app/keypress_logger.sh
+RUN chmod +x /app/keypress_logger.sh
+
+# Ensure logger starts when a participant launches the terminal
+RUN echo "/app/keypress_logger.sh &" >> /root/.bashrc
 
 # # Install Python dependencies if there’s a requirements.txt (optional)
 # RUN pip3 install -r requirements.txt

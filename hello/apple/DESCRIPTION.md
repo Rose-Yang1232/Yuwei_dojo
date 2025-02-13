@@ -135,15 +135,17 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 
 <script>
   let checkLoad = setInterval(() => {
-      if (document.readyState === "complete") {
-        clearInterval(checkLoad);
-        console.log("Forced: Window fully loaded!");
-      }
-    }, 500);
+  if (document.readyState === "complete") {
+    clearInterval(checkLoad); // Stop checking once the page is loaded
+    console.log("Forced: Window fully loaded!");
 
+    // Now trigger the iframe event injection
+    initializeIframeHandling();
+  }
+}, 500);
 
-  window.addEventListener("load", function () {
-  console.log("Window fully loaded!");
+function initializeIframeHandling() {
+  console.log("Initializing iframe event handling...");
 
   const iframe = document.getElementsByTagName("iframe")[0];
 
@@ -181,7 +183,8 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
       takeScreenshot(event.data.x, event.data.y);
     }
   });
-});
+}
+
 
 
 async function takeScreenshot(clickX, clickY) {

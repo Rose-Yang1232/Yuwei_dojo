@@ -166,6 +166,8 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
     } catch (error) {
       console.warn("Could not inject script into iframe:", error);
     }
+  } else {
+    console.log("No iframe");
   }
 
   // Listen for iframe click events in the parent window

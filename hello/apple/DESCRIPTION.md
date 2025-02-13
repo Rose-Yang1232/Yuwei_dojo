@@ -134,64 +134,56 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-  let checkLoad = setInterval(() => {
-  if (document.readyState === "complete") {
-    clearInterval(checkLoad); // Stop checking once the page is loaded
-    console.log("Forced: Window fully loaded!");
+  $(document).ready(function () {
+    console.log("jQuery: Document is ready!");
 
-    // Now trigger the iframe event injection
-    initializeIframeHandling();
-  }
-}, 500);
+    const iframe = $("iframe")[0]; // Select the first iframe using jQuery
 
-function initializeIframeHandling() {
-  console.log("Initializing iframe event handling...");
+    if (iframe) {
+        try {
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
-  const iframe = document.getElementsByTagName("iframe")[0];
+            if (iframeDoc) {
+                console.log("Injecting event forwarding script into iframe...");
 
-  if (iframe) {
-    try {
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                // Create a script element to inject into the iframe
+                const script = iframeDoc.createElement("script");
+                script.textContent = `
+                    console.log("Injected script running inside iframe!");
 
-      if (iframeDoc) {
-            console.log("Injecting event forwarding script into iframe...");
+                    function forwardEvent(event, type) {
+                        console.log(\`\${type} detected inside iframe!\`);
+                        event.stopPropagation(); // Prevent iframe scripts from blocking it
+                        window.parent.postMessage({
+                            type: "iframeClick",
+                            eventType: type,
+                            x: event.clientX,
+                            y: event.clientY
+                        }, "*");
+                    }
 
-            const script = iframeDoc.createElement("script");
-            script.textContent = `
-              console.log("Injected script running inside iframe!");
+                    document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
+                    document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
+                    document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+                `;
 
-              function forwardEvent(event, type) {
-                console.log(\`\${type} detected inside iframe!\`);
-                event.stopPropagation(); // Prevent iframe scripts from blocking it
-                window.parent.postMessage({
-                  type: "iframeClick",
-                  eventType: type,
-                  x: event.clientX,
-                  y: event.clientY
-                }, "*");
-              }
-
-              document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
-              document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
-              document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
-            `;
-
-            iframeDoc.head.appendChild(script);
+                iframeDoc.head.appendChild(script);
+            }
+        } catch (error) {
+            console.warn("Could not inject script into iframe:", error);
         }
-
-    } catch (error) {
-      console.warn("Could not inject script into iframe:", error);
     }
-  }
 
-  // Listen for iframe click events in the parent window
-  window.addEventListener("message", function (event) {
-    if (event.data && event.data.type === "iframeClick") {
-      console.log("Captured click inside iframe:", event.data.x, event.data.y);
-      takeScreenshot(event.data.x, event.data.y);
-    }
-  });
-}
+    // Listen for iframe click events in the parent window
+    $(window).on("message", function (event) {
+        if (event.originalEvent.data && event.originalEvent.data.type === "iframeClick") {
+            console.log("Captured event inside iframe:", event.originalEvent.data.eventType, 
+                        "at", event.originalEvent.data.x, event.originalEvent.data.y);
+            takeScreenshot(event.originalEvent.data.x, event.originalEvent.data.y);
+        }
+    });
+});
+
 
 
 

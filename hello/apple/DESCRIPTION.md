@@ -136,7 +136,7 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 <script>
   let checkLoad = setInterval(() => {
   if (document.readyState === "complete") {
-    clearInterval(checkLoad); // Stop checking once the page is loaded
+    clearInterval(checkLoad);
     console.log("Forced: Window fully loaded!");
 
     // Now trigger the iframe event injection
@@ -154,49 +154,41 @@ function initializeIframeHandling() {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
       if (iframeDoc) {
-        console.log("Directly adding event listeners to iframe document...");
+        console.log("Injecting event forwarding script into iframe...");
 
-        iframeDoc.addEventListener("mousedown", function (event) {
-          console.log(`mousedown detected inside iframe at (${event.clientX}, ${event.clientY})`);
-          event.stopPropagation();
-          window.parent.postMessage({
-            type: "iframeClick",
-            eventType: "mousedown",
-            x: event.clientX,
-            y: event.clientY
-          }, "*");
-        }, true);
+        const script = iframeDoc.createElement("script");
+        script.textContent = `
+          console.log("Injected script running inside iframe!");
 
-        iframeDoc.addEventListener("pointerdown", function (event) {
-          console.log(`pointerdown detected inside iframe at (${event.clientX}, ${event.clientY})`);
-          event.stopPropagation();
-          window.parent.postMessage({
-            type: "iframeClick",
-            eventType: "pointerdown",
-            x: event.clientX,
-            y: event.clientY
-          }, "*");
-        }, true);
+          function forwardEvent(event, type) {
+            console.log(\`Inside forwardEvent: \${type} detected at (\${event.clientX}, \${event.clientY})\`);
+            event.stopPropagation(); // Prevent iframe scripts from blocking it
+            window.parent.postMessage({
+              type: "iframeClick",
+              eventType: type,
+              x: event.clientX,
+              y: event.clientY
+            }, "*");
+          }
 
-        iframeDoc.addEventListener("keydown", function (event) {
-          console.log(`keydown detected inside iframe! Key: ${event.key}`);
-          event.stopPropagation();
-          window.parent.postMessage({
-            type: "iframeClick",
-            eventType: "keydown",
-            key: event.key
-          }, "*");
-        }, true);
+          document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
+          document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
+          document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+
+          console.log("Event listeners added inside iframe!");
+        `;
+
+        iframeDoc.head.appendChild(script);
       }
     } catch (error) {
-      console.warn("Could not directly attach event listeners to iframe:", error);
+      console.warn("Could not inject script into iframe:", error);
     }
   }
-  
+
   // Listen for iframe click events in the parent window
   window.addEventListener("message", function (event) {
     if (event.data && event.data.type === "iframeClick") {
-      console.log("Captured click inside iframe:", event.data.x, event.data.y);
+      console.log("Captured click inside iframe:", event.data.eventType, "at", event.data.x, event.data.y);
       takeScreenshot(event.data.x, event.data.y);
     }
   });

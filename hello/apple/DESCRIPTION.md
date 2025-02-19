@@ -70,6 +70,8 @@ function initializeIframeHandling() {
           console.log("Injected script running inside iframe!");
 
           function forwardEvent(event, type) {
+                console.log('Inside forwardEvent: ' + type + ' detected'); // Debug inside iframe
+                
                 let eventData = {
                     type: "iframeClick",
                     eventType: type,
@@ -83,13 +85,9 @@ function initializeIframeHandling() {
                     eventData.y = event.clientY;
                 }
 
-                console.log('Inside forwardEvent: ' + type + ' detected', eventData);
                 event.stopPropagation(); // Prevent iframe scripts from blocking it
-
-                window.parent.postMessage(eventData, "*");
+                window.parent.postMessage(eventData, "*"); // Send event to parent
             }
-
-
 
           document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
           document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
@@ -97,6 +95,7 @@ function initializeIframeHandling() {
 
           console.log("Event listeners added inside iframe!");
         `;
+
 
         iframeDoc.head.appendChild(script);
       }

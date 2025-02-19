@@ -69,9 +69,20 @@ function initializeIframeHandling() {
         script.textContent = `
           console.log("Injected script running inside iframe!");
 
+          function attachListeners() {
+              document.removeEventListener("mousedown", forwardEvent, true);
+              document.removeEventListener("pointerdown", forwardEvent, true);
+              document.removeEventListener("keydown", forwardEvent, true);
+
+              document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
+              document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
+              document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+
+              console.log("Re-attached event listeners inside iframe!");
+          }
+
           function forwardEvent(event, type) {
-                console.log('Inside forwardEvent: ' + type + ' detected'); // Debug inside iframe
-                
+                console.log('Inside forwardEvent: ' + type + ' detected'); 
                 let eventData = {
                     type: "iframeClick",
                     eventType: type,
@@ -79,22 +90,20 @@ function initializeIframeHandling() {
                 };
 
                 if (type === "keydown") {
-                    eventData.key = event.key; // Capture the pressed key
+                    eventData.key = event.key;
                 } else {
                     eventData.x = event.clientX;
                     eventData.y = event.clientY;
                 }
 
-                event.stopPropagation(); // Prevent iframe scripts from blocking it
-                window.parent.postMessage(eventData, "*"); // Send event to parent
+                event.stopPropagation();
+                window.parent.postMessage(eventData, "*");
             }
 
-          document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
-          document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
-          document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
-
-          console.log("Event listeners added inside iframe!");
+          attachListeners();
+          setInterval(attachListeners, 1000); // Reattach every second in case of iframe reload
         `;
+
 
 
         iframeDoc.head.appendChild(script);

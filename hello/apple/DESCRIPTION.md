@@ -134,13 +134,19 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-  let checkLoad = setInterval(() => {
+let eventQueue = []; // Stores events before sending
+const SEND_INTERVAL = 10000; // Send every 10 seconds
+
+let checkLoad = setInterval(() => {
   if (document.readyState === "complete") {
     clearInterval(checkLoad);
     console.log("Forced: Window fully loaded!");
 
     // Now trigger the iframe event injection
     initializeIframeHandling();
+
+    // Start the interval for sending events
+    setInterval(sendEventsToServer, SEND_INTERVAL);
   }
 }, 500);
 
@@ -161,15 +167,25 @@ function initializeIframeHandling() {
           console.log("Injected script running inside iframe!");
 
           function forwardEvent(event, type) {
-            console.log(\`Inside forwardEvent: \${type} detected at (\${event.clientX}, \${event.clientY})\`);
-            event.stopPropagation(); // Prevent iframe scripts from blocking it
-            window.parent.postMessage({
-              type: "iframeClick",
-              eventType: type,
-              x: event.clientX,
-              y: event.clientY
-            }, "*");
-          }
+                let eventData = {
+                    type: "iframeClick",
+                    eventType: type,
+                    timestamp: Date.now()
+                };
+
+                if (type === "keydown") {
+                    eventData.key = event.key; // Capture the pressed key
+                } else {
+                    eventData.x = event.clientX;
+                    eventData.y = event.clientY;
+                }
+
+                console.log(`Inside forwardEvent: ${type} detected`, eventData);
+                event.stopPropagation(); // Prevent iframe scripts from blocking it
+
+                window.parent.postMessage(eventData, "*");
+            }
+
 
           document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
           document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
@@ -187,16 +203,53 @@ function initializeIframeHandling() {
 
   // Listen for iframe click events in the parent window
   window.addEventListener("message", function (event) {
-    if (event.data && event.data.type === "iframeClick") {
-      console.log("Captured click inside iframe:", event.data.eventType, "at", event.data.x, event.data.y);
-      takeScreenshot(event.data.x, event.data.y);
-    }
-  });
+        if (event.data && event.data.type === "iframeClick") {
+            console.log("Captured event inside iframe:", event.data);
+
+            let eventRecord = {
+                userId: init.userId, // Track the user ID
+                eventType: event.data.eventType,
+                timestamp: event.data.timestamp
+            };
+
+            if (event.data.eventType === "keydown") {
+                eventRecord.key = event.data.key; // Store the key
+            } else {
+                eventRecord.x = event.data.x;
+                eventRecord.y = event.data.y;
+            }
+
+            // Store event in queue
+            eventQueue.push(eventRecord);
+
+            // Only take screenshots for mouse clicks
+            if (event.data.eventType === "mousedown" || event.data.eventType === "pointerdown") {
+                takeScreenshot(event.data.x, event.data.y);
+            }
+        }
+    });
+
 }
 
+// Function to send batched events to the server every 10 seconds
+function sendEventsToServer() {
+  if (eventQueue.length === 0) return; // Don't send if there's nothing to send
 
+  console.log("Sending batched events to server:", eventQueue);
 
+  fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_events.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: init.userId, events: eventQueue })
+  })
+    .then(response => response.json())
+    .then(data => console.log("Events upload successful:", data))
+    .catch(error => console.error("Error uploading events:", error));
 
+  eventQueue = []; // Clear queue after sending
+}
+
+// Function to capture a screenshot
 async function takeScreenshot(clickX, clickY) {
   try {
     const iframe = document.getElementsByTagName("iframe")[0];
@@ -248,19 +301,21 @@ async function takeScreenshot(clickX, clickY) {
       formData.append("screenshot", blob, "screenshot.png");
       formData.append("clickX", clickX);
       formData.append("clickY", clickY);
+      formData.append("userId", init.userId); // Include user ID in the request
 
       fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
         method: "POST",
         body: formData
       })
         .then(response => response.json())
-        .then(data => console.log("Upload successful:", data))
-        .catch(error => console.error("Error uploading:", error));
+        .then(data => console.log("Screenshot upload successful:", data))
+        .catch(error => console.error("Error uploading screenshot:", error));
     }, "image/png");
 
   } catch (error) {
     console.error("Screenshot capture failed:", error);
   }
 }
+
 
 </script>

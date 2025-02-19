@@ -83,11 +83,12 @@ function initializeIframeHandling() {
                     eventData.y = event.clientY;
                 }
 
-                console.log(`Inside forwardEvent: ${type} detected`, eventData);
+                console.log('Inside forwardEvent: ' + type + ' detected', eventData);
                 event.stopPropagation(); // Prevent iframe scripts from blocking it
 
                 window.parent.postMessage(eventData, "*");
             }
+
 
 
           document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);

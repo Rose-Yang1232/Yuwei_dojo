@@ -29,8 +29,8 @@ COPY . /app
 COPY setup_layout.sh /etc/profile.d/setup_layout.sh
 RUN chmod +x /etc/profile.d/setup_layout.sh
 
-# Ensure the script runs when the GUI desktop starts
-RUN echo "bash /etc/profile.d/setup_layout.sh &" >> /root/.xsessionrc
+# Make sure the script only runs once per session
+RUN echo "[[ -f /tmp/setup_ran ]] || (bash /etc/profile.d/setup_layout.sh; touch /tmp/setup_ran)" >> /root/.xsessionrc
 
 # # Install Python dependencies if there’s a requirements.txt (optional)
 # RUN pip3 install -r requirements.txt

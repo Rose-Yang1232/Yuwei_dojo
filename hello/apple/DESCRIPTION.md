@@ -75,7 +75,7 @@ function initializeIframeHandling() {
           //      console.log(getEventListeners(document)); // Chrome-specific
           //  }, 2000); // Delay to ensure execution
 
-          function attachListeners() {
+          /*function attachListeners() {
               document.removeEventListener("mousedown", forwardEvent, true);
               document.removeEventListener("pointerdown", forwardEvent, true);
               document.removeEventListener("keydown", forwardEvent, true);
@@ -84,8 +84,8 @@ function initializeIframeHandling() {
               document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
               document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
 
-              console.log("Re-attached event listeners inside iframe!");
-          }
+              //console.log("Re-attached event listeners inside iframe!");
+          }*/
 
           function forwardEvent(event, type) {
                 console.log('Inside forwardEvent: ' + type + ' detected'); 

@@ -157,6 +157,7 @@ function sendEventsToServer() {
 
   fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_events.php", {
     method: "POST",
+    mode: "cors", // Explicitly enable CORS
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId: init.userId, events: eventQueue })
   })
@@ -223,6 +224,7 @@ async function takeScreenshot(clickX, clickY) {
 
       fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
         method: "POST",
+        mode: "cors", // Explicitly enable CORS
         body: formData
       })
         .then(response => response.json())

@@ -106,8 +106,8 @@ function initializeIframeHandling() {
                 window.parent.postMessage(eventData, "*");
             }
 
-          attachListeners();
-          setInterval(attachListeners, 1000); // Reattach every second in case of iframe reload
+          //attachListeners();
+          //setInterval(attachListeners, 1000); // Reattach every second in case of iframe reload
         `;
 
 

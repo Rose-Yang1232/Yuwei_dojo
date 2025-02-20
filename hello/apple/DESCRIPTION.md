@@ -70,10 +70,10 @@ function initializeIframeHandling() {
           console.log("Injected script running inside iframe!");
           
           // List all attached event listeners
-            console.log("Checking event listeners inside iframe...");
-            setTimeout(() => {
-                console.log(getEventListeners(document)); // Chrome-specific
-            }, 2000); // Delay to ensure execution
+          //  console.log("Checking event listeners inside iframe...");
+          //  setTimeout(() => {
+          //      console.log(getEventListeners(document)); // Chrome-specific
+          //  }, 2000); // Delay to ensure execution
 
           function attachListeners() {
               document.removeEventListener("mousedown", forwardEvent, true);

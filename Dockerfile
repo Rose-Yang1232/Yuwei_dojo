@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     xinput \
     firefox \
     net-tools \
+    wmctrl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
@@ -24,12 +25,12 @@ WORKDIR /app
 # Copy the application files from your local machine to the container
 COPY . /app
 
-# Copy and run keypress logger
-COPY keypress_logger.sh /app/keypress_logger.sh
-RUN chmod +x /app/keypress_logger.sh
+# Copy the setup script to enforce the desktop layout
+COPY setup_layout.sh /etc/profile.d/setup_layout.sh
+RUN chmod +x /etc/profile.d/setup_layout.sh
 
-# Ensure logger starts when a participant launches the terminal
-RUN echo "/app/keypress_logger.sh &" >> /root/.bashrc
+# Ensure the script runs when the GUI desktop starts
+RUN echo "bash /etc/profile.d/setup_layout.sh &" >> /root/.xsessionrc
 
 # # Install Python dependencies if there’s a requirements.txt (optional)
 # RUN pip3 install -r requirements.txt

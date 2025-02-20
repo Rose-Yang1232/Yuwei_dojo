@@ -1,4 +1,7 @@
 #!/bin/bash
+# Ensure the script can access the GUI
+export DISPLAY=:1  # Use :1 for noVNC
+
 # Wait for the GUI to load completely
 sleep 2
 
@@ -11,7 +14,7 @@ fi
 # Open terminal if no terminal is found
 xfce4-terminal &
 
-# Give it a moment to start
+# Wait for it to launch
 sleep 2
 
 # Move the terminal to the right half of the screen

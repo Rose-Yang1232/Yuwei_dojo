@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     firefox \
     net-tools \
     wmctrl \
+    xfce4-terminal \ 
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
@@ -29,9 +30,8 @@ COPY . /app
 COPY setup_layout.sh /etc/profile.d/setup_layout.sh
 RUN chmod +x /etc/profile.d/setup_layout.sh
 
-# Make sure the script only runs once per session
-RUN echo "[[ -f /tmp/setup_ran ]] || (bash /etc/profile.d/setup_layout.sh; touch /tmp/setup_ran)" >> /root/.xsessionrc
-
+# Ensure DISPLAY is set when the container starts (for noVNC)
+RUN echo "export DISPLAY=:1" >> /root/.bashrc
 # # Install Python dependencies if there’s a requirements.txt (optional)
 # RUN pip3 install -r requirements.txt
 

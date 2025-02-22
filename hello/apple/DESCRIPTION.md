@@ -242,25 +242,6 @@ async function takeScreenshot(clickX, clickY) {
         .catch(error => console.error("Error uploading screenshot:", error));
     }, "image/png");
 
-
-    // Convert the final canvas to an image and send it to the server
-    iframeCanvas.toBlob((blob) => {
-      const formData = new FormData();
-      formData.append("screenshot", blob, "screenshot.png");
-      formData.append("clickX", clickX);
-      formData.append("clickY", clickY);
-      formData.append("userId", init.userId); // Include user ID in the request
-
-      fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
-        method: "POST",
-        mode: "cors",
-        body: formData
-      })
-        .then(response => response.json())
-        .then(data => console.log("Screenshot upload successful:", data))
-        .catch(error => console.error("Error uploading screenshot:", error));
-    }, "image/png");
-
   } catch (error) {
     console.error("Screenshot capture failed:", error);
   }

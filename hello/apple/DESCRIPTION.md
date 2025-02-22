@@ -171,54 +171,48 @@ function sendEventsToServer() {
   eventQueue = []; // Clear queue after sending
 }
 
-// Function to capture a screenshot
+// Function to capture a screenshot of the iframe only
 async function takeScreenshot(clickX, clickY) {
   try {
     const iframe = document.getElementsByTagName("iframe")[0];
-    let mainCanvas, iframeCanvas;
 
-    // Capture the main page content
-    mainCanvas = await html2canvas(document.body);
+    if (!iframe) {
+      console.warn("No iframe found, skipping screenshot.");
+      return;
+    }
 
-    if (iframe) {
-      try {
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    let iframeCanvas;
 
-        if (iframeDoc) {
-          console.log("Iframe found and accessible. Capturing its content...");
-          iframeCanvas = await html2canvas(iframeDoc.body);
-        } else {
-          console.warn("Iframe found but content is inaccessible. Skipping iframe.");
-        }
-      } catch (error) {
-        console.warn("Unable to capture iframe due to security restrictions:", error);
+    try {
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+      if (iframeDoc) {
+        console.log("Capturing only the iframe content...");
+        iframeCanvas = await html2canvas(iframeDoc.body);
+      } else {
+        console.warn("Iframe found but content is inaccessible.");
+        return;
       }
+    } catch (error) {
+      console.warn("Unable to capture iframe:", error);
+      return;
     }
 
-    // Determine the final canvas size
-    let finalCanvas = document.createElement("canvas");
-    let finalCtx = finalCanvas.getContext("2d");
-
-    if (iframeCanvas) {
-      finalCanvas.width = Math.max(mainCanvas.width, iframeCanvas.width);
-      finalCanvas.height = mainCanvas.height + iframeCanvas.height;
-
-      finalCtx.drawImage(mainCanvas, 0, 0);
-      finalCtx.drawImage(iframeCanvas, 0, mainCanvas.height);
-    } else {
-      finalCanvas.width = mainCanvas.width;
-      finalCanvas.height = mainCanvas.height;
-      finalCtx.drawImage(mainCanvas, 0, 0);
+    // Ensure a valid canvas is created
+    if (!iframeCanvas) {
+      console.error("Failed to capture iframe.");
+      return;
     }
 
-    // Draw a red dot where the user clicked
-    finalCtx.fillStyle = "red";
-    finalCtx.beginPath();
-    finalCtx.arc(clickX + 10, clickY + 3, 3, 0, 2 * Math.PI);
-    finalCtx.fill();
+    // Draw click marker on the canvas
+    const ctx = iframeCanvas.getContext("2d");
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.arc(clickX, clickY, 5, 0, 2 * Math.PI);
+    ctx.fill();
 
     // Convert the final canvas to an image and send it to the server
-    finalCanvas.toBlob((blob) => {
+    iframeCanvas.toBlob((blob) => {
       const formData = new FormData();
       formData.append("screenshot", blob, "screenshot.png");
       formData.append("clickX", clickX);
@@ -227,7 +221,7 @@ async function takeScreenshot(clickX, clickY) {
 
       fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
         method: "POST",
-        mode: "cors", // Explicitly enable CORS
+        mode: "cors",
         body: formData
       })
         .then(response => response.json())
@@ -239,6 +233,7 @@ async function takeScreenshot(clickX, clickY) {
     console.error("Screenshot capture failed:", error);
   }
 }
+
 
 
 </script>

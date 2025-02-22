@@ -173,6 +173,7 @@ function sendEventsToServer() {
 
 // Function to capture a screenshot of the iframe only
 async function takeScreenshot(clickX, clickY) {
+  return;
   try {
     const iframe = document.getElementsByTagName("iframe")[0];
 

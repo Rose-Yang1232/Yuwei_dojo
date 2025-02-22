@@ -186,13 +186,16 @@ async function takeScreenshot(clickX, clickY) {
     try {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
-      if (iframeDoc) {
-        console.log("Capturing only the iframe content...");
-        iframeCanvas = await html2canvas(iframeDoc.body);
-      } else {
-        console.warn("Iframe found but content is inaccessible.");
-        return;
-      }
+      const targetCanvas = iframeDoc.querySelector("canvas"); // Adjust selector if needed
+
+        if (targetCanvas) {
+          console.log("Capturing only the correct canvas inside the iframe...");
+          iframeCanvas = await html2canvas(targetCanvas);
+        } else {
+          console.warn("No valid canvas found inside iframe.");
+          return;
+        }
+
     } catch (error) {
       console.warn("Unable to capture iframe:", error);
       return;

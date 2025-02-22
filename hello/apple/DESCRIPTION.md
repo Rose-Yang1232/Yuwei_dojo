@@ -76,11 +76,11 @@ function initializeIframeHandling() {
           //  }, 2000); // Delay to ensure execution
 
           function attachListeners() {
-              document.removeEventListener("mousedown", forwardEvent, true);
+              //document.removeEventListener("mousedown", forwardEvent, true);
               document.removeEventListener("pointerdown", forwardEvent, true);
               document.removeEventListener("keydown", forwardEvent, true);
 
-              document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
+              //document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
               document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
               document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
 

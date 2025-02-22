@@ -207,12 +207,41 @@ async function takeScreenshot(clickX, clickY) {
       return;
     }
 
-    // Draw click marker on the canvas
-    const ctx = iframeCanvas.getContext("2d");
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.arc(clickX, clickY, 5, 0, 2 * Math.PI);
-    ctx.fill();
+    // Create a new canvas to overlay the click marker
+    let finalCanvas = document.createElement("canvas");
+    let finalCtx = finalCanvas.getContext("2d");
+
+    // Match the iframeCanvas dimensions
+    finalCanvas.width = iframeCanvas.width;
+    finalCanvas.height = iframeCanvas.height;
+
+    // Draw the iframe screenshot onto the new canvas
+    finalCtx.drawImage(iframeCanvas, 0, 0);
+
+    // Draw the red click marker
+    finalCtx.fillStyle = "red";
+    finalCtx.beginPath();
+    finalCtx.arc(clickX, clickY, 5, 0, 2 * Math.PI);
+    finalCtx.fill();
+
+    // Use finalCanvas instead of iframeCanvas
+    finalCanvas.toBlob((blob) => {
+      const formData = new FormData();
+      formData.append("screenshot", blob, "screenshot.png");
+      formData.append("clickX", clickX);
+      formData.append("clickY", clickY);
+      formData.append("userId", init.userId); // Include user ID in the request
+
+      fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
+        method: "POST",
+        mode: "cors",
+        body: formData
+      })
+        .then(response => response.json())
+        .then(data => console.log("Screenshot upload successful:", data))
+        .catch(error => console.error("Error uploading screenshot:", error));
+    }, "image/png");
+
 
     // Convert the final canvas to an image and send it to the server
     iframeCanvas.toBlob((blob) => {

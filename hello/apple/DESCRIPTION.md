@@ -155,15 +155,18 @@ function sendEventsToServer() {
 
   console.log("Sending batched events to server:", eventQueue);
 
-  fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_events.php", {
-    method: "POST",
-    mode: "cors", // Explicitly enable CORS
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: init.userId, events: eventQueue })
-  })
+  const formData = new URLSearchParams();
+    formData.append("userId", init.userId);
+    formData.append("events", JSON.stringify(eventQueue)); // Encode JSON as a string
+
+    fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_events.php", {
+        method: "POST",
+        body: formData 
+    })
     .then(response => response.json())
     .then(data => console.log("Events upload successful:", data))
     .catch(error => console.error("Error uploading events:", error));
+
 
   eventQueue = []; // Clear queue after sending
 }

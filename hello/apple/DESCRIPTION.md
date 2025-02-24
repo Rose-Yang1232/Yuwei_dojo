@@ -31,6 +31,22 @@ This is a test to figure out how the webgazer works.
 
 <script src="webgazer.js" type="text/javascript" >
 
+window.onload = function () {
+  console.log("Initializing WebGazer...");
+  
+  webgazer.setRegression("ridge") // Use ridge regression model for accuracy
+    .setTracker("clmtrackr") // Use clmtrackr for face tracking
+    .setGazeListener(function(data, timestamp) {
+      if (data) {
+        console.log(`Eye position - X: ${data.x}, Y: ${data.y} at ${timestamp}`);
+      }
+    })
+    .begin(); // Start tracking
+  
+  console.log("WebGazer initialized!");
+};
+
+
 
 
 

@@ -1,28 +1,6 @@
 # Test Page with JavaScript!
 
-This is a test page to see if JavaScript can access the user's webcam and apply a Sobel edge detection filter to the video.
-
-
-## Example
-
-Below is a button that triggers a JavaScript alert when clicked:
-
-<button id="testButton">Click Me</button>
-
-<script>
-  // Simple JavaScript to display an alert when the page is loaded
-  $(document).ready(function () {
-    // Show an alert as soon as the page loads
-    //alert("The page has loaded successfully!");
-
-    // Add functionality to the button
-    const button = document.getElementById("testButton");
-    button.addEventListener("click", function () {
-      alert("You clicked the button!");
-    });
-  });
-</script>
-
+This is a test page for working with eyetracking, and mouse/keyboard events.
 
 
 # Webgazer Test
@@ -84,7 +62,7 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-let eventQueue = []; // Stores events before sending
+window.eventQueue = window.eventQueue || []; // Stores events before sending
 const SEND_INTERVAL = 10000; // Send every 10 seconds
 
 
@@ -189,7 +167,7 @@ function initializeIframeHandling() {
             }
 
             // Store event in queue
-            eventQueue.push(eventRecord);
+            window.eventQueue.push(eventRecord);
 
             // Only take screenshots for mouse clicks
             if (event.data.eventType === "mousedown" || event.data.eventType === "pointerdown") {
@@ -202,13 +180,13 @@ function initializeIframeHandling() {
 
 // Function to send batched events to the server every 10 seconds
 function sendEventsToServer() {
-  if (eventQueue.length === 0) return; // Don't send if there's nothing to send
+  if (window.eventQueue.length === 0) return; // Don't send if there's nothing to send
 
-  console.log("Sending batched events to server:", eventQueue);
+  console.log("Sending batched events to server:", window.eventQueue);
 
   const formData = new URLSearchParams();
     formData.append("userId", init.userId);
-    formData.append("events", JSON.stringify(eventQueue)); // Encode JSON as a string
+    formData.append("events", JSON.stringify(window.eventQueue)); // Encode JSON as a string
 
     fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_events.php", {
         method: "POST",
@@ -219,7 +197,7 @@ function sendEventsToServer() {
     .catch(error => console.error("Error uploading events:", error));
 
 
-  eventQueue = []; // Clear queue after sending
+  window.eventQueue = []; // Clear queue after sending
 }
 
 // Function to capture a screenshot of the iframe only

@@ -29,7 +29,7 @@ Below is a button that triggers a JavaScript alert when clicked:
 
 This is a test to figure out how the webgazer works.
 
-<script src="webgazer.js" type="text/javascript" >
+<script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript" >
 
 window.onload = function () {
   console.log("Initializing WebGazer...");

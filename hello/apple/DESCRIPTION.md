@@ -31,7 +31,8 @@ This is a test to figure out how the webgazer works.
 
 <script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
 <script>
-    window.onload = function () {
+/*
+    $(document).ready(function () {
         function checkWebGazer() {
             if (typeof webgazer !== "undefined") {
               console.log("WebGazer loaded, initializing...");
@@ -45,8 +46,13 @@ This is a test to figure out how the webgazer works.
 
           checkWebGazer(); // Start checking for WebGazer
     };
+*/
     
     function runWebGazer() {
+        if (typeof webgazer === "undefined") {
+            console.log("WebGazer not available yet. Retrying...");
+        }
+        
         webgazer.setRegression("ridge") // Use ridge regression model for accuracy
             .setTracker("clmtrackr") // Use clmtrackr for face tracking
             .setGazeListener(function(data, timestamp) {
@@ -76,8 +82,12 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-let eventQueue = []; // Stores events before sending
-const SEND_INTERVAL = 10000; // Send every 10 seconds
+if (typeof eventQueue === "undefined"){
+    let eventQueue = []; // Stores events before sending
+}
+if (typeof SEND_INTERVAL === "undefined"){
+    const SEND_INTERVAL = 10000; // Send every 10 seconds
+}
 
 let checkLoad = setInterval(() => {
   if (document.readyState === "complete") {
@@ -86,6 +96,9 @@ let checkLoad = setInterval(() => {
 
     // Now trigger the iframe event injection
     initializeIframeHandling();
+    
+    // run the web gazer
+    runWebGazer();
 
     // Start the interval for sending events
     setInterval(sendEventsToServer, SEND_INTERVAL);

@@ -51,13 +51,14 @@ This is a test to figure out how the webgazer works.
     function runWebGazer() {
         if (typeof webgazer === "undefined") {
             console.log("WebGazer not available yet. Retrying...");
+            return;
         }
         
         webgazer.setRegression("ridge") // Use ridge regression model for accuracy
             .setTracker("clmtrackr") // Use clmtrackr for face tracking
             .setGazeListener(function(data, timestamp) {
               if (data) {
-                console.log(`Eye position - X: ${data.x}, Y: ${data.y} at ${timestamp}`);
+                console.log(`${data}at ${timestamp}`);
               }
             })
             .begin(); // Start tracking
@@ -67,6 +68,7 @@ This is a test to figure out how the webgazer works.
             .applyKalmanFilter(true); // Smooth tracking data
       
         console.log("WebGazer initialized!");
+        return;
     }
 
 </script>

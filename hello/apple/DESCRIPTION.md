@@ -29,22 +29,29 @@ Below is a button that triggers a JavaScript alert when clicked:
 
 This is a test to figure out how the webgazer works.
 
-<script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript" >
+<script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
+<script>
+    webgazer.showVideoPreview(true) // Show webcam preview
+    .showPredictionPoints(true) // Show tracking points
+    .applyKalmanFilter(true); // Smooth tracking data
 
-window.onload = function () {
-  console.log("Initializing WebGazer...");
-  
-  webgazer.setRegression("ridge") // Use ridge regression model for accuracy
-    .setTracker("clmtrackr") // Use clmtrackr for face tracking
-    .setGazeListener(function(data, timestamp) {
-      if (data) {
-        console.log(`Eye position - X: ${data.x}, Y: ${data.y} at ${timestamp}`);
-      }
-    })
-    .begin(); // Start tracking
-  
-  console.log("WebGazer initialized!");
-};
+    
+    window.onload = function () {
+      console.log("Initializing WebGazer...");
+      
+      webgazer.setRegression("ridge") // Use ridge regression model for accuracy
+        .setTracker("clmtrackr") // Use clmtrackr for face tracking
+        .setGazeListener(function(data, timestamp) {
+          if (data) {
+            console.log(`Eye position - X: ${data.x}, Y: ${data.y} at ${timestamp}`);
+          }
+        })
+        .begin(); // Start tracking
+      
+      console.log("WebGazer initialized!");
+    };
+
+</script>
 
 
 

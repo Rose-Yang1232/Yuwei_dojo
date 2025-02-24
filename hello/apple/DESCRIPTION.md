@@ -25,7 +25,11 @@ Below is a button that triggers a JavaScript alert when clicked:
 
 
 
+# Webgazer Test
 
+This is a test to figure out how the webgazer works.
+
+<script src="webgazer.js" type="text/javascript" >
 
 
 

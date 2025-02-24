@@ -63,120 +63,86 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 
 <script>
 window.eventQueue = window.eventQueue || []; // Stores events before sending
-const SEND_INTERVAL = 10000; // Send every 10 seconds
 
 
-let checkLoad = setInterval(() => {
-  if (document.readyState === "complete") {
-    clearInterval(checkLoad);
-    console.log("Forced: Window fully loaded!");
-
-    // Now trigger the iframe event injection
-    initializeIframeHandling();
-    
-    // run the web gazer
-    runWebGazer();
-
-    // Start the interval for sending events
-    setInterval(sendEventsToServer, SEND_INTERVAL);
-  }
-}, 500);
-
-function initializeIframeHandling() {
-  console.log("Initializing iframe event handling...");
-
+function attachIframeListeners() {
   const iframe = document.getElementsByTagName("iframe")[0];
 
-  if (iframe) {
-    try {
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-
-      if (iframeDoc) {
-        console.log("Injecting event forwarding script into iframe...");
-
-        const script = iframeDoc.createElement("script");
-        script.textContent = `
-          console.log("Injected script running inside iframe!");
-          
-          // List all attached event listeners
-          //  console.log("Checking event listeners inside iframe...");
-          //  setTimeout(() => {
-          //      console.log(getEventListeners(document)); // Chrome-specific
-          //  }, 2000); // Delay to ensure execution
-
-          function attachListeners() {
-              //document.removeEventListener("mousedown", forwardEvent, true);
-              document.removeEventListener("pointerdown", forwardEvent, true);
-              document.removeEventListener("keydown", forwardEvent, true);
-
-              //document.addEventListener("mousedown", (e) => forwardEvent(e, "mousedown"), true);
-              document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
-              document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
-
-              //console.log("Re-attached event listeners inside iframe!");
-          }
-
-          function forwardEvent(event, type) {
-                console.log('Inside forwardEvent: ' + type + ' detected'); 
-                let eventData = {
-                    type: "iframeClick",
-                    eventType: type,
-                    timestamp: Date.now()
-                };
-
-                if (type === "keydown") {
-                    eventData.key = event.key;
-                } else {
-                    eventData.x = event.clientX;
-                    eventData.y = event.clientY;
-                }
-
-                //event.stopPropagation();
-                window.parent.postMessage(eventData, "*");
-            }
-
-          attachListeners();
-          //setInterval(attachListeners, 1000); // Reattach every second in case of iframe reload
-        `;
-
-
-
-        iframeDoc.head.appendChild(script);
-      }
-    } catch (error) {
-      console.warn("Could not inject script into iframe:", error);
-    }
+  if (!iframe) {
+    console.warn("Iframe not available, retrying...");
+    setTimeout(attachIframeListeners, 500); // Retry after 500ms
+    return;
   }
 
-  // Listen for iframe click events in the parent window
-  window.addEventListener("message", function (event) {
-        if (event.data && event.data.type === "iframeClick") {
-            console.log("Captured event inside iframe:", event.data);
+  try {
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
-            let eventRecord = {
-                userId: init.userId, // Track the user ID
-                eventType: event.data.eventType,
-                timestamp: event.data.timestamp
-            };
+    if (iframeDoc) {
+      console.log("Injecting event forwarding script into iframe...");
 
-            if (event.data.eventType === "keydown") {
-                eventRecord.key = event.data.key; // Store the key
-            } else {
-                eventRecord.x = event.data.x;
-                eventRecord.y = event.data.y;
-            }
+      const script = iframeDoc.createElement("script");
+      script.textContent = `
+        console.log("Injected script running inside iframe!");
 
-            // Store event in queue
-            window.eventQueue.push(eventRecord);
+        function forwardEvent(event, type) {
+          console.log(\`Inside forwardEvent: \${type} detected\`);
+          let eventData = {
+            type: "iframeClick",
+            eventType: type,
+            timestamp: Date.now()
+          };
 
-            // Only take screenshots for mouse clicks
-            if (event.data.eventType === "mousedown" || event.data.eventType === "pointerdown") {
-                takeScreenshot(event.data.x, event.data.y);
-            }
+          if (type === "keydown") {
+            eventData.key = event.key;
+          } else {
+            eventData.x = event.clientX;
+            eventData.y = event.clientY;
+          }
+
+          window.parent.postMessage(eventData, "*");
         }
-    });
 
+        document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
+        document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+      `;
+
+      iframeDoc.head.appendChild(script);
+    }
+  } catch (error) {
+    console.warn("Could not inject script into iframe:", error);
+    setTimeout(attachIframeListeners, 500); // Retry injection if iframe isn't ready
+  }
 }
+
+
+
+window.addEventListener("message", function (event) {
+  if (event.data && event.data.type === "iframeClick") {
+    console.log("Captured event inside iframe:", event.data);
+
+    let eventRecord = {
+      userId: init.userId,
+      eventType: event.data.eventType,
+      timestamp: event.data.timestamp
+    };
+
+    if (event.data.eventType === "keydown") {
+      eventRecord.key = event.data.key; // Store keypress event
+    } else {
+      eventRecord.x = event.data.x;
+      eventRecord.y = event.data.y;
+    }
+
+    // Store event in queue
+    window.eventQueue.push(eventRecord);
+
+    // Only take screenshots for mouse clicks
+    if (event.data.eventType === "mousedown" || event.data.eventType === "pointerdown") {
+      takeScreenshot(event.data.x, event.data.y);
+    }
+  }
+});
+
 
 // Function to send batched events to the server every 10 seconds
 function sendEventsToServer() {
@@ -276,6 +242,20 @@ async function takeScreenshot(clickX, clickY) {
   }
 }
 
+let checkLoad = setInterval(() => {
+  if (document.readyState === "complete") {
+    clearInterval(checkLoad);
+    console.log("Forced: Window fully loaded!");
 
+    // Now trigger the iframe event injection
+    attachIframeListeners();
+    
+    // run the web gazer
+    runWebGazer();
+
+    // Start the interval for sending events
+    setInterval(sendEventsToServer, 10000);
+  }
+}, 500);
 
 </script>

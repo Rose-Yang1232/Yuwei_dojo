@@ -55,7 +55,7 @@ This is a test to figure out how the webgazer works.
         }
         
         webgazer.setRegression("ridge") // Use ridge regression model for accuracy
-            .setTracker("clmtrackr") // Use clmtrackr for face tracking
+            //.setTracker("clmtrackr")
             .setGazeListener(function(data, timestamp) {
               if (data) {
                 // console.log(`${data}at ${timestamp}`);
@@ -84,12 +84,9 @@ Click anywhere to take a screenshot of the **entire page**, including an iframe 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-if (typeof eventQueue === "undefined"){
-    let eventQueue = []; // Stores events before sending
-}
-if (typeof SEND_INTERVAL === "undefined"){
-    const SEND_INTERVAL = 10000; // Send every 10 seconds
-}
+let eventQueue = []; // Stores events before sending
+const SEND_INTERVAL = 10000; // Send every 10 seconds
+
 
 let checkLoad = setInterval(() => {
   if (document.readyState === "complete") {

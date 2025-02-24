@@ -31,25 +31,37 @@ This is a test to figure out how the webgazer works.
 
 <script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
 <script>
-    webgazer.showVideoPreview(true) // Show webcam preview
-    .showPredictionPoints(true) // Show tracking points
-    .applyKalmanFilter(true); // Smooth tracking data
-
-    
     window.onload = function () {
-      console.log("Initializing WebGazer...");
-      
-      webgazer.setRegression("ridge") // Use ridge regression model for accuracy
-        .setTracker("clmtrackr") // Use clmtrackr for face tracking
-        .setGazeListener(function(data, timestamp) {
-          if (data) {
-            console.log(`Eye position - X: ${data.x}, Y: ${data.y} at ${timestamp}`);
+        function checkWebGazer() {
+            if (typeof webgazer !== "undefined") {
+              console.log("WebGazer loaded, initializing...");
+
+              runWebGazer();
+            } else {
+              console.warn("WebGazer not available yet. Retrying...");
+              setTimeout(checkWebGazer, 500); // Retry every 500ms until loaded
+            }
           }
-        })
-        .begin(); // Start tracking
-      
-      console.log("WebGazer initialized!");
+
+          checkWebGazer(); // Start checking for WebGazer
     };
+    
+    function runWebGazer() {
+        webgazer.setRegression("ridge") // Use ridge regression model for accuracy
+            .setTracker("clmtrackr") // Use clmtrackr for face tracking
+            .setGazeListener(function(data, timestamp) {
+              if (data) {
+                console.log(`Eye position - X: ${data.x}, Y: ${data.y} at ${timestamp}`);
+              }
+            })
+            .begin(); // Start tracking
+            
+        webgazer.showVideoPreview(true) // Show webcam preview
+            .showPredictionPoints(true) // Show tracking points
+            .applyKalmanFilter(true); // Smooth tracking data
+      
+        console.log("WebGazer initialized!");
+    }
 
 </script>
 

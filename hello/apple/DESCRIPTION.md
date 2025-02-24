@@ -58,7 +58,7 @@ This is a test to figure out how the webgazer works.
             .setTracker("clmtrackr") // Use clmtrackr for face tracking
             .setGazeListener(function(data, timestamp) {
               if (data) {
-                console.log(`${data}at ${timestamp}`);
+                // console.log(`${data}at ${timestamp}`);
               }
             })
             .begin(); // Start tracking

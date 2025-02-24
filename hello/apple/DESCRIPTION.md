@@ -74,45 +74,61 @@ function attachIframeListeners() {
     return;
   }
 
-  try {
-    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+  function injectScript() {
+    try {
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      if (iframeDoc) {
+        console.log("Injecting event forwarding script into iframe...");
 
-    if (iframeDoc) {
-      console.log("Injecting event forwarding script into iframe...");
+        const script = iframeDoc.createElement("script");
+        script.textContent = `
+          console.log("Injected script running inside iframe!");
 
-      const script = iframeDoc.createElement("script");
-      script.textContent = `
-        console.log("Injected script running inside iframe!");
+          function forwardEvent(event, type) {
+            console.log(\`Inside forwardEvent: \${type} detected\`);
+            let eventData = {
+              type: "iframeClick",
+              eventType: type,
+              timestamp: Date.now()
+            };
 
-        function forwardEvent(event, type) {
-          console.log(\`Inside forwardEvent: \${type} detected\`);
-          let eventData = {
-            type: "iframeClick",
-            eventType: type,
-            timestamp: Date.now()
-          };
+            if (type === "keydown") {
+              eventData.key = event.key;
+            } else {
+              eventData.x = event.clientX;
+              eventData.y = event.clientY;
+            }
 
-          if (type === "keydown") {
-            eventData.key = event.key;
-          } else {
-            eventData.x = event.clientX;
-            eventData.y = event.clientY;
+            window.parent.postMessage(eventData, "*");
           }
 
-          window.parent.postMessage(eventData, "*");
-        }
+          document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
+          document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+        `;
 
-        document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
-        document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
-      `;
-
-      iframeDoc.head.appendChild(script);
+        iframeDoc.head.appendChild(script);
+      }
+    } catch (error) {
+      console.warn("Could not inject script into iframe:", error);
     }
-  } catch (error) {
-    console.warn("Could not inject script into iframe:", error);
-    setTimeout(attachIframeListeners, 500); // Retry injection if iframe isn't ready
   }
+
+  // Inject event listeners immediately
+  injectScript();
+
+  // Observe changes to iframe
+  const observer = new MutationObserver((mutationsList, observer) => {
+    for (let mutation of mutationsList) {
+      if (mutation.type === "attributes" && mutation.attributeName === "src") {
+        console.log("Iframe source changed. Reinjecting event listeners...");
+        injectScript();
+      }
+    }
+  });
+
+  observer.observe(iframe, { attributes: true });
 }
+
 
 
 

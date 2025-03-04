@@ -26,12 +26,12 @@ WORKDIR /app
 # Copy the application files from your local machine to the container
 COPY . /app
 
-# Copy the setup script to enforce the desktop layout
-COPY setup_layout.sh /etc/profile.d/setup_layout.sh
-RUN chmod +x /etc/profile.d/setup_layout.sh
+# # Copy the setup script to enforce the desktop layout
+# COPY setup_layout.sh /etc/profile.d/setup_layout.sh
+# RUN chmod +x /etc/profile.d/setup_layout.sh
 
-# Ensure DISPLAY is set when the container starts (for noVNC)
-RUN echo "export DISPLAY=:1" >> /root/.bashrc
+# # Ensure DISPLAY is set when the container starts (for noVNC)
+# RUN echo "export DISPLAY=:0" >> /root/.bashrc
 # # Install Python dependencies if there’s a requirements.txt (optional)
 # RUN pip3 install -r requirements.txt
 

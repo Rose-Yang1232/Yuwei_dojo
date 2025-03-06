@@ -2,7 +2,7 @@ This is earth.
 
 and this is a test page to see if js code can work for webgazer.
 
-## example 
+<!-- ## example  -->
 a button that js 
 
 <button id="startTracking">Start Tracking</button>

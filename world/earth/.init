@@ -8,3 +8,30 @@ planets = (dir / "planets.txt").read_text().strip().splitlines()
 for planet in planets:
     planet_path = dir / f"planet_{planet.lower()}"
     planet_path.write_text(planet)
+
+
+# Step 2: Function to wait for XFCE to fully start
+def wait_for_xfce():
+    print("Waiting for XFCE desktop environment to start...")
+    while True:
+        if os.system("pgrep -f xfce4-session > /dev/null") == 0:
+            print("XFCE is running! Proceeding with terminal launch.")
+            break
+        time.sleep(2)
+
+# Step 3: Wait for GUI before launching terminal
+wait_for_xfce()
+
+# Step 4: Launch terminal
+os.system("xfce4-terminal &")
+
+# Step 5: Wait for terminal to start
+time.sleep(2)
+
+# Step 6: Resize and move the terminal
+os.system("""
+    WINDOW_ID=$(wmctrl -l | grep -i "terminal" | awk '{print $1}' | tail -n 1)
+    if [ ! -z "$WINDOW_ID" ]; then
+        wmctrl -i -r $WINDOW_ID -e 0,100,100,1200,800
+    fi
+""")

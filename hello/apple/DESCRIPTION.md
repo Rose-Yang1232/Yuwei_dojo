@@ -9,23 +9,7 @@ This is a test to figure out how the webgazer works.
 
 <script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
 <script>
-/*
-    $(document).ready(function () {
-        function checkWebGazer() {
-            if (typeof webgazer !== "undefined") {
-              console.log("WebGazer loaded, initializing...");
-
-              runWebGazer();
-            } else {
-              console.warn("WebGazer not available yet. Retrying...");
-              setTimeout(checkWebGazer, 500); // Retry every 500ms until loaded
-            }
-          }
-
-          checkWebGazer(); // Start checking for WebGazer
-    };
-*/
-    
+window.eyeDataQueue = window.eyeDataQueue || []; // Stores events before sending
     function runWebGazer() {
         if (typeof webgazer === "undefined") {
             console.log("WebGazer not available yet. Retrying...");
@@ -48,6 +32,109 @@ This is a test to figure out how the webgazer works.
         console.log("WebGazer initialized!");
         return;
     }
+    
+let calibrationPoints = 0;
+const totalCalibrationClicks = 9; // Number of dots to click before starting
+
+function injectCalibrationOverlay() {
+    // Create the calibration overlay
+    const calibrationContainer = document.createElement("div");
+    calibrationContainer.id = "calibration-container";
+    calibrationContainer.style.cssText = `
+        display: none; 
+        position: fixed; 
+        top: 0; left: 0; 
+        width: 100vw; height: 100vh; 
+        background: rgba(0, 0, 0, 0.7); 
+        z-index: 1000; 
+        justify-content: center; 
+        align-items: center; 
+        flex-wrap: wrap;
+    `;
+    document.body.appendChild(calibrationContainer);
+
+    // Start button
+    const startButton = document.createElement("button");
+    startButton.id = "start-tracking";
+    startButton.textContent = "Start Eye Tracking";
+    startButton.style.cssText = `
+        display: none; 
+        position: fixed; 
+        top: 50%; left: 50%; 
+        transform: translate(-50%, -50%); 
+        padding: 10px 20px; 
+        font-size: 18px;
+    `;
+    startButton.addEventListener("click", function () {
+        startEyeTracking();
+        startButton.style.display = "none";
+    });
+    document.body.appendChild(startButton);
+
+    startCalibration();
+}
+
+function startCalibration() {
+    const container = document.getElementById("calibration-container");
+    container.style.display = "flex";
+
+    const positions = [
+        [5, 5], [50, 5], [95, 5],  // Top row
+        [5, 50], [50, 50], [95, 50], // Middle row
+        [5, 95], [50, 95], [95, 95]  // Bottom row
+    ];
+
+    positions.forEach(pos => {
+        const dot = document.createElement("div");
+        dot.className = "calibration-dot";
+        dot.style.cssText = `
+            width: 20px; height: 20px; 
+            background: red; 
+            border-radius: 50%; 
+            position: absolute; 
+            cursor: pointer;
+            left: ${pos[0]}vw; 
+            top: ${pos[1]}vh;
+        `;
+        dot.addEventListener("click", function () {
+            webgazer.recordScreenPosition(pos[0] * window.innerWidth / 100, pos[1] * window.innerHeight / 100);
+            dot.style.background = "green";
+            calibrationPoints++;
+
+            if (calibrationPoints === totalCalibrationClicks) {
+                finishCalibration();
+            }
+        });
+        container.appendChild(dot);
+    });
+}
+
+function finishCalibration() {
+    document.getElementById("calibration-container").style.display = "none";
+    document.getElementById("start-tracking").style.display = "block";
+}
+
+function startEyeTracking() {
+    webgazer.setRegression("ridge")
+        .setGazeListener(function(data, timestamp) {
+            if (data) {
+                console.log(`Gaze Data: X=${data.x}, Y=${data.y} at ${timestamp}`);
+                window.eyeDataQueue.push({
+                    eventType: "eye_tracking",
+                    x: data.x,
+                    y: data.y,
+                    timestamp: timestamp
+                });
+            }
+        })
+        .begin();
+
+    webgazer.showVideoPreview(true)
+        .showPredictionPoints(true)
+        .applyKalmanFilter(true);
+
+    console.log("Eye Tracking Started!");
+}
 
 </script>
 
@@ -267,7 +354,7 @@ let checkLoad = setInterval(() => {
     attachIframeListeners();
     
     // run the web gazer
-    runWebGazer();
+    injectCalibrationOverlay();
 
     // Start the interval for sending events
     setInterval(sendEventsToServer, 10000);

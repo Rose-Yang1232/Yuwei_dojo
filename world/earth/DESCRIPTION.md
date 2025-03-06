@@ -2,8 +2,8 @@ This is earth.
 
 and this is a test page to see if js code can work for webgazer.
 
-## example 
-a button that js 
+<!-- ## example  -->
+<!-- a button that js 
 
 <button id="startTracking">Start Tracking</button>
 <button id="stopTracking" disabled>Stop Tracking</button>
@@ -69,4 +69,4 @@ a button that js
     startButton.addEventListener("click", startTracking);
     stopButton.addEventListener("click", stopTracking);
 });
-</script>
+</script> -->

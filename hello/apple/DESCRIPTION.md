@@ -9,205 +9,28 @@ This is a test to figure out how the webgazer works.
 
 <script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
 <script>
-window.eyeTrackingQueue = window.eyeTrackingQueue || []; // Stores eye-tracking data
-let PointCalibrate = 0;
-let CalibrationPoints = {}; // Tracks calibration clicks per point
-
-// Inject the calibration UI
-function injectCalibrationUI() {
-    if (!document.querySelector("iframe")) {
-        console.log("No iframe detected. Skipping calibration.");
+    function runWebGazer() {
+        if (typeof webgazer === "undefined") {
+            console.log("WebGazer not available yet. Retrying...");
+            return;
+        }
+        
+        webgazer.setRegression("ridge") // Use ridge regression model for accuracy
+            //.setTracker("clmtrackr")
+            .setGazeListener(function(data, timestamp) {
+              if (data) {
+                // console.log(`${data}at ${timestamp}`);
+              }
+            })
+            .begin(); // Start tracking
+            
+        webgazer.showVideoPreview(true) // Show webcam preview
+            .showPredictionPoints(true) // Show tracking points
+            .applyKalmanFilter(true); // Smooth tracking data
+      
+        console.log("WebGazer initialized!");
         return;
     }
-
-    const calibrationContainer = document.createElement("div");
-    calibrationContainer.id = "calibration-container";
-    calibrationContainer.style.cssText = `
-        display: flex;
-        position: fixed;
-        top: 50px; /* Moved down to avoid navbar */
-        left: 0;
-        width: 100vw; height: calc(100vh - 50px);
-        background: rgba(0, 0, 0, 0.7);
-        z-index: 1000;
-        justify-content: center;
-        align-items: center;
-        flex-wrap: wrap;
-    `;
-    document.body.appendChild(calibrationContainer);
-
-    const message = document.createElement("p");
-    message.innerText = "Click each red dot 5 times to calibrate. They will turn yellow when done.";
-    message.style.cssText = `
-        position: absolute;
-        top: 10%;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 18px;
-        color: white;
-    `;
-    calibrationContainer.appendChild(message);
-
-    const exitButton = document.createElement("button");
-    exitButton.innerText = "Exit Calibration";
-    exitButton.style.cssText = `
-        position: absolute;
-        bottom: 10%;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 16px;
-        padding: 10px 15px;
-        background: red;
-        color: white;
-        border: none;
-        cursor: pointer;
-    `;
-    exitButton.onclick = function () {
-        console.log("Exiting calibration...");
-        document.getElementById("calibration-container").remove();
-    };
-    calibrationContainer.appendChild(exitButton);
-
-    const positions = [
-        [10, 20], [50, 20], [90, 20],  // Adjusted top row (moved down)
-        [10, 50], [50, 50], [90, 50],  // Middle row (same as before)
-        [10, 80], [50, 80], [90, 80]   // Bottom row (remains the same)
-    ];
-
-    positions.forEach((pos, index) => {
-        const dot = document.createElement("div");
-        dot.className = "Calibration";
-        dot.id = `Pt${index + 1}`;
-        dot.style.cssText = `
-            width: 20px; height: 20px;
-            background: red;
-            border-radius: 50%;
-            position: absolute;
-            cursor: pointer;
-            left: ${pos[0]}vw;
-            top: ${pos[1]}vh;
-            opacity: 0.2;
-        `;
-
-        dot.addEventListener("click", function () {
-            calPointClick(dot, pos);
-        });
-
-        calibrationContainer.appendChild(dot);
-    });
-
-    // Hide the middle point until others are clicked
-    document.getElementById("Pt5").style.display = "none";
-}
-
-// Handle calibration point clicks
-function calPointClick(dot, pos) {
-    const id = dot.id;
-
-    if (!CalibrationPoints[id]) {
-        CalibrationPoints[id] = 0;
-    }
-    CalibrationPoints[id]++;
-
-    // Collect multiple samples for better accuracy
-    for (let i = 0; i < 5; i++) {
-        webgazer.recordScreenPosition(pos[0] * window.innerWidth / 100, pos[1] * window.innerHeight / 100);
-    }
-
-    dot.style.opacity = 0.2 * CalibrationPoints[id] + 0.2; // Increase opacity gradually
-
-    if (CalibrationPoints[id] >= 5) {
-        dot.style.backgroundColor = "yellow"; // Mark as calibrated
-        dot.setAttribute("disabled", "disabled");
-        PointCalibrate++;
-    }
-
-    // Show the center point after all others are calibrated
-    if (PointCalibrate === 8) {
-        document.getElementById("Pt5").style.display = "block";
-    }
-
-    // Finalize calibration
-    if (PointCalibrate >= 9) {
-        finalizeCalibration();
-    }
-}
-
-// Finalize calibration and start tracking
-function finalizeCalibration() {
-    document.querySelectorAll('.Calibration').forEach(dot => dot.style.display = "none");
-    document.getElementById("calibration-container").remove();
-
-    console.log("Calibration complete! Measuring accuracy...");
-    measureCalibrationAccuracy();
-}
-
-// Measure gaze tracking accuracy
-function measureCalibrationAccuracy() {
-    swal({
-        title: "Measuring Accuracy",
-        text: "Stare at the center dot for 5 seconds without moving your mouse.",
-        closeOnEsc: false,
-        allowOutsideClick: false
-    }).then(() => {
-        store_points_variable();
-
-        setTimeout(() => {
-            stop_storing_points_variable();
-            const past50 = webgazer.getStoredPoints();
-            const precision = calculatePrecision(past50);
-            
-            console.log(`Accuracy: ${precision}%`);
-
-            swal({
-                title: `Your accuracy is ${precision}%`,
-                text: precision >= 80 ? "Great! Tracking will now start." : "Accuracy is low. Would you like to recalibrate?",
-                buttons: {
-                    cancel: "Recalibrate",
-                    confirm: "Start Tracking"
-                }
-            }).then(isConfirm => {
-                if (isConfirm) {
-                    startEyeTracking();
-                } else {
-                    recalibrate();
-                }
-            });
-        }, 5000);
-    });
-}
-
-// Reset calibration
-function recalibrate() {
-    webgazer.clearData();
-    document.getElementById("calibration-container").remove();
-    injectCalibrationUI();
-    PointCalibrate = 0;
-    CalibrationPoints = {};
-}
-
-// Start WebGazer tracking after calibration
-function startEyeTracking() {
-    webgazer.setRegression("ridge")
-        .setGazeListener((data, timestamp) => {
-            if (data) {
-                console.log(`Gaze Data: X=${data.x}, Y=${data.y} at ${timestamp}`);
-                window.eyeTrackingQueue.push({
-                    eventType: "eye_tracking",
-                    x: data.x,
-                    y: data.y,
-                    timestamp: timestamp
-                });
-            }
-        })
-        .begin();
-
-    webgazer.showVideoPreview(true)
-        .showPredictionPoints(true)
-        .applyKalmanFilter(true);
-
-    console.log("Eye Tracking Started!");
-}
 
 </script>
 
@@ -320,27 +143,26 @@ window.addEventListener("message", function (event) {
 });
 
 
-// Function to send eye-tracking and event data to the server
+// Function to send batched events to the server every 10 seconds
 function sendEventsToServer() {
-    if (window.eventQueue.length === 0 && window.eyeTrackingQueue.length === 0) return;
+  if (window.eventQueue.length === 0) return; // Don't send if there's nothing to send
 
-    console.log("Sending event data to server...");
+  console.log("Sending batched events to server:", window.eventQueue);
 
-    const formData = new URLSearchParams();
+  const formData = new URLSearchParams();
     formData.append("userId", init.userId);
-    formData.append("events", JSON.stringify(window.eventQueue)); 
-    formData.append("eyeTracking", JSON.stringify(window.eyeTrackingQueue)); 
+    formData.append("events", JSON.stringify(window.eventQueue)); // Encode JSON as a string
 
     fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_events.php", {
         method: "POST",
         body: formData 
     })
     .then(response => response.json())
-    .then(data => console.log("Events uploaded successfully:", data))
+    .then(data => console.log("Events upload successful:", data))
     .catch(error => console.error("Error uploading events:", error));
 
-    window.eventQueue = [];
-    window.eyeTrackingQueue = [];
+
+  window.eventQueue = []; // Clear queue after sending
 }
 
 // Function to capture a screenshot of the iframe only
@@ -428,7 +250,7 @@ let checkLoad = setInterval(() => {
     attachIframeListeners();
     
     // run the web gazer
-    injectCalibrationUI();
+    runWebGazer();
 
     // Start the interval for sending events
     setInterval(sendEventsToServer, 10000);

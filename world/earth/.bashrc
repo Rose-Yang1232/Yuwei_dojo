@@ -1,5 +1,5 @@
 # Ensure this only runs in interactive sessions
-# if [[ $- == *i* ]]; then
+if [[ $- == *i* ]]; then
     # Wait a few seconds to ensure XFCE is ready
     sleep 3
 
@@ -12,4 +12,4 @@
     if [ ! -z "$WINDOW_ID" ]; then
         wmctrl -i -r $WINDOW_ID -e 0,100,100,1200,800
     fi
-# fi
+fi

@@ -7,7 +7,34 @@ This is a test page for working with eyetracking, and mouse/keyboard events.
 
 <script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
 
-<canvas id="plotting_canvas" width="500" height="500" style="cursor:crosshair;"></canvas>
+<script>
+// Create the canvas element
+const canvas = document.createElement('canvas');
+canvas.id = 'plotting_canvas';
+
+// Set canvas size to the full window dimensions
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Style the canvas so it covers the entire viewport
+canvas.style.position = 'fixed';
+canvas.style.top = '0';
+canvas.style.left = '0';
+canvas.style.width = '100%';
+canvas.style.height = '100%';
+canvas.style.cursor = 'crosshair';
+canvas.style.zIndex = '1000'; // Ensure it appears above other elements
+
+// Append the canvas to the document body
+document.body.appendChild(canvas);
+
+// Optionally, update the canvas size when the window resizes
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+
+</script>
 
         <script src="https://webgazer.cs.brown.edu/node_modules/sweetalert/dist/sweetalert.min.js"></script>
 

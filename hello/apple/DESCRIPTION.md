@@ -3,11 +3,50 @@
 This is a test page for working with eyetracking, and mouse/keyboard events.
 
 
-# Webgazer Test
+# Webgazer
 
-This is a test to figure out how the webgazer works.
+<!-- Calibration Points -->
+<div class="calibrationDiv">
+    <input type="button" class="Calibration" id="Pt1">
+    <input type="button" class="Calibration" id="Pt2">
+    <input type="button" class="Calibration" id="Pt3">
+    <input type="button" class="Calibration" id="Pt4">
+    <input type="button" class="Calibration" id="Pt5">
+    <input type="button" class="Calibration" id="Pt6">
+    <input type="button" class="Calibration" id="Pt7">
+    <input type="button" class="Calibration" id="Pt8">
+    <input type="button" class="Calibration" id="Pt9">
+</div>
+
+<!-- Help Modal for Calibration Instructions -->
+<div id="helpModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <img src="media/example/calibration.png" width="100%" height="100%" alt="Calibration Instructions">
+      </div>
+      <div class="modal-footer">
+        <button id="closeBtn" type="button" class="btn btn-default" data-bs-dismiss="modal">
+          Close & load saved model 
+        </button>
+        <button type="button" id="start_calibration" class="btn btn-primary" data-bs-dismiss="modal" onclick="Restart()">
+          Calibrate
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
+<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+<script src="https://webgazer.cs.brown.edu/js/main.js"></script>
+<script src="https://webgazer.cs.brown.edu/js/calibration.js"></script>
+<script src="https://webgazer.cs.brown.edu/js/precision_calculation.js"></script>
+<script src="https://webgazer.cs.brown.edu/js/precision_store_points.js"></script>
+        
 <script>
     function runWebGazer() {
         if (typeof webgazer === "undefined") {
@@ -16,7 +55,6 @@ This is a test to figure out how the webgazer works.
         }
         
         webgazer.setRegression("ridge") // Use ridge regression model for accuracy
-            //.setTracker("clmtrackr")
             .setGazeListener(function(data, timestamp) {
               if (data) {
                 // console.log(`${data}at ${timestamp}`);
@@ -245,12 +283,14 @@ let checkLoad = setInterval(() => {
   if (document.readyState === "complete") {
     clearInterval(checkLoad);
     console.log("Forced: Window fully loaded!");
-
-    // Now trigger the iframe event injection
-    attachIframeListeners();
     
-    // run the web gazer
+    // Run calibration setup
+    docLoad(); // from calibration.js which shows the help modal and registers calibration clicks
+
+
+    // Initialize WebGazer and attach iframe listeners
     runWebGazer();
+    attachIframeListeners();
 
     // Start the interval for sending events
     setInterval(sendEventsToServer, 10000);

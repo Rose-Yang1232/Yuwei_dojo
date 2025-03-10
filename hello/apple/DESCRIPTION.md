@@ -9,27 +9,36 @@ This is a test page for working with eyetracking, and mouse/keyboard events.
 
         
 <script>
-    function runWebGazer() {
-        if (typeof webgazer === "undefined") {
-            console.log("WebGazer not available yet. Retrying...");
-            return;
-        }
-        
-        webgazer.setRegression("ridge") // Use ridge regression model for accuracy
-            .setGazeListener(function(data, timestamp) {
-              if (data) {
-                // console.log(`${data}at ${timestamp}`);
-              }
-            })
-            .begin(); // Start tracking
-            
-        webgazer.showVideoPreview(true) // Show webcam preview
-            .showPredictionPoints(true) // Show tracking points
-            .applyKalmanFilter(true); // Smooth tracking data
-      
-        console.log("WebGazer initialized!");
+// Global queue to store recent gaze points.
+let gazeQueue = [];
+
+// Modified runWebGazer that stores gaze data in gazeQueue.
+function runWebGazer() {
+    if (typeof webgazer === "undefined") {
+        console.log("WebGazer not available yet. Retrying...");
         return;
     }
+    
+    webgazer.setRegression("ridge") // Use ridge regression model for accuracy
+        .setGazeListener(function(data, timestamp) {
+          if (data) {
+            // Store only the coordinate data.
+            gazeQueue.push({ x: data.x, y: data.y });
+            // Limit the queue to the most recent 15 points.
+            if (gazeQueue.length > 15) {
+                gazeQueue.shift();
+            }
+            //console.log(`Gaze data: ${JSON.stringify(data)} at ${timestamp}`);
+          }
+        })
+        .begin(); // Start tracking
+        
+    webgazer.showVideoPreview(true) // Show webcam preview
+        .showPredictionPoints(true) // Show tracking points
+        .applyKalmanFilter(true); // Smooth tracking data
+      
+    console.log("WebGazer initialized!");
+}
     
 // --- Calibration UI Creation and Styling ---
 // Create calibration dots dynamically if they aren’t already on the page.
@@ -146,6 +155,9 @@ function setupCalibration() {
 }
 
 function measureCenterAccuracy() {
+  // Clear any old data in the gazeQueue.
+  gazeQueue = [];
+  
   // Create a center dot element.
   let centerDot = document.createElement('div');
   centerDot.id = 'centerDot';
@@ -159,56 +171,44 @@ function measureCenterAccuracy() {
   centerDot.style.transform = 'translate(-50%, -50%)';
   centerDot.style.zIndex = '10000';
   document.body.appendChild(centerDot);
-  
+
   // Instruct the user.
   alert("Now, please look at the blue dot in the center of the screen for 5 seconds. We will use this to measure calibration accuracy.");
-  
-  let samples = [];
-  // Record gaze data every 100ms.
-  let sampleInterval = setInterval(() => {
-    let gazeData = webgazer.getCurrentPrediction();
-    if (gazeData) {
-      samples.push({ x: gazeData.x, y: gazeData.y });
-    }
-  }, 100);
-  
-  // After 5 seconds, stop recording and compute accuracy.
+
+  // Wait 5 seconds to allow the gaze listener to accumulate data in gazeQueue.
   setTimeout(() => {
-    clearInterval(sampleInterval);
     document.body.removeChild(centerDot);
-    
-    // The target is the center of the screen.
+
+    // Take a snapshot of the current gazeQueue.
+    let snapshot = gazeQueue.slice(); // copy the array
+    console.log("Snapshot of gaze data:", snapshot);
+
+    // Define the center coordinates.
     let centerX = window.innerWidth / 2;
     let centerY = window.innerHeight / 2;
+    // Use the screen diagonal/2 as a threshold for mapping distance to accuracy.
+    let threshold = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2) / 2;
     
-    // Use the screen diagonal divided by 2 as the threshold.
-    let threshold = Math.sqrt(Math.pow(window.innerWidth, 2) + Math.pow(window.innerHeight, 2)) / 2;
-    
-    // Log some sample values for debugging.
-    console.log("Collected gaze samples:", samples);
-    
-    // Calculate precision for each recorded sample.
-    let precisionPercentages = samples.map(sample => {
+    // Compute a precision percentage for each sample.
+    let precisionPercentages = snapshot.map(sample => {
       let dx = centerX - sample.x;
       let dy = centerY - sample.y;
       let distance = Math.sqrt(dx * dx + dy * dy);
-      // If the distance is within the threshold, map it to a percentage;
-      // otherwise, assign 0.
       let precision = (distance <= threshold)
         ? 100 - (distance / threshold * 100)
         : 0;
       return precision;
     });
-    
+
+    // Average the precision percentages.
     let overallPrecision = precisionPercentages.reduce((sum, p) => sum + p, 0) / precisionPercentages.length;
     overallPrecision = Math.round(overallPrecision);
-    
-    // Ask the user if they want to recalibrate.
+
+    // Report the accuracy and ask if the user wants to recalibrate.
     if (confirm("Calibration complete!\nOverall accuracy: " + overallPrecision + "%\n\nDo you want to calibrate again?")) {
       ClearCalibration();
       setupCalibration();
     } else {
-      // Optionally hide the calibration UI.
       let calibDiv = document.querySelector('.calibrationDiv');
       if (calibDiv) {
         calibDiv.style.display = 'none';
@@ -437,7 +437,7 @@ let checkLoad = setInterval(() => {
     runWebGazer();
     
     // Attach iframe listeners.
-    attachIframeListeners();
+    //attachIframeListeners();
 
     // Set up calibration UI (dots are created and listeners attached).
     setupCalibration();

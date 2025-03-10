@@ -31,8 +31,11 @@ This is a test page for working with eyetracking, and mouse/keyboard events.
         return;
     }
     
+// Function to create calibration points dynamically (if needed)
 function createCalibrationPoints() {
-  // Create a container if it doesn't exist
+  // Check if the container already exists to avoid duplicates.
+  if (document.querySelector('.calibrationDiv')) return;
+
   let calibrationDiv = document.createElement('div');
   calibrationDiv.className = 'calibrationDiv';
   calibrationDiv.style.position = 'fixed';
@@ -40,9 +43,10 @@ function createCalibrationPoints() {
   calibrationDiv.style.left = '0';
   calibrationDiv.style.width = '100%';
   calibrationDiv.style.height = '100%';
-  calibrationDiv.style.pointerEvents = 'none'; // Initially disable clicks on it
+  calibrationDiv.style.pointerEvents = 'none'; // Initially disable interactions
+  calibrationDiv.style.zIndex = '9999'; // Ensure calibration UI is on top of the webcam preview
 
-  // Define positions for 9 points (a simple 3x3 grid)
+  // Define positions for a 3x3 grid of calibration points
   const positions = [
     { id: 'Pt1', top: '10%', left: '10%' },
     { id: 'Pt2', top: '10%', left: '50%' },
@@ -74,13 +78,70 @@ function createCalibrationPoints() {
   document.body.appendChild(calibrationDiv);
 }
 
-
-let calibrationData = {}; // Will hold data for each calibration point
+// Global variable to store calibration data
+let calibrationData = {}; // e.g., { Pt1: { clickCount: 0, gazeSamples: [] }, ... }
 const REQUIRED_CLICKS = 5;
 
-// Calculate precision for one calibration point.
+// The calibration click handler
+function calibrationClickHandler(event) {
+  let target = event.target;
+  let id = target.id;
+  
+  // Initialize data storage if needed
+  if (!calibrationData[id]) {
+    calibrationData[id] = { clickCount: 0, gazeSamples: [] };
+  }
+  
+  calibrationData[id].clickCount++;
+  
+  // Record the current gaze prediction from WebGazer (if available)
+  let gazeData = webgazer.getCurrentPrediction();
+  if (gazeData) {
+    calibrationData[id].gazeSamples.push({ x: gazeData.x, y: gazeData.y });
+  }
+  
+  // Increase opacity for visual feedback; turn yellow after enough clicks
+  let opacity = 0.2 * calibrationData[id].clickCount;
+  target.style.opacity = opacity;
+  
+  if (calibrationData[id].clickCount >= REQUIRED_CLICKS) {
+    target.style.backgroundColor = 'yellow';
+    target.disabled = true;
+  }
+  
+  // If all calibration points are complete, process calibration data.
+  let allDone = true;
+  document.querySelectorAll('.Calibration').forEach(btn => {
+    if (!btn.disabled) { allDone = false; }
+  });
+  
+  if (allDone) {
+    computeCalibrationMapping();
+  }
+}
+
+// Setup the calibration UI and attach click listeners
+function setupCalibration() {
+  // Show an instruction alert to the user.
+  alert("Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete. This calibrates your eye tracker.");
+  
+  // Create the calibration points if they are not already present.
+  createCalibrationPoints();
+  
+  // Make sure the calibration div is above the webcam preview.
+  let calibDiv = document.querySelector('.calibrationDiv');
+  calibDiv.style.pointerEvents = 'auto';  // Enable interactions
+  calibDiv.style.zIndex = '9999';           // Ensure it's on top
+  
+  // Attach click events to each calibration button.
+  document.querySelectorAll('.Calibration').forEach(btn => {
+    btn.addEventListener('click', calibrationClickHandler);
+  });
+}
+
+// Functions to calculate precision from calibration data
+
 function calculatePointPrecision(targetX, targetY, gazeSamples) {
-  // Compute the average predicted gaze position for this calibration point.
   let sumX = 0, sumY = 0;
   gazeSamples.forEach(sample => {
     sumX += sample.x;
@@ -89,28 +150,17 @@ function calculatePointPrecision(targetX, targetY, gazeSamples) {
   let avgX = sumX / gazeSamples.length;
   let avgY = sumY / gazeSamples.length;
 
-  // Use a threshold; here we use half the window height.
   let halfWindowHeight = window.innerHeight / 2;
-
-  // Calculate the Euclidean distance between the target and the average prediction.
   let xDiff = targetX - avgX;
   let yDiff = targetY - avgY;
   let distance = Math.sqrt(xDiff * xDiff + yDiff * yDiff);
-
-  // Convert the distance into a precision percentage.
-  let precision = (distance <= halfWindowHeight)
-    ? 100 - (distance / halfWindowHeight * 100)
-    : 0;
+  let precision = (distance <= halfWindowHeight) ? 100 - (distance / halfWindowHeight * 100) : 0;
   return Math.round(precision);
 }
 
-// Compute overall calibration accuracy using all calibration points.
-// calibrationData: { Pt1: { gazeSamples: [...] }, Pt2: { gazeSamples: [...] }, ... }
-// calibrationTargets: { Pt1: {x, y}, Pt2: {x, y}, ... }
 function computeOverallCalibrationAccuracy(calibrationData, calibrationTargets) {
   let precisionValues = [];
   for (let pointId in calibrationData) {
-    // Make sure we have gaze samples and a target position for the point.
     if (calibrationData[pointId].gazeSamples.length > 0 && calibrationTargets[pointId]) {
       let target = calibrationTargets[pointId];
       let precision = calculatePointPrecision(target.x, target.y, calibrationData[pointId].gazeSamples);
@@ -118,7 +168,6 @@ function computeOverallCalibrationAccuracy(calibrationData, calibrationTargets) 
       console.log(`Precision for ${pointId}: ${precision}%`);
     }
   }
-  // Average all precision values.
   let overallPrecision = precisionValues.reduce((sum, p) => sum + p, 0) / precisionValues.length;
   return Math.round(overallPrecision);
 }
@@ -126,8 +175,7 @@ function computeOverallCalibrationAccuracy(calibrationData, calibrationTargets) 
 function computeCalibrationMapping() {
   console.log("Calibration complete. Data:", calibrationData);
   
-  // Define the expected positions for each calibration point.
-  // These positions must match how you positioned the buttons.
+  // Define expected positions for each calibration point (matching your layout)
   let calibrationTargets = {
     Pt1: { x: window.innerWidth * 0.1, y: window.innerHeight * 0.1 },
     Pt2: { x: window.innerWidth * 0.5, y: window.innerHeight * 0.1 },
@@ -140,66 +188,17 @@ function computeCalibrationMapping() {
     Pt9: { x: window.innerWidth * 0.9, y: window.innerHeight * 0.9 }
   };
 
-  // Compute overall accuracy based on calibration data.
   let overallPrecision = computeOverallCalibrationAccuracy(calibrationData, calibrationTargets);
   console.log("Overall Calibration Accuracy: " + overallPrecision + "%");
 
-  // Display the accuracy to the user.
+  // Inform the user of the calibration result.
   alert("Calibration complete! Overall accuracy: " + overallPrecision + "%");
 
-  // Optionally, hide the calibration UI.
+  // Optionally hide the calibration UI.
   let calibDiv = document.querySelector('.calibrationDiv');
   if (calibDiv) {
     calibDiv.style.display = 'none';
   }
-}
-
-function calibrationClickHandler(event) {
-  let target = event.target;
-  let id = target.id;
-
-  // Initialize if needed.
-  if (!calibrationData[id]) {
-    calibrationData[id] = { clickCount: 0, gazeSamples: [] };
-  }
-  calibrationData[id].clickCount++;
-  
-  // Record the current gaze prediction.
-  let gazeData = webgazer.getCurrentPrediction();
-  if (gazeData) {
-    calibrationData[id].gazeSamples.push({ x: gazeData.x, y: gazeData.y });
-  }
-  
-  // Visual feedback.
-  let opacity = 0.2 * calibrationData[id].clickCount;
-  target.style.opacity = opacity;
-  
-  if (calibrationData[id].clickCount >= 5) {
-    target.style.backgroundColor = 'yellow';
-    target.disabled = true;
-  }
-  
-  // If all calibration points are complete, compute the accuracy.
-  let allDone = true;
-  document.querySelectorAll('.Calibration').forEach(btn => {
-    if (!btn.disabled) { allDone = false; }
-  });
-  if (allDone) {
-    computeCalibrationMapping();
-  }
-}
-
-
-function setupCalibration() {
-  // Create calibration points dynamically or use existing ones.
-  createCalibrationPoints(); // if you’re generating them dynamically
-  
-  document.querySelectorAll('.Calibration').forEach(btn => {
-    btn.addEventListener('click', calibrationClickHandler);
-  });
-  
-  // Ensure the calibration div is clickable.
-  document.querySelector('.calibrationDiv').style.pointerEvents = 'auto';
 }
 
 

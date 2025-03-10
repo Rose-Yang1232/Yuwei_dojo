@@ -145,9 +145,6 @@ function setupCalibration() {
   });
 }
 
-// --- Center Accuracy Measurement Step ---
-// This function creates a center dot, instructs the user to look at it for 5 seconds,
-// records gaze data during that time, and then computes the accuracy.
 function measureCenterAccuracy() {
   // Create a center dot element.
   let centerDot = document.createElement('div');
@@ -183,15 +180,22 @@ function measureCenterAccuracy() {
     // The target is the center of the screen.
     let centerX = window.innerWidth / 2;
     let centerY = window.innerHeight / 2;
-    let halfWindowHeight = window.innerHeight / 2;
+    
+    // Use the screen diagonal divided by 2 as the threshold.
+    let threshold = Math.sqrt(Math.pow(window.innerWidth, 2) + Math.pow(window.innerHeight, 2)) / 2;
+    
+    // Log some sample values for debugging.
+    console.log("Collected gaze samples:", samples);
     
     // Calculate precision for each recorded sample.
     let precisionPercentages = samples.map(sample => {
       let dx = centerX - sample.x;
       let dy = centerY - sample.y;
       let distance = Math.sqrt(dx * dx + dy * dy);
-      let precision = (distance <= halfWindowHeight)
-        ? 100 - (distance / halfWindowHeight * 100)
+      // If the distance is within the threshold, map it to a percentage;
+      // otherwise, assign 0.
+      let precision = (distance <= threshold)
+        ? 100 - (distance / threshold * 100)
         : 0;
       return precision;
     });
@@ -212,6 +216,7 @@ function measureCenterAccuracy() {
     }
   }, 5000);
 }
+
 
 
 </script>

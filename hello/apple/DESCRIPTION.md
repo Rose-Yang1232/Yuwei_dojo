@@ -71,7 +71,7 @@ function createCalibrationPoints() {
     btn.style.height = '30px';
     btn.style.borderRadius = '50%';
     btn.style.backgroundColor = 'red';
-    btn.style.opacity = '0.6'; // starting opacity (more visible than before)
+    btn.style.opacity = '0.6'; // start more visible
     btn.style.pointerEvents = 'auto'; // allow clicks
     calibrationDiv.appendChild(btn);
   });
@@ -101,7 +101,6 @@ function calibrationClickHandler(event) {
   }
   
   // Increase opacity on each click so progress is visible.
-  // Starting at 0.6, each click increases opacity by 0.08, up to 1.0.
   target.style.opacity = Math.min(1, 0.6 + 0.08 * calibrationData[id].clickCount);
   
   if (calibrationData[id].clickCount >= REQUIRED_CLICKS) {
@@ -116,7 +115,9 @@ function calibrationClickHandler(event) {
   });
   
   if (allDone) {
-    computeCalibrationMapping();
+    // All calibration dots have been clicked sufficiently.
+    // Proceed to the center calibration step.
+    measureCenterAccuracy();
   }
 }
 
@@ -144,73 +145,73 @@ function setupCalibration() {
   });
 }
 
-// --- Precision Calculation Functions ---
-// Calculate precision for a single calibration point.
-function calculatePointPrecision(targetX, targetY, gazeSamples) {
-  let sumX = 0, sumY = 0;
-  gazeSamples.forEach(sample => {
-    sumX += sample.x;
-    sumY += sample.y;
-  });
-  let avgX = sumX / gazeSamples.length;
-  let avgY = sumY / gazeSamples.length;
-
-  let halfWindowHeight = window.innerHeight / 2;
-  let xDiff = targetX - avgX;
-  let yDiff = targetY - avgY;
-  let distance = Math.sqrt(xDiff * xDiff + yDiff * yDiff);
-  let precision = (distance <= halfWindowHeight) ? 100 - (distance / halfWindowHeight * 100) : 0;
-  return Math.round(precision);
-}
-
-// Compute overall calibration accuracy from all dots.
-function computeOverallCalibrationAccuracy(calibrationData, calibrationTargets) {
-  let precisionValues = [];
-  for (let pointId in calibrationData) {
-    if (calibrationData[pointId].gazeSamples.length > 0 && calibrationTargets[pointId]) {
-      let target = calibrationTargets[pointId];
-      let precision = calculatePointPrecision(target.x, target.y, calibrationData[pointId].gazeSamples);
-      precisionValues.push(precision);
-      console.log(`Precision for ${pointId}: ${precision}%`);
-    }
-  }
-  let overallPrecision = precisionValues.reduce((sum, p) => sum + p, 0) / precisionValues.length;
-  return Math.round(overallPrecision);
-}
-
-// Called once all calibration dots have been clicked sufficiently.
-function computeCalibrationMapping() {
-  console.log("Calibration complete. Data:", calibrationData);
+// --- Center Accuracy Measurement Step ---
+// This function creates a center dot, instructs the user to look at it for 5 seconds,
+// records gaze data during that time, and then computes the accuracy.
+function measureCenterAccuracy() {
+  // Create a center dot element.
+  let centerDot = document.createElement('div');
+  centerDot.id = 'centerDot';
+  centerDot.style.position = 'fixed';
+  centerDot.style.width = '20px';
+  centerDot.style.height = '20px';
+  centerDot.style.backgroundColor = 'blue';
+  centerDot.style.borderRadius = '50%';
+  centerDot.style.top = '50%';
+  centerDot.style.left = '50%';
+  centerDot.style.transform = 'translate(-50%, -50%)';
+  centerDot.style.zIndex = '10000';
+  document.body.appendChild(centerDot);
   
-  // Define the expected positions of the calibration dots.
-  let calibrationTargets = {
-    Pt1: { x: window.innerWidth * 0.1, y: window.innerHeight * 0.1 },
-    Pt2: { x: window.innerWidth * 0.5, y: window.innerHeight * 0.1 },
-    Pt3: { x: window.innerWidth * 0.9, y: window.innerHeight * 0.1 },
-    Pt4: { x: window.innerWidth * 0.1, y: window.innerHeight * 0.5 },
-    Pt5: { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5 },
-    Pt6: { x: window.innerWidth * 0.9, y: window.innerHeight * 0.5 },
-    Pt7: { x: window.innerWidth * 0.1, y: window.innerHeight * 0.9 },
-    Pt8: { x: window.innerWidth * 0.5, y: window.innerHeight * 0.9 },
-    Pt9: { x: window.innerWidth * 0.9, y: window.innerHeight * 0.9 }
-  };
-
-  let overallPrecision = computeOverallCalibrationAccuracy(calibrationData, calibrationTargets);
-  console.log("Overall Calibration Accuracy: " + overallPrecision + "%");
-
-  // Ask the user if they want to calibrate again.
-  if (confirm("Calibration complete! Overall accuracy: " + overallPrecision + "%\n\nDo you want to calibrate again?")) {
-    ClearCalibration();
-    setupCalibration();
-  } else {
-    // Hide the calibration UI if not recalibrating.
-    let calibDiv = document.querySelector('.calibrationDiv');
-    if (calibDiv) {
-      calibDiv.style.display = 'none';
+  // Instruct the user.
+  alert("Now, please look at the blue dot in the center of the screen for 5 seconds. We will use this to measure calibration accuracy.");
+  
+  let samples = [];
+  // Record gaze data every 100ms.
+  let sampleInterval = setInterval(() => {
+    let gazeData = webgazer.getCurrentPrediction();
+    if (gazeData) {
+      samples.push({ x: gazeData.x, y: gazeData.y });
     }
-  }
+  }, 100);
+  
+  // After 5 seconds, stop recording and compute accuracy.
+  setTimeout(() => {
+    clearInterval(sampleInterval);
+    document.body.removeChild(centerDot);
+    
+    // The target is the center of the screen.
+    let centerX = window.innerWidth / 2;
+    let centerY = window.innerHeight / 2;
+    let halfWindowHeight = window.innerHeight / 2;
+    
+    // Calculate precision for each recorded sample.
+    let precisionPercentages = samples.map(sample => {
+      let dx = centerX - sample.x;
+      let dy = centerY - sample.y;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      let precision = (distance <= halfWindowHeight)
+        ? 100 - (distance / halfWindowHeight * 100)
+        : 0;
+      return precision;
+    });
+    
+    let overallPrecision = precisionPercentages.reduce((sum, p) => sum + p, 0) / precisionPercentages.length;
+    overallPrecision = Math.round(overallPrecision);
+    
+    // Ask the user if they want to recalibrate.
+    if (confirm("Calibration complete!\nOverall accuracy: " + overallPrecision + "%\n\nDo you want to calibrate again?")) {
+      ClearCalibration();
+      setupCalibration();
+    } else {
+      // Optionally hide the calibration UI.
+      let calibDiv = document.querySelector('.calibrationDiv');
+      if (calibDiv) {
+        calibDiv.style.display = 'none';
+      }
+    }
+  }, 5000);
 }
-
 
 
 </script>
@@ -436,9 +437,9 @@ let checkLoad = setInterval(() => {
     // Set up calibration UI (dots are created and listeners attached).
     setupCalibration();
 
-    // After a short delay, instruct the user on calibration.
+    // Optionally delay the initial instruction alert until after the UI, webcam, and eye tracker are up.
     setTimeout(() => {
-      alert("Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete. This calibrates your eye tracker.");
+      alert("Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete.");
     }, 2000);
 
     // Start sending events periodically.

@@ -5,47 +5,8 @@ This is a test page for working with eyetracking, and mouse/keyboard events.
 
 # Webgazer
 
-<!-- Calibration Points -->
-<div class="calibrationDiv">
-    <input type="button" class="Calibration" id="Pt1">
-    <input type="button" class="Calibration" id="Pt2">
-    <input type="button" class="Calibration" id="Pt3">
-    <input type="button" class="Calibration" id="Pt4">
-    <input type="button" class="Calibration" id="Pt5">
-    <input type="button" class="Calibration" id="Pt6">
-    <input type="button" class="Calibration" id="Pt7">
-    <input type="button" class="Calibration" id="Pt8">
-    <input type="button" class="Calibration" id="Pt9">
-</div>
-
-<!-- Help Modal for Calibration Instructions -->
-<div id="helpModal" class="modal fade" role="dialog">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-body">
-        <img src="media/example/calibration.png" width="100%" height="100%" alt="Calibration Instructions">
-      </div>
-      <div class="modal-footer">
-        <button id="closeBtn" type="button" class="btn btn-default" data-bs-dismiss="modal">
-          Close & load saved model 
-        </button>
-        <button type="button" id="start_calibration" class="btn btn-primary" data-bs-dismiss="modal" onclick="Restart()">
-          Calibrate
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
 <script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
-<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
-<script src="https://webgazer.cs.brown.edu/js/main.js"></script>
-<script src="https://webgazer.cs.brown.edu/js/calibration.js"></script>
-<script src="https://webgazer.cs.brown.edu/js/precision_calculation.js"></script>
-<script src="https://webgazer.cs.brown.edu/js/precision_store_points.js"></script>
+
         
 <script>
     function runWebGazer() {
@@ -69,6 +30,181 @@ This is a test page for working with eyetracking, and mouse/keyboard events.
         console.log("WebGazer initialized!");
         return;
     }
+    
+function createCalibrationPoints() {
+  // Create a container if it doesn't exist
+  let calibrationDiv = document.createElement('div');
+  calibrationDiv.className = 'calibrationDiv';
+  calibrationDiv.style.position = 'fixed';
+  calibrationDiv.style.top = '0';
+  calibrationDiv.style.left = '0';
+  calibrationDiv.style.width = '100%';
+  calibrationDiv.style.height = '100%';
+  calibrationDiv.style.pointerEvents = 'none'; // Initially disable clicks on it
+
+  // Define positions for 9 points (a simple 3x3 grid)
+  const positions = [
+    { id: 'Pt1', top: '10%', left: '10%' },
+    { id: 'Pt2', top: '10%', left: '50%' },
+    { id: 'Pt3', top: '10%', left: '90%' },
+    { id: 'Pt4', top: '50%', left: '10%' },
+    { id: 'Pt5', top: '50%', left: '50%' },
+    { id: 'Pt6', top: '50%', left: '90%' },
+    { id: 'Pt7', top: '90%', left: '10%' },
+    { id: 'Pt8', top: '90%', left: '50%' },
+    { id: 'Pt9', top: '90%', left: '90%' }
+  ];
+
+  positions.forEach(pos => {
+    let btn = document.createElement('button');
+    btn.className = 'Calibration';
+    btn.id = pos.id;
+    btn.style.position = 'absolute';
+    btn.style.top = pos.top;
+    btn.style.left = pos.left;
+    btn.style.transform = 'translate(-50%, -50%)';
+    btn.style.width = '30px';
+    btn.style.height = '30px';
+    btn.style.borderRadius = '50%';
+    btn.style.backgroundColor = 'red';
+    btn.style.opacity = '0.2';
+    btn.style.pointerEvents = 'auto'; // Enable clicks for calibration
+    calibrationDiv.appendChild(btn);
+  });
+  document.body.appendChild(calibrationDiv);
+}
+
+
+let calibrationData = {}; // Will hold data for each calibration point
+const REQUIRED_CLICKS = 5;
+
+// Calculate precision for one calibration point.
+function calculatePointPrecision(targetX, targetY, gazeSamples) {
+  // Compute the average predicted gaze position for this calibration point.
+  let sumX = 0, sumY = 0;
+  gazeSamples.forEach(sample => {
+    sumX += sample.x;
+    sumY += sample.y;
+  });
+  let avgX = sumX / gazeSamples.length;
+  let avgY = sumY / gazeSamples.length;
+
+  // Use a threshold; here we use half the window height.
+  let halfWindowHeight = window.innerHeight / 2;
+
+  // Calculate the Euclidean distance between the target and the average prediction.
+  let xDiff = targetX - avgX;
+  let yDiff = targetY - avgY;
+  let distance = Math.sqrt(xDiff * xDiff + yDiff * yDiff);
+
+  // Convert the distance into a precision percentage.
+  let precision = (distance <= halfWindowHeight)
+    ? 100 - (distance / halfWindowHeight * 100)
+    : 0;
+  return Math.round(precision);
+}
+
+// Compute overall calibration accuracy using all calibration points.
+// calibrationData: { Pt1: { gazeSamples: [...] }, Pt2: { gazeSamples: [...] }, ... }
+// calibrationTargets: { Pt1: {x, y}, Pt2: {x, y}, ... }
+function computeOverallCalibrationAccuracy(calibrationData, calibrationTargets) {
+  let precisionValues = [];
+  for (let pointId in calibrationData) {
+    // Make sure we have gaze samples and a target position for the point.
+    if (calibrationData[pointId].gazeSamples.length > 0 && calibrationTargets[pointId]) {
+      let target = calibrationTargets[pointId];
+      let precision = calculatePointPrecision(target.x, target.y, calibrationData[pointId].gazeSamples);
+      precisionValues.push(precision);
+      console.log(`Precision for ${pointId}: ${precision}%`);
+    }
+  }
+  // Average all precision values.
+  let overallPrecision = precisionValues.reduce((sum, p) => sum + p, 0) / precisionValues.length;
+  return Math.round(overallPrecision);
+}
+
+function computeCalibrationMapping() {
+  console.log("Calibration complete. Data:", calibrationData);
+  
+  // Define the expected positions for each calibration point.
+  // These positions must match how you positioned the buttons.
+  let calibrationTargets = {
+    Pt1: { x: window.innerWidth * 0.1, y: window.innerHeight * 0.1 },
+    Pt2: { x: window.innerWidth * 0.5, y: window.innerHeight * 0.1 },
+    Pt3: { x: window.innerWidth * 0.9, y: window.innerHeight * 0.1 },
+    Pt4: { x: window.innerWidth * 0.1, y: window.innerHeight * 0.5 },
+    Pt5: { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5 },
+    Pt6: { x: window.innerWidth * 0.9, y: window.innerHeight * 0.5 },
+    Pt7: { x: window.innerWidth * 0.1, y: window.innerHeight * 0.9 },
+    Pt8: { x: window.innerWidth * 0.5, y: window.innerHeight * 0.9 },
+    Pt9: { x: window.innerWidth * 0.9, y: window.innerHeight * 0.9 }
+  };
+
+  // Compute overall accuracy based on calibration data.
+  let overallPrecision = computeOverallCalibrationAccuracy(calibrationData, calibrationTargets);
+  console.log("Overall Calibration Accuracy: " + overallPrecision + "%");
+
+  // Display the accuracy to the user.
+  alert("Calibration complete! Overall accuracy: " + overallPrecision + "%");
+
+  // Optionally, hide the calibration UI.
+  let calibDiv = document.querySelector('.calibrationDiv');
+  if (calibDiv) {
+    calibDiv.style.display = 'none';
+  }
+}
+
+function calibrationClickHandler(event) {
+  let target = event.target;
+  let id = target.id;
+
+  // Initialize if needed.
+  if (!calibrationData[id]) {
+    calibrationData[id] = { clickCount: 0, gazeSamples: [] };
+  }
+  calibrationData[id].clickCount++;
+  
+  // Record the current gaze prediction.
+  let gazeData = webgazer.getCurrentPrediction();
+  if (gazeData) {
+    calibrationData[id].gazeSamples.push({ x: gazeData.x, y: gazeData.y });
+  }
+  
+  // Visual feedback.
+  let opacity = 0.2 * calibrationData[id].clickCount;
+  target.style.opacity = opacity;
+  
+  if (calibrationData[id].clickCount >= 5) {
+    target.style.backgroundColor = 'yellow';
+    target.disabled = true;
+  }
+  
+  // If all calibration points are complete, compute the accuracy.
+  let allDone = true;
+  document.querySelectorAll('.Calibration').forEach(btn => {
+    if (!btn.disabled) { allDone = false; }
+  });
+  if (allDone) {
+    computeCalibrationMapping();
+  }
+}
+
+
+function setupCalibration() {
+  // Create calibration points dynamically or use existing ones.
+  createCalibrationPoints(); // if you’re generating them dynamically
+  
+  document.querySelectorAll('.Calibration').forEach(btn => {
+    btn.addEventListener('click', calibrationClickHandler);
+  });
+  
+  // Ensure the calibration div is clickable.
+  document.querySelector('.calibrationDiv').style.pointerEvents = 'auto';
+}
+
+
+
+
 
 </script>
 
@@ -282,19 +418,21 @@ async function takeScreenshot(clickX, clickY) {
 let checkLoad = setInterval(() => {
   if (document.readyState === "complete") {
     clearInterval(checkLoad);
-    console.log("Forced: Window fully loaded!");
-    
-    // Run calibration setup
-    docLoad(); // from calibration.js which shows the help modal and registers calibration clicks
+    console.log("Window fully loaded!");
 
-
-    // Initialize WebGazer and attach iframe listeners
+    // Start WebGazer tracking.
     runWebGazer();
+    
+    // Attach your iframe listeners.
     attachIframeListeners();
 
-    // Start the interval for sending events
+    // Begin the calibration step.
+    setupCalibration();
+
+    // Start the interval for sending events.
     setInterval(sendEventsToServer, 10000);
   }
 }, 500);
+
 
 </script>

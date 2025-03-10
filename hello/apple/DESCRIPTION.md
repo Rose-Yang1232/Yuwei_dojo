@@ -428,29 +428,35 @@ async function takeScreenshot(clickX, clickY) {
   }
 }
 
-let checkLoad = setInterval(() => {
-  if (document.readyState === "complete") {
-    clearInterval(checkLoad);
-    console.log("Window fully loaded!");
+// Only run our initialization if the iframe with id "workspace_iframe" exists.
+if (document.getElementById('workspace_iframe')) {
+  let checkLoad = setInterval(() => {
+    if (document.readyState === "complete") {
+      clearInterval(checkLoad);
+      console.log("Window fully loaded and workspace_iframe is present!");
 
-    // Start WebGazer tracking.
-    runWebGazer();
-    
-    // Attach iframe listeners.
-    //attachIframeListeners();
+      // Start WebGazer tracking.
+      runWebGazer();
 
-    // Set up calibration UI (dots are created and listeners attached).
-    setupCalibration();
+      // Attach iframe event listeners.
+      attachIframeListeners();
 
-    // Optionally delay the initial instruction alert until after the UI, webcam, and eye tracker are up.
-    setTimeout(() => {
-      alert("Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete.");
-    }, 2000);
+      // Set up calibration UI (dots are created and listeners attached).
+      setupCalibration();
 
-    // Start sending events periodically.
-    setInterval(sendEventsToServer, 10000);
-  }
-}, 500);
+      // After a short delay, instruct the user.
+      setTimeout(() => {
+        alert("Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete.");
+      }, 2000);
+
+      // Start sending events periodically.
+      setInterval(sendEventsToServer, 10000);
+    }
+  }, 500);
+} else {
+  console.warn("workspace_iframe not found; skipping initialization.");
+}
+
 
 
 </script>

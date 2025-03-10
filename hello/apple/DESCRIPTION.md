@@ -36,9 +36,9 @@ window.addEventListener('resize', () => {
 
 </script>
 
-        <script src="https://webgazer.cs.brown.edu/node_modules/sweetalert/dist/sweetalert.min.js"></script>
+<script src="https://webgazer.cs.brown.edu/node_modules/sweetalert/dist/sweetalert.min.js"></script>
 
-        <script>
+<script>
         window.onload = async function() {
 
     //start the webgazer tracker
@@ -83,75 +83,67 @@ function Restart(){
     ClearCalibration();
     PopUpInstruction();
 }
-        </script>
-        <script src="https://webgazer.cs.brown.edu/js/calibration.js"></script>
-        <script src="https://webgazer.cs.brown.edu/js/precision_calculation.js"></script>
-        <script src="https://webgazer.cs.brown.edu/js/precision_store_points.js"></script>
-
-        <nav id="webgazerNavbar" class="navbar navbar-expand-lg navbar-default navbar-fixed-top">
-          <div class="container-fluid">
-            <div class="navbar-header">
-              <!-- The hamburger menu button -->
-              <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#myNavbar">
-                <span class="navbar-toggler-icon">Menu</span>
-              </button>
-            </div>
-            <div class="collapse navbar-collapse" id="myNavbar">
-              <ul class="nav navbar-nav">
-                <!-- Accuracy -->
-                <li id="Accuracy"><a>Not yet Calibrated</a></li>
-                <li><a onclick="Restart()" href="#">Recalibrate</a></li>
-                <li><a onclick="webgazer.applyKalmanFilter(!webgazer.params.applyKalmanFilter)" href="#">Toggle Kalman Filter</a></li>
-              </ul>
-              <ul class="nav navbar-nav navbar-right">
-                <li><a class="helpBtn" onclick="helpModalShow()" href="#"><span class="glyphicon glyphicon-cog"></span> Help</a></li>
-              </ul>
-            </div>
-          </div>
-        </nav>
-        <!-- Calibration points -->
-        <div class="calibrationDiv">
-            <input type="button" class="Calibration" id="Pt1"></input>
-            <input type="button" class="Calibration" id="Pt2"></input>
-            <input type="button" class="Calibration" id="Pt3"></input>
-            <input type="button" class="Calibration" id="Pt4"></input>
-            <input type="button" class="Calibration" id="Pt5"></input>
-            <input type="button" class="Calibration" id="Pt6"></input>
-            <input type="button" class="Calibration" id="Pt7"></input>
-            <input type="button" class="Calibration" id="Pt8"></input>
-            <input type="button" class="Calibration" id="Pt9"></input>
-        </div>
-
-        <!-- Modal -->
-        <div id="helpModal" class="modal fade" role="dialog">
-          <div class="modal-dialog">
-
-            <!-- Modal content-->
-            <div class="modal-content">
-              <div class="modal-body">
-                <img src="media/example/calibration.png" width="100%" height="100%" alt="webgazer demo instructions"></img>
-              </div>
-              <div class="modal-footer">
-                <button id="closeBtn" type="button" class="btn btn-default" data-bs-dismiss="modal">Close & load saved model </button>
-                <button type="button" id='start_calibration' class="btn btn-primary" data-bs-dismiss="modal" onclick="Restart()">Calibrate</button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- Latest compiled JavaScript -->
-        <script src="https://webgazer.cs.brown.edu/js/resize_canvas.js"></script>
-        <script src="https://webgazer.cs.brown.edu/node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-
-        
-<script>
-
-
-
-
-
 </script>
+<script src="https://webgazer.cs.brown.edu/js/calibration.js"></script>
+<script src="https://webgazer.cs.brown.edu/js/precision_calculation.js"></script>
+<script src="https://webgazer.cs.brown.edu/js/precision_store_points.js"></script>
+
+<nav id="webgazerNavbar" class="navbar navbar-expand-lg navbar-default navbar-fixed-top">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <!-- The hamburger menu button -->
+      <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#myNavbar">
+        <span class="navbar-toggler-icon">Menu</span>
+      </button>
+    </div>
+    <div class="collapse navbar-collapse" id="myNavbar">
+      <ul class="nav navbar-nav">
+        <!-- Accuracy -->
+        <li id="Accuracy"><a>Not yet Calibrated</a></li>
+        <li><a onclick="Restart()" href="#">Recalibrate</a></li>
+        <li><a onclick="webgazer.applyKalmanFilter(!webgazer.params.applyKalmanFilter)" href="#">Toggle Kalman Filter</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li><a class="helpBtn" onclick="helpModalShow()" href="#"><span class="glyphicon glyphicon-cog"></span> Help</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<!-- Calibration points -->
+<div class="calibrationDiv">
+    <input type="button" class="Calibration" id="Pt1"></input>
+    <input type="button" class="Calibration" id="Pt2"></input>
+    <input type="button" class="Calibration" id="Pt3"></input>
+    <input type="button" class="Calibration" id="Pt4"></input>
+    <input type="button" class="Calibration" id="Pt5"></input>
+    <input type="button" class="Calibration" id="Pt6"></input>
+    <input type="button" class="Calibration" id="Pt7"></input>
+    <input type="button" class="Calibration" id="Pt8"></input>
+    <input type="button" class="Calibration" id="Pt9"></input>
+</div>
+
+<!-- Modal -->
+<div id="helpModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-body">
+        <img src="media/example/calibration.png" width="100%" height="100%" alt="webgazer demo instructions"></img>
+      </div>
+      <div class="modal-footer">
+        <button id="closeBtn" type="button" class="btn btn-default" data-bs-dismiss="modal">Close & load saved model </button>
+        <button type="button" id='start_calibration' class="btn btn-primary" data-bs-dismiss="modal" onclick="Restart()">Calibrate</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Latest compiled JavaScript -->
+<script src="https://webgazer.cs.brown.edu/js/resize_canvas.js"></script>
+<script src="https://webgazer.cs.brown.edu/node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
 
 
 

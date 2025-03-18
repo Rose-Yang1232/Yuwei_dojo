@@ -203,17 +203,23 @@ function measureCenterAccuracy() {
     // Average the precision percentages.
     let overallPrecision = precisionPercentages.reduce((sum, p) => sum + p, 0) / precisionPercentages.length;
     overallPrecision = Math.round(overallPrecision);
-
-    // Report the accuracy and ask if the user wants to recalibrate.
-    if (confirm("Calibration complete!\nOverall accuracy: " + overallPrecision + "%\n\nDo you want to calibrate again?")) {
+    
+    if (overallPrecision < 85) {
+      alert("Calibration complete!\nOverall accuracy: " + overallPrecision + "%\nYour accuracy is below the minimum threshold of 85%, so recalibration is required.");
       ClearCalibration();
       setupCalibration();
     } else {
-      let calibDiv = document.querySelector('.calibrationDiv');
-      if (calibDiv) {
-        calibDiv.style.display = 'none';
+      if (confirm("Calibration complete!\nOverall accuracy: " + overallPrecision + "%\nDo you want to calibrate again? PLEASE SELECT NO IF YOU ARE SATISFIED.")) {
+        ClearCalibration();
+        setupCalibration();
+      } else {
+        let calibDiv = document.querySelector('.calibrationDiv');
+        if (calibDiv) {
+          calibDiv.style.display = 'none';
+        }
       }
     }
+
   }, 5000);
 }
 

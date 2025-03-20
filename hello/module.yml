@@ -2,7 +2,7 @@ name: Hello
 challenges:
   - id: apple
     name: Apple
-  # - id: banana
-  #   name: Banana
+  - id: banana
+    name: Banana
   - id: first-overflow-w
     name: "Your First Overflow (easy)"

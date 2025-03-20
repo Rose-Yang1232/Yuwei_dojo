@@ -1,6 +1,6 @@
 This is earth.
 
-and this is a test page to see if js code can work for webgazer.
+<!-- and this is a test page to see if js code can work for webgazer. -->
 
 <!-- ## example  -->
 <!-- a button that js 

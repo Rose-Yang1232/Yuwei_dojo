@@ -24,5 +24,12 @@ xfce_run() {
 
     # Consider using --geometry to set the window size and position
     # Consider using --fullscreen to launch the application in fullscreen mode
-    xfce_run exo-open --launch TerminalEmulator
+    # xfce_run exo-open --launch TerminalEmulator
+
+        # Left terminal
+    xfce4-terminal --geometry=120x30+0+0 &
+
+    # Right terminal (start at half screen width, assuming 1920px → ~960px from left)
+    sleep 0.5  # Give time for the first terminal to open
+    xfce4-terminal --geometry=120x30+960+0 &
 ) &

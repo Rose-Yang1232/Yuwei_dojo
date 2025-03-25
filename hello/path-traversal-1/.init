@@ -29,5 +29,5 @@ xfce_run() {
     # Launch two terminals side by side
     xfce_run xfce4-terminal --geometry=80x24+0+0 &
     sleep 1
-    xfce_run xfce4-terminal --geometry=80x24+680+0 &
+    xfce_run xfce4-terminal --geometry=80x24--12+27 &
 ) &

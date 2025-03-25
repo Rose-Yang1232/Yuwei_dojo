@@ -27,7 +27,7 @@ xfce_run() {
     # xfce_run exo-open --launch TerminalEmulator
 
     # Launch two terminals side by side
-    xfce_run xfce4-terminal --geometry=90x30+0+0 &
+    xfce_run xfce4-terminal --geometry=60x40+0+0 &
     sleep 0.5
-    xfce_run xfce4-terminal --geometry=90x30+1500+40 &
+    xfce_run xfce4-terminal --geometry=60x40+5500+40 &
 ) &

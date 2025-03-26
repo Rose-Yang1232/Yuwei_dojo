@@ -10,14 +10,39 @@
 #   - id: world
 #   - id: test
 
-id: example
-name: Yuwei Dojo
-description: Welcome to Yuwei's example dojo!
-type: example
+# id: example
+# name: Yuwei Dojo
+# description: Welcome to Yuwei's example dojo!
+# type: example
+# award:
+#   emoji: 🌹
+# image: roseeeee11111/example-dojo:latest
+# modules:
+#   - id: hello
+#   - id: world
+#   - id: test
+#   - id: web-security
+
+id: intro-to-cybersecurity
+name: Intro to Cybersecurity
+
 award:
-  emoji: 🌹
-image: roseeeee11111/example-dojo:latest
+  belt: orange
+
+image: pwncollege/challenge-legacy:latest
+
+description: |
+  Can you feel it?
+  The sun is beginning to rise on your journey of cybersecurity.
+  Armed with the fundamentals, you begin to push ever deeper into the realms of knowledge that previously eluded you.
+  Fear not: with perseverance, grit, and gumption, you will lay the groundwork for a towering mastery of security in your future.
+
+type: topic
+
 modules:
-  - id: hello
-  - id: world
-  - id: test
+
+- id: web-security
+- id: apple
+- id: banana
+- id: test
+- id: world

@@ -1,14 +1,14 @@
-id: example
-name: Yuwei Dojo
-description: Welcome to Yuwei's example dojo!
-type: example
-award:
-  emoji: 👍
-image: pwncollege/challenge-simple
-modules:
-  - id: hello
-  - id: world
-  - id: test
+# id: example
+# name: Yuwei Dojo
+# description: Welcome to Yuwei's example dojo!
+# type: example
+# award:
+#   emoji: 👍
+# image: pwncollege/challenge-simple
+# modules:
+#   - id: hello
+#   - id: world
+#   - id: test
 
 id: example
 name: Yuwei Dojo
@@ -16,7 +16,8 @@ description: Welcome to Yuwei's example dojo!
 type: example
 award:
   emoji: 🌹
-image: roseeeee11111/example-dojo:latest
+# image: roseeeee11111/example-dojo:latest
+image: pwncollege/challenge-legacy:latest
 modules:
   - id: hello
   - id: world

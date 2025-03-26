@@ -1,15 +1,4 @@
 name: Web Security
-# auxiliary:
-#   pwnshop:
-#     walkthrough: true
-#     binary_name_prefix: web-security
-#     build_image: pwncollege/challenge-legacy:latest
-#     verify_image: pwncollege/challenge-legacy:latest
-#     binary_name: server
 challenges:
-- id: path-traversal-1
-  name: Path Traversal 1
-  # auxiliary:
-  #   pwnshop:
-  #     challenge: PathTraversal
-  #     variants: 16
+  - id: path-traversal-1
+    name: Path Traversal

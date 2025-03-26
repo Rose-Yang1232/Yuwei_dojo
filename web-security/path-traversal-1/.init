@@ -19,7 +19,7 @@ xfce_run() {
 # Launch a background process that waits for xfce4-session and then runs the command.
 (
     while ! pgrep -u "$USER" xfce4-session > /dev/null; do
-        sleep 1
+        sleep 3
     done
 
     # Consider using --geometry to set the window size and position
@@ -27,7 +27,7 @@ xfce_run() {
     # xfce_run exo-open --launch TerminalEmulator
 
     # Launch two terminals side by side
-    xfce_run xfce4-terminal --geometry=20x24+0+0 &
+    xfce_run xfce4-terminal --geometry=30x24+0+0 &
     sleep 1
-    xfce_run xfce4-terminal --geometry=20x24-0+0 &
+    xfce_run xfce4-terminal --geometry=30x24-0+0 &
 ) &

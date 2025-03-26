@@ -1,4 +1,0 @@
-name: Web Security
-challenges:
-  - id: path-traversal-1
-    name: Path Traversal

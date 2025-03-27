@@ -9,10 +9,13 @@ This is a test page for working with eyetracking, and mouse/keyboard events.
 
         
 <script>
+let challenge = "apple"
+
 // Global queue to store recent gaze points.
 let gazeQueue = [];
+let calibrated = false;
 
-// Modified runWebGazer that stores gaze data in gazeQueue.
+// Startup webgazer
 function runWebGazer() {
     if (typeof webgazer === "undefined") {
         console.log("WebGazer not available yet. Retrying...");
@@ -23,11 +26,13 @@ function runWebGazer() {
         .setGazeListener(function(data, timestamp) {
           if (data) {
             // Store only the coordinate data.
-            gazeQueue.push({ x: data.x, y: data.y });
-            // Limit the queue to the most recent 15 points.
+            gazeQueue.push({ data: data, timestamp: timestamp});
+            
+            /* // Limit the queue to the most recent 15 points.
             if (gazeQueue.length > 15) {
                 gazeQueue.shift();
             }
+            */
             //console.log(`Gaze data: ${JSON.stringify(data)} at ${timestamp}`);
           }
         })
@@ -44,6 +49,20 @@ function runWebGazer() {
 // Create calibration dots dynamically if they aren’t already on the page.
 function createCalibrationPoints() {
   if (document.querySelector('.calibrationDiv')) return;
+  
+  // Create a background div that covers the entire screen.
+  let backgroundDiv = document.createElement('div');
+  backgroundDiv.className = 'calibrationBackground';
+  backgroundDiv.style.position = 'fixed';
+  backgroundDiv.style.top = '0';
+  backgroundDiv.style.left = '0';
+  backgroundDiv.style.width = '100%';
+  backgroundDiv.style.height = '100%';
+  backgroundDiv.style.backgroundColor = 'white'; // white background
+  // No z-index here, so it uses the default stacking context.
+
+  // Append the background first.
+  document.body.appendChild(backgroundDiv);
 
   let calibrationDiv = document.createElement('div');
   calibrationDiv.className = 'calibrationDiv';
@@ -54,6 +73,20 @@ function createCalibrationPoints() {
   calibrationDiv.style.height = '100%';
   calibrationDiv.style.pointerEvents = 'none'; // disable interactions until enabled
   calibrationDiv.style.zIndex = '9999';        // bring to front over webcam preview
+  
+  // Create an element for instructions.
+  let instructionText = document.createElement('div');
+  instructionText.className = 'calibrationInstruction';
+  instructionText.innerText = 'Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete.';
+  instructionText.style.position = 'absolute';
+  instructionText.style.top = '10%';
+  instructionText.style.left = '50%';
+  instructionText.style.transform = 'translateX(-50%)';
+  instructionText.style.fontSize = '24px';
+  instructionText.style.fontWeight = 'bold';
+  instructionText.style.color = 'black';
+  // Append the instruction text to the overlay.
+  calibrationDiv.appendChild(instructionText);
 
   // Define positions for a 3x3 grid of calibration points.
   const positions = [
@@ -144,6 +177,7 @@ function ClearCalibration(){
 function setupCalibration() {
   createCalibrationPoints();
   
+  
   // Enable interactions on the calibration container.
   let calibDiv = document.querySelector('.calibrationDiv');
   calibDiv.style.pointerEvents = 'auto';
@@ -156,7 +190,7 @@ function setupCalibration() {
 
 function measureCenterAccuracy() {
   // Clear any old data in the gazeQueue.
-  gazeQueue = [];
+  //gazeQueue = [];
   
   // Create a center dot element.
   let centerDot = document.createElement('div');
@@ -180,7 +214,7 @@ function measureCenterAccuracy() {
     document.body.removeChild(centerDot);
 
     // Take a snapshot of the current gazeQueue.
-    let snapshot = gazeQueue.slice(); // copy the array
+    let snapshot = JSON.parse(JSON.stringify(array.slice(-15)));; // copy last 15 elements
     console.log("Snapshot of gaze data:", snapshot);
 
     // Define the center coordinates.
@@ -191,8 +225,8 @@ function measureCenterAccuracy() {
     
     // Compute a precision percentage for each sample.
     let precisionPercentages = snapshot.map(sample => {
-      let dx = centerX - sample.x;
-      let dy = centerY - sample.y;
+      let dx = centerX - sample.data.x;
+      let dy = centerY - sample.data.y;
       let distance = Math.sqrt(dx * dx + dy * dy);
       let precision = (distance <= threshold)
         ? 100 - (distance / threshold * 100)
@@ -209,14 +243,18 @@ function measureCenterAccuracy() {
       ClearCalibration();
       setupCalibration();
     } else {
-      if (confirm("Calibration complete!\nOverall accuracy: " + overallPrecision + "%\nDo you want to calibrate again? PLEASE SELECT NO IF YOU ARE SATISFIED.")) {
-        ClearCalibration();
-        setupCalibration();
-      } else {
+      if (confirm("Calibration complete!\nOverall accuracy: " + overallPrecision + "%\nDo you want to move on? Please select cancel if you want to calibrate again.")) {
         let calibDiv = document.querySelector('.calibrationDiv');
         if (calibDiv) {
           calibDiv.style.display = 'none';
         }
+        
+        webgazer.showVideoPreview(false) // remove webcam preview
+            .showPredictionPoints(false); // remove tracking points
+        calibrated = true;
+      } else {
+        ClearCalibration();
+        setupCalibration();
       }
     }
 
@@ -338,24 +376,45 @@ window.addEventListener("message", function (event) {
 
 // Function to send batched events to the server every 10 seconds
 function sendEventsToServer() {
-  if (window.eventQueue.length === 0) return; // Don't send if there's nothing to send
+  if (window.eventQueue.length !== 0) { // Don't send if there's nothing to send
 
-  console.log("Sending batched events to server:", window.eventQueue);
+      console.log("Sending batched events to server:", window.eventQueue);
 
-  const formData = new URLSearchParams();
-    formData.append("userId", init.userId);
-    formData.append("events", JSON.stringify(window.eventQueue)); // Encode JSON as a string
+      const formData = new URLSearchParams();
+        formData.append("challenge", challenge);
+        formData.append("userId", init.userId);
+        formData.append("events", JSON.stringify(window.eventQueue)); // Encode JSON as a string
 
-    fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_events.php", {
-        method: "POST",
-        body: formData 
-    })
-    .then(response => response.json())
-    .then(data => console.log("Events upload successful:", data))
-    .catch(error => console.error("Error uploading events:", error));
-
-
+        fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_events.php", {
+            method: "POST",
+            body: formData 
+        })
+        .then(response => response.json())
+        .then(data => console.log("Events upload successful:", data))
+        .catch(error => console.error("Error uploading events:", error));
+  }
   window.eventQueue = []; // Clear queue after sending
+  
+  if (typeof gazeQueue !== 'undefined' && calibrated && gazeQueue.length !== 0){
+      console.log("Sending batched gaze data to server.");
+
+      const formData = new URLSearchParams();
+        formData.append("challenge", challenge);
+        formData.append("userId", init.userId);
+        formData.append("gazeData", JSON.stringify(gazeQueue)); // Encode JSON as a string
+
+        fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_gaze.php", {
+            method: "POST",
+            body: formData 
+        })
+        .then(response => response.json())
+        .then(data => console.log("Gaze data upload successful:", data))
+        .catch(error => console.error("Error uploading gaze data:", error));
+  } else if (!calibrated){
+      return;
+  }
+  
+  gazeQueue = [];
 }
 
 // Function to capture a screenshot of the iframe only
@@ -418,6 +477,7 @@ async function takeScreenshot(clickX, clickY) {
       formData.append("clickX", clickX);
       formData.append("clickY", clickY);
       formData.append("userId", init.userId); // Include user ID in the request
+      formData.append("challenge", challenge);
 
       fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
         method: "POST",
@@ -452,6 +512,7 @@ if (document.getElementById('workspace_iframe')) {
 
       // After a short delay, instruct the user.
       setTimeout(() => {
+      // TODO add white backround image with instructions so that they don't go away
         alert("Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete.");
       }, 2000);
 

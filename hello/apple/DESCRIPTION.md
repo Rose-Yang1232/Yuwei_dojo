@@ -26,7 +26,7 @@ function runWebGazer() {
         .setGazeListener(function(data, timestamp) {
           if (data) {
             // Store only the coordinate data.
-            gazeQueue.push({ data: data, timestamp: timestamp});
+            gazeQueue.push({ x: data.x, y:data.y, timestamp: timestamp});
             
             /* // Limit the queue to the most recent 15 points.
             if (gazeQueue.length > 15) {
@@ -225,8 +225,8 @@ function measureCenterAccuracy() {
     
     // Compute a precision percentage for each sample.
     let precisionPercentages = snapshot.map(sample => {
-      let dx = centerX - sample.data.x;
-      let dy = centerY - sample.data.y;
+      let dx = centerX - sample.x;
+      let dy = centerY - sample.y;
       let distance = Math.sqrt(dx * dx + dy * dy);
       let precision = (distance <= threshold)
         ? 100 - (distance / threshold * 100)

@@ -214,7 +214,7 @@ function measureCenterAccuracy() {
     document.body.removeChild(centerDot);
 
     // Take a snapshot of the current gazeQueue.
-    let snapshot = JSON.parse(JSON.stringify(array.slice(-15)));; // copy last 15 elements
+    let snapshot = JSON.parse(JSON.stringify(gazeQueue.slice(-15)));; // copy last 15 elements
     console.log("Snapshot of gaze data:", snapshot);
 
     // Define the center coordinates.

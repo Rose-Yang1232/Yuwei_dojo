@@ -244,9 +244,14 @@ function measureCenterAccuracy() {
       setupCalibration();
     } else {
       if (confirm("Calibration complete!\nOverall accuracy: " + overallPrecision + "%\nDo you want to move on? Please select cancel if you want to calibrate again.")) {
-        let calibDiv = document.querySelector('.calibrationDiv');
+        const calibDiv = document.querySelector('.calibrationDiv');
         if (calibDiv) {
           calibDiv.style.display = 'none';
+        }
+        
+        const backgroundDiv = document.querySelector('.calibrationBackground');
+        if (backgroundDiv) {
+          backgroundDiv.remove();
         }
         
         webgazer.showVideoPreview(false) // remove webcam preview

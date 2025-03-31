@@ -1,21 +1,20 @@
 #!/bin/sh
 
+# Prepend our custom bin directory to PATH.
 PATH="/run/dojo/bin:$PATH"
 USER="hacker"
 
+# Get environment variables from the xfce4-session.
 xfce_env() {
     local session_pid
     session_pid=$(pgrep -u "$USER" xfce4-session | head -n1)
     xargs -0 -a /proc/"$session_pid"/environ
 }
 
+# Run a command as the hacker user with the proper session environment.
 xfce_run() {
-    id
-    which su
-    echo "$USER"
     setsid runuser "$USER" -c "env - $(xfce_env) $*"
 }
-
 
 # Helper function to reposition a window.
 # Usage: reposition_window <window_id> <x> <y> <width> <height>

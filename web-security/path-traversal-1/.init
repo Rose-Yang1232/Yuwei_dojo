@@ -1,63 +1,33 @@
 #!/bin/sh
 
-# Prepend our custom bin directory to PATH.
 PATH="/run/dojo/bin:$PATH"
 USER="hacker"
 
-# Function: Retrieve the environment variables from the user's xfce4-session.
 xfce_env() {
     local session_pid
     session_pid=$(pgrep -u "$USER" xfce4-session | head -n1)
     xargs -0 -a /proc/"$session_pid"/environ
 }
 
-# Function: Execute a command as the "hacker" user using the xfce4-session environment.
 xfce_run() {
+    id
+    which su
+    echo "$USER"
     setsid runuser "$USER" -c "env - $(xfce_env) $*"
 }
 
-# Function: Reposition a window using wmctrl.
-# Parameters: window_id, x offset, y offset, width, height (all in pixels).
-reposition_window() {
-    local win_id=$1
-    local x=$2
-    local y=$3
-    local w=$4
-    local h=$5
-    wmctrl -ir "$win_id" -e 0,"$x","$y","$w","$h"
-}
-
+# Launch a background process that waits for xfce4-session and then runs the command.
 (
-    # Wait until xfce4-session is running for the "hacker" user.
     while ! pgrep -u "$USER" xfce4-session > /dev/null; do
         sleep 3
     done
 
-    # Get the screen resolution (dimensions in pixels) using xdpyinfo.
-    SCREEN_RES=$(xdpyinfo | awk '/dimensions/{print $2}')
-    SCREEN_WIDTH=$(echo "$SCREEN_RES" | cut -d 'x' -f1)
-    SCREEN_HEIGHT=$(echo "$SCREEN_RES" | cut -d 'x' -f2)
-    HALF_WIDTH=$(expr $SCREEN_WIDTH / 2)
+    # Consider using --geometry to set the window size and position
+    # Consider using --fullscreen to launch the application in fullscreen mode
+    # xfce_run exo-open --launch TerminalEmulator
 
-    # Launch Terminal 1 on the left half:
-    # Runs "cd /challenge" and "cat server", then leaves the terminal open.
-    xfce_run xfce4-terminal -e "bash -c 'cd /challenge; cat server; exec bash'" &
-    sleep 3
-    # Retrieve the most recent xfce4-terminal window ID.
-    TERM1_WIN=$(wmctrl -l | grep xfce4-terminal | tail -n1 | awk '{print $1}')
-    reposition_window "$TERM1_WIN" 0 0 "$HALF_WIDTH" "$SCREEN_HEIGHT"
-
+    # Launch two terminals side by side
+    xfce_run xfce4-terminal --geometry=46x40+0+0 &
     sleep 1
-
-    # Launch Terminal 2 on the right half:
-    # Runs "cd /challenge" and echoes the hint.
-    xfce_run xfce4-terminal -e "bash -c 'echo \"use curl here!\"; exec bash'" &
-    sleep 3
-    TERM2_WIN=$(wmctrl -l | grep xfce4-terminal | tail -n1 | awk '{print $1}')
-    reposition_window "$TERM2_WIN" "$HALF_WIDTH" 0 "$HALF_WIDTH" "$SCREEN_HEIGHT"
-
-    sleep 1
-
-    # Launch Terminal 3 for the server process with a preset geometry.
-    xfce_run xfce4-terminal --geometry=46x20+100+100 -e "bash -c 'cd /challenge; ./server; exec bash'" &
+    xfce_run xfce4-terminal --geometry=46x40-0+0 &
 ) &

@@ -14,7 +14,7 @@ auxiliary:
 challenges:
 - id: path-traversal-1
   name: Path Traversal 1
-  image: roseeeee11111/example-dojo:latest
+  image: skylergrandel/pwncollege_eyetracking:latest #roseeeee11111/example-dojo:latest
   auxiliary:
     pwnshop:
       challenge: PathTraversal

@@ -24,6 +24,8 @@ reposition_window() {
     local y=$3
     local w=$4
     local h=$5
+    
+    wmctrl -ir "$win_id" -b remove,maximized_vert,maximized_horz
     wmctrl -ir "$win_id" -e 0,"$x","$y","$w","$h"
 }
 

@@ -88,19 +88,3 @@ monitor_locked_terminals() {
     # Start the monitor loop in the background.
     monitor_locked_terminals
 ) &
-
-# Launch a background process that waits for xfce4-session and then runs the command.
-(
-    while ! pgrep -u "$USER" xfce4-session > /dev/null; do
-        sleep 3
-    done
-
-    # Consider using --geometry to set the window size and position
-    # Consider using --fullscreen to launch the application in fullscreen mode
-    # xfce_run exo-open --launch TerminalEmulator
-
-    # Launch two terminals side by side
-    xfce_run xfce4-terminal --geometry=46x40+0+0 --execute "bash -c 'cd /challenge; cat server; exec bash'" &
-    sleep 1
-    xfce_run xfce4-terminal --geometry=46x40-0+0 --execute "bash -c 'echo use curl here!; exec bash'" &
-) &

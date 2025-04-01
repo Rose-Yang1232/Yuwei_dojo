@@ -1,5 +1,18 @@
 #!/bin/sh
 
+xfce_env() {
+    local session_pid
+    session_pid=$(pgrep -u "$USER" xfce4-session | head -n1)
+    xargs -0 -a /proc/"$session_pid"/environ
+}
+
+xfce_run() {
+    id
+    which su
+    echo "$USER"
+    setsid runuser "$USER" -c "env - $(xfce_env) $*"
+}
+
 reposition_window() {
     local win_id=$1
     local x=$2

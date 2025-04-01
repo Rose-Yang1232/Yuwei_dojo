@@ -1,19 +1,5 @@
 #!/bin/sh
 
-USER="hacker"
-
-xfce_env() {
-    local session_pid
-    session_pid=$(pgrep -u "$USER" xfce4-session | head -n1)
-    xargs -0 -a /proc/"$session_pid"/environ
-}
-
-xfce_run() {
-    id
-    which su
-    echo "$USER"
-    setsid runuser "$USER" -c "env - $(xfce_env) $*"
-}
 
 reposition_window() {
     local win_id=$1
@@ -39,7 +25,7 @@ monitor_locked_terminals() {
         TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
         if [ -z "$TERM1_WIN" ]; then
             # Respawn Terminal 1 if it's missing.
-            xfce_run xfce4-terminal --title=LockedTerminal1 --execute "bash -c 'cd /challenge; cat server; exec bash'"
+            xfce4-terminal --title=LockedTerminal1 --execute "bash -c 'cd /challenge; cat server; exec bash'"
             sleep 2
             TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
         fi
@@ -50,7 +36,7 @@ monitor_locked_terminals() {
         TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
         if [ -z "$TERM2_WIN" ]; then
             # Respawn Terminal 2 if it's missing.
-            xfce_run xfce4-terminal --title=LockedTerminal2 --execute "bash -c 'echo use curl here!; exec bash'"
+            xfce4-terminal --title=LockedTerminal2 --execute "bash -c 'echo use curl here!; exec bash'"
             sleep 2
             TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
         fi

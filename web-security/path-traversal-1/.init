@@ -88,7 +88,7 @@ monitor_locked_terminals() {
     xfce_run xfce4-terminal --geometry=46x20+100+100 --execute "bash -c 'cd /challenge; ./.run_loop; exec bash'" &
     
     # Spawn the locked terminals.
-    spawn_locked_terminals
+    #spawn_locked_terminals
 
     
 

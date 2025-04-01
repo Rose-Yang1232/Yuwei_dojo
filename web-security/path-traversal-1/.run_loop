@@ -1,5 +1,16 @@
 #!/bin/sh
 
+reposition_window() {
+    local win_id=$1
+    local x=$2
+    local y=$3
+    local w=$4
+    local h=$5
+    
+    wmctrl -ir "$win_id" -b remove,maximized_vert,maximized_horz
+    wmctrl -ir "$win_id" -e 0,"$x","$y","$w","$h"
+}
+
 # Function to monitor and lock Terminal 1 and Terminal 2
 monitor_locked_terminals() {
     while true; do

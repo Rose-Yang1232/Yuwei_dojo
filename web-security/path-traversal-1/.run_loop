@@ -22,23 +22,23 @@ monitor_locked_terminals() {
 
         # Check for Terminal 1 by title.
         TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
-        #if [ -z "$TERM1_WIN" ]; then
+        if [ -z "$TERM1_WIN" ]; then
             # Respawn Terminal 1 if it's missing.
-        #    xfce_run xfce4-terminal --title=LockedTerminal1 --execute "bash -c 'cd /challenge; cat server; exec bash'"
-        #    sleep 2
-        #    TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
-        #fi
+            xfce_run xfce4-terminal --title=LockedTerminal1 --execute "bash -c 'cd /challenge; cat server; exec bash'"
+            sleep 2
+            TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
+        fi
         # Lock Terminal 1 to left half.
         reposition_window "$TERM1_WIN" 0 0 "$HALF_WIDTH" "$SCREEN_HEIGHT"
 
         # Check for Terminal 2 by title.
         TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
-        #if [ -z "$TERM2_WIN" ]; then
+        if [ -z "$TERM2_WIN" ]; then
             # Respawn Terminal 2 if it's missing.
-        #    xfce_run xfce4-terminal --title=LockedTerminal2 --execute "bash -c 'echo use curl here!; exec bash'"
-        #    sleep 2
-        #    TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
-        #fi
+            xfce_run xfce4-terminal --title=LockedTerminal2 --execute "bash -c 'echo use curl here!; exec bash'"
+            sleep 2
+            TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
+        fi
         # Lock Terminal 2 to right half.
         reposition_window "$TERM2_WIN" "$HALF_WIDTH" 0 "$HALF_WIDTH" "$SCREEN_HEIGHT"
 

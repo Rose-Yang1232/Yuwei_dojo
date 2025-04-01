@@ -35,7 +35,7 @@ spawn_locked_terminals() {
     xfce_run xfce4-terminal --title=LockedTerminal1 --execute "bash -c 'cd /challenge; cat server; exec bash'" &
     sleep 2
     # Terminal 2: right half, displays hint message
-    xfce_run xfce4-terminal --title=LockedTerminal2 --execute "bash -c 'echo Server running on http://challenge.localhost:80 Use curl here!; exec bash'" &
+    xfce_run xfce4-terminal --title=LockedTerminal2 --execute "bash -c 'echo Server running on http://challenge.localhost:80 Use the left terminal to view the server code and use curl here!; exec bash'" &
     sleep 2
 }
 
@@ -81,14 +81,16 @@ monitor_locked_terminals() {
         sleep 3
     done
 
-    # Spawn the locked terminals.
-    spawn_locked_terminals
-
     # Launch Terminal 3 for the server with a preset geometry.
     xfce_run xfce4-terminal --geometry=46x20+100+100 --execute "bash -c 'cd /challenge; ./server; exec bash'" &
     
     # Launch Terminal 4 for the server with a preset geometry.
     xfce_run xfce4-terminal --geometry=46x20+100+100 --execute "bash -c 'cd /challenge; ./.run_loop; exec bash'" &
+    
+    # Spawn the locked terminals.
+    spawn_locked_terminals
+
+    
 
     # Start the monitor loop in the background.
     #monitor_locked_terminals

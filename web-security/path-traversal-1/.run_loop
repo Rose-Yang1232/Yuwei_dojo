@@ -1,5 +1,7 @@
 #!/bin/sh
 
+USER="hacker"
+
 xfce_env() {
     local session_pid
     session_pid=$(pgrep -u "$USER" xfce4-session | head -n1)

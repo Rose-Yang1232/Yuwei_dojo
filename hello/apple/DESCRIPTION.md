@@ -513,13 +513,13 @@ if (document.getElementById('workspace_iframe')) {
       console.log("Window fully loaded and workspace_iframe is present!");
 
       // Start WebGazer tracking.
-      runWebGazer();
+      //runWebGazer();
 
       // Attach iframe event listeners.
       attachIframeListeners();
 
       // Set up calibration UI (dots are created and listeners attached).
-      setupCalibration();
+      //setupCalibration();
 
       // After a short delay, instruct the user.
       setTimeout(() => {

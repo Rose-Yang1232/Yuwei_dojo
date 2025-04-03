@@ -285,7 +285,7 @@ window.eventQueue = window.eventQueue || []; // Stores events before sending
 
 
 function attachIframeListeners() {
-  const iframe = document.getElementsByTagName("iframe")[0];
+  let iframe = document.getElementById('workspace_iframe');
 
   if (!iframe) {
     console.warn("Iframe not available, retrying...");
@@ -295,6 +295,7 @@ function attachIframeListeners() {
 
   function injectScript() {
     try {
+      iframe = document.getElementById('workspace_iframe');
       const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
       if (iframeDoc) {
         console.log("Injecting event forwarding script into iframe...");
@@ -425,7 +426,7 @@ function sendEventsToServer() {
 // Function to capture a screenshot of the iframe only
 async function takeScreenshot(clickX, clickY) {
   try {
-    const iframe = document.getElementsByTagName("iframe")[0];
+    const iframe = document.getElementById('workspace_iframe');
 
     if (!iframe) {
       console.warn("No iframe found, skipping screenshot.");
@@ -507,13 +508,13 @@ if (document.getElementById('workspace_iframe')) {
       console.log("Window fully loaded and workspace_iframe is present!");
 
       // Start WebGazer tracking.
-      runWebGazer();
+      //runWebGazer();
 
       // Attach iframe event listeners.
       attachIframeListeners();
 
       // Set up calibration UI (dots are created and listeners attached).
-      setupCalibration();
+      //setupCalibration();
 
       // After a short delay, instruct the user.
       setTimeout(() => {

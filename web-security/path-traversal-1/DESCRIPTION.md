@@ -336,7 +336,8 @@ function attachIframeListeners() {
   }
 
   // Inject event listeners immediately
-  injectScript();
+  //injectScript();
+  iframe.addEventListener("load", injectScript);
 
   // Observe changes to iframe
   const observer = new MutationObserver((mutationsList, observer) => {

@@ -281,10 +281,6 @@ function measureCenterAccuracy() {
 
 
 
-# Click Screenshot Capture & Upload (Handles Iframe & Captures Clicks Early)
-
-Click anywhere to take a screenshot of the **entire page**, including an iframe if it exists.
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
@@ -292,7 +288,7 @@ window.eventQueue = window.eventQueue || []; // Stores events before sending
 
 
 function attachIframeListeners() {
-  const iframe = document.getElementsByTagName("iframe")[0];
+  const iframe = document.getElementById('workspace_iframe');
 
   if (!iframe) {
     console.warn("Iframe not available, retrying...");
@@ -432,7 +428,7 @@ function sendEventsToServer() {
 // Function to capture a screenshot of the iframe only
 async function takeScreenshot(clickX, clickY) {
   try {
-    const iframe = document.getElementsByTagName("iframe")[0];
+    const iframe = document.getElementById('workspace_iframe');
 
     if (!iframe) {
       console.warn("No iframe found, skipping screenshot.");

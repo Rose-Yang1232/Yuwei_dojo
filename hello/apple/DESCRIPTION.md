@@ -324,9 +324,14 @@ function attachIframeListeners() {
 
           document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
           document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
+          
+          let evt = new PointerEvent("pointerdown", { clientX: 100, clientY: 150 });
+          document.dispatchEvent(evt);
+
         `;
 
         iframeDoc.head.appendChild(script);
+        
       }
     } catch (error) {
       console.warn("Could not inject script into iframe:", error);
@@ -508,13 +513,13 @@ if (document.getElementById('workspace_iframe')) {
       console.log("Window fully loaded and workspace_iframe is present!");
 
       // Start WebGazer tracking.
-      //runWebGazer();
+      runWebGazer();
 
       // Attach iframe event listeners.
       attachIframeListeners();
 
       // Set up calibration UI (dots are created and listeners attached).
-      //setupCalibration();
+      setupCalibration();
 
       // After a short delay, instruct the user.
       setTimeout(() => {

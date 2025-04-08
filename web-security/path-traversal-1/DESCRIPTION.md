@@ -21,6 +21,7 @@ let challenge = "path-traversal-1"
 // Global queue to store recent gaze points.
 let gazeQueue = [];
 let calibrated = false;
+let started = false;
 
 // Startup webgazer
 function runWebGazer() {
@@ -406,6 +407,16 @@ function sendEventsToServer() {
   
   if (typeof gazeQueue !== 'undefined' && calibrated && gazeQueue.length !== 0){
       console.log("Sending batched gaze data to server.");
+      
+      if (!started) {
+        // Prepend a sentinel gaze point with screen center and timestamp -1
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+
+        gazeQueue.unshift({ x: centerX, y: centerY, timestamp: -1 });
+
+        started = true;
+      }
 
       const formData = new URLSearchParams();
         formData.append("challenge", challenge);

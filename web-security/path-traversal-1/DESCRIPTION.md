@@ -265,6 +265,7 @@ function measureCenterAccuracy() {
         webgazer.showVideoPreview(false) // remove webcam preview
             .showPredictionPoints(false); // remove tracking points
         calibrated = true;
+        gazeQueue = [];
       } else {
         ClearCalibration();
         setupCalibration();

@@ -431,15 +431,19 @@ function sendEventsToServer() {
         .then(response => response.json())
         .then(data => console.log("Gaze data upload successful:", data))
         .catch(error => console.error("Error uploading gaze data:", error));
+      
+      cur_gaze = gazeQueue.at(-1);
+      takeScreenshot(cur_gaze.x, cur_gaze.y, false);
   } else if (!calibrated){
       return;
   }
+  
   
   gazeQueue = [];
 }
 
 // Function to capture a screenshot of the iframe only
-async function takeScreenshot(clickX, clickY) {
+async function takeScreenshot(X, Y, click = true) {
   try {
     const iframe = document.getElementById('workspace_iframe');
 
@@ -488,17 +492,18 @@ async function takeScreenshot(clickX, clickY) {
     // Draw the red click marker
     finalCtx.fillStyle = "red";
     finalCtx.beginPath();
-    finalCtx.arc(clickX, clickY, 5, 0, 2 * Math.PI);
+    finalCtx.arc(X, Y, 5, 0, 2 * Math.PI);
     finalCtx.fill();
 
     // Use finalCanvas instead of iframeCanvas
     finalCanvas.toBlob((blob) => {
       const formData = new FormData();
       formData.append("screenshot", blob, "screenshot.png");
-      formData.append("clickX", clickX);
-      formData.append("clickY", clickY);
+      formData.append("X", X);
+      formData.append("Y", Y);
       formData.append("userId", init.userId); // Include user ID in the request
       formData.append("challenge", challenge);
+      formData.append("click", click);
 
       fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
         method: "POST",
@@ -538,7 +543,7 @@ if (document.getElementById('workspace_iframe')) {
       }, 2000);
 
       // Start sending events periodically.
-      setInterval(sendEventsToServer, 10000);
+      setInterval(sendEventsToServer, 5000); // currently 5 seconds
     }
   }, 500);
 } else {

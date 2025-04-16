@@ -55,3 +55,5 @@ monitor_locked_terminals() {
 }
 
 monitor_locked_terminals
+xfconf-query -c xfce4-terminal -p /color-background -s "#FFFFFF"
+xfconf-query -c xfce4-terminal -p /color-foreground -s "#000000"

@@ -299,43 +299,45 @@ function attachIframeListeners() {
   }
 
   function injectScript() {
-    try {
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-      if (iframeDoc) {
-        console.log("Injecting event forwarding script into iframe...");
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        if (!iframeDoc) return;
 
+        // 1. Remove any previous injection
+        const old = iframeDoc.getElementById('eventForwarder');
+        if (old) {
+          console.log("Removing previous forwarder script");
+          old.remove();
+        }
+
+        // 2. Create & tag the new script
         const script = iframeDoc.createElement("script");
+        script.id = "eventForwarder";      // <-- our “handle” so we can find it later
         script.textContent = `
-          console.log("Injected script running inside iframe!");
+          // guard so we only attach once, even if this script is re‑eval’d
+          if (!window._forwarderSetup) {
+            window._forwarderSetup = true;
 
-          function forwardEvent(event, type) {
-            console.log(\`Inside forwardEvent: \${type} detected\`);
-            let eventData = {
-              type: "iframeClick",
-              eventType: type,
-              timestamp: Date.now()
-            };
-
-            if (type === "keydown") {
-              eventData.key = event.key;
-            } else {
-              eventData.x = event.clientX;
-              eventData.y = event.clientY;
+            function forwardEvent(event, type) {
+              let data = { type: "iframeClick", eventType: type, timestamp: Date.now() };
+              if (type === "keydown") data.key = event.key;
+              else { data.x = event.clientX; data.y = event.clientY; }
+              window.parent.postMessage(data, "*");
             }
 
-            window.parent.postMessage(eventData, "*");
+            document.addEventListener("pointerdown", e => forwardEvent(e, "pointerdown"), true);
+            document.addEventListener("keydown",     e => forwardEvent(e, "keydown"),     true);
           }
-
-          document.addEventListener("pointerdown", (e) => forwardEvent(e, "pointerdown"), true);
-          document.addEventListener("keydown", (e) => forwardEvent(e, "keydown"), true);
         `;
 
+        // 3. Inject it
         iframeDoc.head.appendChild(script);
+        console.log("Injected new forwarder script");
+      } catch (err) {
+        console.warn("Injection failed:", err);
       }
-    } catch (error) {
-      console.warn("Could not inject script into iframe:", error);
     }
-  }
+
 
   // Inject event listeners immediately
   //injectScript();
@@ -403,6 +405,8 @@ function sendEventsToServer() {
         .then(response => response.json())
         .then(data => console.log("Events upload successful:", data))
         .catch(error => console.error("Error uploading events:", error));
+        
+        
   }
   window.eventQueue = []; // Clear queue after sending
   
@@ -511,7 +515,14 @@ async function takeScreenshot(X, Y, click = true) {
         body: formData
       })
         .then(response => response.json())
-        .then(data => console.log("Screenshot upload successful:", data))
+        .then(data => {
+      console.log("Screenshot upload successful:", data);
+      finalCtx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
+      finalCanvas.width = finalCanvas.height = 0;
+
+      // now that the upload is done, drop everything:
+      iframeCanvas = finalCanvas = finalCtx = null;
+    })
         .catch(error => console.error("Error uploading screenshot:", error));
     }, "image/png");
 

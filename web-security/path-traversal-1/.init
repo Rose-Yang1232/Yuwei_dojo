@@ -32,10 +32,10 @@ reposition_window() {
 # Function to spawn Terminal 1 and Terminal 2 with locked titles.
 spawn_locked_terminals() {
     # Terminal 1: left half, displays "cat server"
-    xfce_run xfce4-terminal --title=LockedTerminal1 --execute "bash -c 'cd /challenge; cat server; exec bash'" &
+    xfce_run xfce4-terminal --title=LockedTerminal1 --execute "bash -c 'xfconf-query -c xfce4-terminal -p /color-background -s "#FFFFFF"; xfconf-query -c xfce4-terminal -p /color-foreground -s "#000000"; cd /challenge; cat server; exec bash'" &
     sleep 2
     # Terminal 2: right half, displays hint message
-    xfce_run xfce4-terminal --title=LockedTerminal2 --execute "bash -c 'echo Server running on http://challenge.localhost:80 Use the left terminal to view the server code and use curl here!; exec bash'" &
+    xfce_run xfce4-terminal --title=LockedTerminal2 --execute "bash -c 'xfconf-query -c xfce4-terminal -p /color-background -s "#FFFFFF"; xfconf-query -c xfce4-terminal -p /color-foreground -s "#000000"; echo Server running on http://challenge.localhost:80 Use the left terminal to view the server code and use curl here!; exec bash'" &
     sleep 2
 }
 

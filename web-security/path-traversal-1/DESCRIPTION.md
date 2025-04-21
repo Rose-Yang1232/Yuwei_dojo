@@ -1,3 +1,5 @@
+# Challenge Instructions
+
 This challenge will explore the intersection of Linux path resolution, when done naively, and unexpected web requests from an attacker.
 We've implemented a simple web server for you --- it will serve up files from /challenge/files over HTTP.
 Can you trick it into giving you the flag?
@@ -6,20 +8,58 @@ The webserver program is `/challenge/server`.
 When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can talk to it over HTTP (using the terminal that will appear on the right).
 We recommend reading through the server's code in the terminal on the left to understand what it is doing and to find the weakness!
 
-----
-**This challenge tracks your eye movements!**
- 
-This eye tracking will allow us to gather research data on how hackers like you approach CTF problems. Therefore, you must have a webcam and you must be willing to let us gather your eye movement data to complete this challenge.
-
-When you first open the GUI desktop workspace, you will see a white background with red dots to calibrate the eye tracker. This webpage will request permission to use your webcam, please select some variation of "allow" and wait for a video from your webcam to appear in the top left corner. Once it appears, you can start clicking on the red dots while staring at them until they change color. Once all the dots have changed colors, we will measure the accuracy of the eye tracker. You must get at least 85% accuracy to continue, otherwise we will ask you to calibrate again. After you have calibrated, the white background, video, and eye tracking dot will go away and you will see the normal GUI desktop with the two terminals needed to complete this challenge. Unlike most terminals, these terminals will have white backgrounds with black text so that we can better illuminate your face to improve eye tracking accuracy. Even though the video and eye coordinate has been removed, note that we are still tracking your eye movements for the duration of this challenge.
-
-To ensure that the eye tracker is as accurate as possible, please take this challenge in a well lit room with your monitor close to eye level and with your webcam directly above your screen. We also ask that you align your head with the box in the video during calibration and avoid moving your head too much during the challenge. However, if you close your eyes or look away from the screen, the eye tracker will be able to pick up your eye movements again when you look back, so don't worry too much your head or eye position, as long as you do your best to keep still.
-
-
-----
 **HINT:**
 If you're wondering why your solution isn't working, make sure what you're trying to query is what is actually being received by the server! 
 `curl -v [url]` can show you the exact bytes that curl is sending over.
+
+----
+
+# Eye-Tracking Instructions
+
+**This challenge uses your webcam to track eye movements.**  
+We’ll collect only your gaze coordinates (no video is saved), to study how hackers approach CTF problems.
+
+---
+
+## 1. Prerequisites
+
+- **Webcam**: You must have a working webcam.  
+- **Lighting**: A well-lit room helps improve accuracy.  
+- **Browser Permissions**: When prompted, **allow** camera access.  
+
+---
+
+## 2. Calibration (~30 seconds)
+
+1. When the GUI workspace opens, you’ll see a **white screen** with **9 red dots**.  
+2. A webcam preview and a small tracking dot appear in the top‑left corner.  
+3. **Click each red dot 5 times**, while looking directly at it.  
+4. Dots will turn **yellow** when fully clicked.  
+5. Once all dots are yellow, we’ll measure your accuracy:
+   - **>=85%** → proceed to the challenge  
+   - **<85%** → repeat calibration  
+
+---
+
+## 3. During the Challenge
+
+- After successful calibration, the white screen and video preview disappear.  
+- You’ll see the normal GUI desktop with two terminals (white background, black text).  
+- **Eye tracking continues** in the background, even if you can't see any on-screen cues.  
+
+---
+
+## 4. Tips for Best Accuracy
+
+- Keep your monitor **at eye level** and your webcam **above the screen**.  
+- Sit in a **well-lit** area.  
+- Try to keep your **head still**. Minor movements are fine—if you look away or close your eyes briefly, tracking will resume when you return.  
+
+---
+
+Thank you! Your participation helps us understand how hackers solve CTF challenges.
+
+
 
 
 <script>

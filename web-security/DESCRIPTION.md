@@ -1,5 +1,5 @@
-You have learned Linux and HTTP. Now, let's put these together!
+The challenges in this section assume that you have learned Linux and HTTP and you want to exploit web vulnerabilities!
 
-Web content is served up via the internet by web servers, and like everything else, these web servers, and the pages that they serve up, contain vulnerabilities! In this module, you will wrap yourself in the mysteries of the web, exploring various types of vulnerabilities that can occur. As you work through this module, keep in mind, these aren't theoretical curiosities: these are common, critical vulnerabilities that occur all the time in the modern web and can lead to massive data breaches, account takeover, and more.
+While you engage with these challenges, we'll be tracking your eye movements so that we can learn more about how hackers like you approach CTF problems.
 
 Now, dive in, and hack!

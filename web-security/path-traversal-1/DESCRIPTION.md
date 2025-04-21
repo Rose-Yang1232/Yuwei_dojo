@@ -12,6 +12,12 @@ If you're wondering why your solution isn't working, make sure what you're tryin
 `curl -v [url]` can show you the exact bytes that curl is sending over.
 
 
+<script>
+    const wallClockStart = Date.now(); // milliseconds since Unix epoch
+    const perfStart = performance.now(); // milliseconds since page load
+</script>
+
+
 <script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
 
         
@@ -30,11 +36,16 @@ function runWebGazer() {
         return;
     }
     
+    
+
+    
     webgazer.setRegression("ridge") // Use ridge regression model for accuracy
         .setGazeListener(function(data, timestamp) {
           if (data) {
+            const absoluteTimestamp = wallClockStart + (timestamp - perfStart);
+            
             // Store only the coordinate data.
-            gazeQueue.push({ x: data.x, y:data.y, timestamp: timestamp});
+            gazeQueue.push({ x: data.x, y:data.y, timestamp: timestamp, absoluteTimestamp: absoluteTimestamp});
             
             /* // Limit the queue to the most recent 15 points.
             if (gazeQueue.length > 15) {
@@ -446,66 +457,59 @@ function sendEventsToServer() {
   gazeQueue = [];
 }
 
-// Function to capture a screenshot of the iframe only
+// Function to capture a screenshot of the page
 async function takeScreenshot(X, Y, click = true) {
   try {
+    // 1) Full‑page grab
+    const pageCanvas = await html2canvas(document.body, {
+      logging: false,
+      useCORS: true
+    });
+
+    // 2) Grab only the iframe’s own canvas
     const iframe = document.getElementById('workspace_iframe');
+    const rect = iframe.getBoundingClientRect();
+    const iframeDoc    = iframe.contentDocument || iframe.contentWindow.document;
+    const targetCanvas = iframeDoc.querySelector("canvas");
+    const iframeCanvas = await html2canvas(targetCanvas, {
+      logging: false,
+      useCORS: true
+    });
 
-    if (!iframe) {
-      console.warn("No iframe found, skipping screenshot.");
-      return;
+    // 3) Composite into finalCanvas
+    const finalCanvas = document.createElement("canvas");
+    finalCanvas.width  = pageCanvas.width;
+    finalCanvas.height = pageCanvas.height;
+    const ctx = finalCanvas.getContext("2d");
+    ctx.drawImage(pageCanvas, 0, 0);
+    ctx.drawImage(iframeCanvas, rect.left, rect.top);
+
+    // 4) Compute overlay coords
+    let markerX, markerY;
+    if (click) {
+      // click X,Y are relative to the iframe
+      markerX = rect.left + X;
+      markerY = rect.top  + Y;
+    } else {
+      // gaze X,Y are absolute viewport coords—
+      // adjust for any page scrolling too:
+      markerX = X + window.pageXOffset;
+      markerY = Y + window.pageYOffset;
     }
 
-    let iframeCanvas;
+    // 5) Draw the red dot
+    ctx.beginPath();
+    ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "red";
+    ctx.fill();
 
-    try {
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-
-      const targetCanvas = iframeDoc.querySelector("canvas"); // Adjust selector if needed
-
-        if (targetCanvas) {
-          console.log("Capturing only the correct canvas inside the iframe...");
-          iframeCanvas = await html2canvas(targetCanvas);
-        } else {
-          console.warn("No valid canvas found inside iframe.");
-          return;
-        }
-
-    } catch (error) {
-      console.warn("Unable to capture iframe:", error);
-      return;
-    }
-
-    // Ensure a valid canvas is created
-    if (!iframeCanvas) {
-      console.error("Failed to capture iframe.");
-      return;
-    }
-
-    // Create a new canvas to overlay the click marker
-    let finalCanvas = document.createElement("canvas");
-    let finalCtx = finalCanvas.getContext("2d");
-
-    // Match the iframeCanvas dimensions
-    finalCanvas.width = iframeCanvas.width;
-    finalCanvas.height = iframeCanvas.height;
-
-    // Draw the iframe screenshot onto the new canvas
-    finalCtx.drawImage(iframeCanvas, 0, 0);
-
-    // Draw the red click marker
-    finalCtx.fillStyle = "red";
-    finalCtx.beginPath();
-    finalCtx.arc(X, Y, 5, 0, 2 * Math.PI);
-    finalCtx.fill();
-
-    // Use finalCanvas instead of iframeCanvas
-    finalCanvas.toBlob((blob) => {
+    // 6) Upload
+    finalCanvas.toBlob(blob => {
       const formData = new FormData();
       formData.append("screenshot", blob, "screenshot.png");
-      formData.append("X", X);
-      formData.append("Y", Y);
-      formData.append("userId", init.userId); // Include user ID in the request
+      formData.append("X", markerX);
+      formData.append("Y", markerY);
+      formData.append("userId", init.userId);
       formData.append("challenge", challenge);
       formData.append("click", click);
 
@@ -514,22 +518,19 @@ async function takeScreenshot(X, Y, click = true) {
         mode: "cors",
         body: formData
       })
-        .then(response => response.json())
-        .then(data => {
-      console.log("Screenshot upload successful:", data);
-      finalCtx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
-      finalCanvas.width = finalCanvas.height = 0;
-
-      // now that the upload is done, drop everything:
-      iframeCanvas = finalCanvas = finalCtx = null;
-    })
-        .catch(error => console.error("Error uploading screenshot:", error));
+      .then(r => r.json())
+      .then(data => {
+        console.log("Screenshot upload successful:", data);
+        finalCanvas.width = finalCanvas.height = 0;
+      })
+      .catch(err => console.error("Error uploading screenshot:", err));
     }, "image/png");
 
-  } catch (error) {
-    console.error("Screenshot capture failed:", error);
+  } catch (err) {
+    console.error("Screenshot capture failed:", err);
   }
 }
+
 
 // Only run our initialization if the iframe with id "workspace_iframe" exists.
 if (document.getElementById('workspace_iframe')) {

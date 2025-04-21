@@ -7,7 +7,8 @@ When you open the GUI desktop workspace, the server will automatically spin up t
 We recommend reading through the server's code in the terminal on the left to understand what it is doing and to find the weakness!
 
 ----
-**This challenge tracks your eye movements!** 
+**This challenge tracks your eye movements!**
+ 
 This eye tracking will allow us to gather research data on how hackers like you approach CTF problems. Therefore, you must have a webcam and you must be willing to let us gather your eye movement data to complete this challenge.
 
 When you first open the GUI desktop workspace, you will see a white background with red dots to calibrate the eye tracker. This webpage will request permission to use your webcam, please select some variation of "allow" and wait for a video from your webcam to appear in the top left corner. Once it appears, you can start clicking on the red dots while staring at them until they change color. Once all the dots have changed colors, we will measure the accuracy of the eye tracker. You must get at least 85% accuracy to continue, otherwise we will ask you to calibrate again. After you have calibrated, the white background, video, and eye tracking dot will go away and you will see the normal GUI desktop with the two terminals needed to complete this challenge. Unlike most terminals, these terminals will have white backgrounds with black text so that we can better illuminate your face to improve eye tracking accuracy. Even though the video and eye coordinate has been removed, note that we are still tracking your eye movements for the duration of this challenge.

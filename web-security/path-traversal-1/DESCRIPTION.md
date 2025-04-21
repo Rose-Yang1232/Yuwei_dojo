@@ -1,10 +1,19 @@
-This level will explore the intersection of Linux path resolution, when done naively, and unexpected web requests from an attacker.
+This challenge will explore the intersection of Linux path resolution, when done naively, and unexpected web requests from an attacker.
 We've implemented a simple web server for you --- it will serve up files from /challenge/files over HTTP.
 Can you trick it into giving you the flag?
 
 The webserver program is `/challenge/server`.
-You can run it just like any other challenge, then talk to it over HTTP (using a different terminal or a web browser).
-We recommend reading through its code to understand what it is doing and to find the weakness!
+When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can talk to it over HTTP (using the terminal that will appear on the right).
+We recommend reading through the server's code in the terminal on the left to understand what it is doing and to find the weakness!
+
+----
+**This challenge tracks your eye movements!** 
+This eye tracking will allow us to gather research data on how hackers like you approach CTF problems. Therefore, you must have a webcam and you must be willing to let us gather your eye movement data to complete this challenge.
+
+When you first open the GUI desktop workspace, you will see a white background with red dots to calibrate the eye tracker. This webpage will request permission to use your webcam, please select some variation of "allow" and wait for a video from your webcam to appear in the top left corner. Once it appears, you can start clicking on the red dots while staring at them until they change color. Once all the dots have changed colors, we will measure the accuracy of the eye tracker. You must get at least 85% accuracy to continue, otherwise we will ask you to calibrate again. After you have calibrated, the white background, video, and eye tracking dot will go away and you will see the normal GUI desktop with the two terminals needed to complete this challenge. Unlike most terminals, these terminals will have white backgrounds with black text so that we can better illuminate your face to improve eye tracking accuracy. Even though the video and eye coordinate has been removed, note that we are still tracking your eye movements for the duration of this challenge.
+
+To ensure that the eye tracker is as accurate as possible, please take this challenge in a well lit room with your monitor close to eye level and with your webcam directly above your screen. We also ask that you align your head with the box in the video during calibration and avoid moving your head too much during the challenge. However, if you close your eyes or look away from the screen, the eye tracker will be able to pick up your eye movements again when you look back, so don't worry too much your head or eye position, as long as you do your best to keep still.
+
 
 ----
 **HINT:**

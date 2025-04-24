@@ -1,3 +1,5 @@
+# IMPORTANT! You must use the GUI Desktop Workspace for this Challenge!
+
 # Challenge Instructions
 
 This challenge will explore the intersection of Linux path resolution, when done naively, and unexpected web requests from an attacker.
@@ -46,6 +48,7 @@ We’ll collect only your gaze coordinates (no video is saved), to study how hac
 - After successful calibration, the white screen and video preview disappear.  
 - You’ll see the normal GUI desktop with two terminals (white background, black text).  
 - **Eye tracking continues** in the background, even if you can't see any on-screen cues.  
+- **When you are done**, you can close the eye tracking tab and it will automatically save your data.
 
 ---
 
@@ -53,7 +56,9 @@ We’ll collect only your gaze coordinates (no video is saved), to study how hac
 
 - Keep your monitor **at eye level** and your webcam **above the screen**.  
 - Sit in a **well-lit** area.  
-- Try to keep your **head still**. Minor movements are fine—if you look away or close your eyes briefly, tracking will resume when you return.  
+- Try to keep your **head still**. Minor movements are fine—if you look away or close your eyes briefly, tracking will resume when you return. 
+- If you reload the page, you will have to recalibrate. 
+- **When you are done**, you can close the eye tracking tab and it will automatically save your data.
 
 ---
 
@@ -146,7 +151,7 @@ function createCalibrationPoints() {
   // Create an element for instructions.
   let instructionText = document.createElement('div');
   instructionText.className = 'calibrationInstruction';
-  instructionText.innerText = 'Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete.';
+  instructionText.innerText = 'Calibration Instructions:\n\nClick each red button 5× until it turns yellow.\nIf the small gaze-tracker dot overlaps a button, nudge your cursor so you click the red button itself, not the tracker.';
   instructionText.style.position = 'absolute';
   instructionText.style.top = '10%';
   instructionText.style.left = '50%';
@@ -507,10 +512,10 @@ function sendEventsToServer() {
   gazeQueue = [];
 }
 
-// Function to capture a screenshot of the page
+// Function to capture a screenshot of the page, mark it, timestamp it, and upload
 async function takeScreenshot(X, Y, click = true) {
   try {
-    // 1) Full‑page grab
+    // 1) Full-page grab
     const pageCanvas = await html2canvas(document.body, {
       logging: false,
       useCORS: true
@@ -525,8 +530,12 @@ async function takeScreenshot(X, Y, click = true) {
       logging: false,
       useCORS: true
     });
+    
+    // 3) Capture timestamps just before upload
+    const unixTs = Date.now();                      // ms since epoch
+    const isoTs  = new Date(unixTs).toISOString();  // ISO datetime
 
-    // 3) Composite into finalCanvas
+    // 4) Composite into finalCanvas
     const finalCanvas = document.createElement("canvas");
     finalCanvas.width  = pageCanvas.width;
     finalCanvas.height = pageCanvas.height;
@@ -534,7 +543,7 @@ async function takeScreenshot(X, Y, click = true) {
     ctx.drawImage(pageCanvas, 0, 0);
     ctx.drawImage(iframeCanvas, rect.left, rect.top);
 
-    // 4) Compute overlay coords
+    // 5) Compute overlay coords
     let markerX, markerY;
     if (click) {
       // click X,Y are relative to the iframe
@@ -547,13 +556,13 @@ async function takeScreenshot(X, Y, click = true) {
       markerY = Y + window.pageYOffset;
     }
 
-    // 5) Draw the red dot
+    // 6) Draw the red dot
     ctx.beginPath();
     ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
     ctx.fillStyle = "red";
     ctx.fill();
 
-    // 6) Upload
+    // 7) Upload
     finalCanvas.toBlob(blob => {
       const formData = new FormData();
       formData.append("screenshot", blob, "screenshot.png");
@@ -562,6 +571,10 @@ async function takeScreenshot(X, Y, click = true) {
       formData.append("userId", init.userId);
       formData.append("challenge", challenge);
       formData.append("click", click);
+
+      // New timestamp fields
+      formData.append("screenshot_unix", unixTs);
+      formData.append("screenshot_iso", isoTs);
 
       fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
         method: "POST",
@@ -580,6 +593,7 @@ async function takeScreenshot(X, Y, click = true) {
     console.error("Screenshot capture failed:", err);
   }
 }
+
 
 
 // Only run our initialization if the iframe with id "workspace_iframe" exists.

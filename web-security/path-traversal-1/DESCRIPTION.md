@@ -92,7 +92,7 @@ function runWebGazer() {
     }
     
     
-
+    webgazer.clearData(); // clear internal model
     
     webgazer.setRegression("ridge") // Use ridge regression model for accuracy
         .setGazeListener(function(data, timestamp) {
@@ -240,6 +240,7 @@ function calibrationClickHandler(event) {
 // Reset calibration data and restore calibration dot appearance.
 function ClearCalibration(){
   calibrationData = {};
+  webgazer.clearData(); // clear internal model
   document.querySelectorAll('.Calibration').forEach(btn => {
     btn.disabled = false;
     btn.style.backgroundColor = 'red';

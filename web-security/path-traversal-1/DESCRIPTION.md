@@ -329,8 +329,8 @@ function measureCenterAccuracy() {
           backgroundDiv.remove();
         }
         
-        //webgazer.showVideoPreview(false) // remove webcam preview
-        //    .showPredictionPoints(false); // remove tracking points
+        webgazer.showVideoPreview(false) // remove webcam preview
+            .showPredictionPoints(false); // remove tracking points
         calibrated = true;
         gazeQueue = [];
       } else {

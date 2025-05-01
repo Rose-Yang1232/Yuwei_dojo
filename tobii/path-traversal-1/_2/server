@@ -1,21 +1,16 @@
 #!/opt/pwn.college/python
+
 import flask
 import os
+
 app = flask.Flask(__name__)
 
 
-
-@app.route("/package", methods=["GET"])
-@app.route("/package/<path:path>", methods=["GET"])
+@app.route("/files", methods=["GET"])
+@app.route("/files/<path:path>", methods=["GET"])
 def challenge(path="index.html"):
-    
-    
-    
     requested_path = app.root_path + "/files/" + path
     print(f"DEBUG: {requested_path=}")
-    
-    
-    
     try:
         return open(requested_path).read()
     except PermissionError:
@@ -24,7 +19,6 @@ def challenge(path="index.html"):
         flask.abort(404, f"No {requested_path} from directory {os.getcwd()}")
     except Exception as e:
         flask.abort(500, requested_path + ":" + str(e))
-
 
 
 app.secret_key = os.urandom(8)

@@ -1,0 +1,59 @@
+#!/bin/sh
+
+
+reposition_window() {
+    local win_id=$1
+    local x=$2
+    local y=$3
+    local w=$4
+    local h=$5
+    
+    wmctrl -ir "$win_id" -b remove,maximized_vert,maximized_horz
+    wmctrl -ir "$win_id" -e 0,"$x","$y","$w","$h"
+}
+
+# Function to monitor and lock Terminal 1 and Terminal 2
+monitor_locked_terminals() {
+    while true; do
+        # Update screen dimensions.
+        SCREEN_RES=$(xdpyinfo | awk '/dimensions/{print $2}')
+        SCREEN_WIDTH=$(echo "$SCREEN_RES" | cut -d 'x' -f1)
+        SCREEN_HEIGHT=$(echo "$SCREEN_RES" | cut -d 'x' -f2)
+        HALF_WIDTH=$(expr $SCREEN_WIDTH / 2)
+        
+        # Subtract toolbar height (adjust this value as needed)
+        TOOLBAR_HEIGHT=50
+        ADJ_HEIGHT=$(expr $SCREEN_HEIGHT - $TOOLBAR_HEIGHT)
+        
+        HALF_WIDTH=$(expr $SCREEN_WIDTH / 2)
+
+        # Check for Terminal 1 by title.
+        TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
+        if [ -z "$TERM1_WIN" ]; then
+            # Respawn Terminal 1 if it's missing.
+            xfce4-terminal --title=LockedTerminal1 --execute bash -c 'cd /challenge; cat server; exec bash'
+            sleep 1
+            TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
+        fi
+        # Lock Terminal 1 to left half.
+        reposition_window "$TERM1_WIN" 0 0 "$HALF_WIDTH" "$ADJ_HEIGHT"
+
+        # Check for Terminal 2 by title.
+        TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
+        if [ -z "$TERM2_WIN" ]; then
+            # Respawn Terminal 2 if it's missing.
+            xfce4-terminal --title=LockedTerminal2 --execute bash -c 'echo Server running on http://challenge.localhost:80 Use the left terminal to view the server code and use curl here!; exec bash'
+            sleep 1
+            TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
+        fi
+        # Lock Terminal 2 to right half.
+        reposition_window "$TERM2_WIN" "$HALF_WIDTH" 0 "$HALF_WIDTH" "$ADJ_HEIGHT"
+
+        # Check every 5 seconds.
+        sleep 2
+    done
+}
+
+monitor_locked_terminals
+xfconf-query -c xfce4-terminal -p /color-background -s "#FFFFFF"
+xfconf-query -c xfce4-terminal -p /color-foreground -s "#000000"

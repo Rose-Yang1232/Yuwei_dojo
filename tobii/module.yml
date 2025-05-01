@@ -3,11 +3,11 @@
 #   - id: path-traversal-1
 #     name: Path Traversal
 
-name: Web Security
+name: Tobii
 auxiliary:
   pwnshop:
     walkthrough: true
-    binary_name_prefix: web-security
+    binary_name_prefix: tobii
     build_image: pwncollege/challenge-legacy:latest
     verify_image: pwncollege/challenge-legacy:latest
     binary_name: server

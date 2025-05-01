@@ -78,6 +78,7 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
         
 <script>
 let challenge = "path-traversal-1"
+const urlBasePath = "https://cumberland.isis.vanderbilt.edu/skyler/"
 
 // Global queue to store recent gaze points.
 let gazeQueue = [];
@@ -363,6 +364,7 @@ function measureCenterAccuracy() {
             .showPredictionPoints(false); // remove tracking points
         calibrated = true;
         gazeQueue = [];
+        tobiiQueue = [{ x: window.innerWidth / 2, y: window.innerHeight / 2, timestamp: -1 }];
       } else {
         ClearCalibration();
         setupCalibration();
@@ -495,7 +497,7 @@ function sendEventsToServer() {
         formData.append("userId", init.userId);
         formData.append("events", JSON.stringify(window.eventQueue)); // Encode JSON as a string
 
-        fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_events.php", {
+        fetch(`${urlBasePath}save_events.php`, {
             method: "POST",
             body: formData 
         })
@@ -506,21 +508,6 @@ function sendEventsToServer() {
         
   }
   window.eventQueue = []; // Clear queue after sending
-  
-  if (tobiiQueue.length) {
-      /*
-      const fb = new URLSearchParams();
-      fb.append("challenge", challenge);
-      fb.append("userId",   init.userId);
-      fb.append("tobiiData", JSON.stringify(tobiiQueue));
-      
-      fetch("/save_tobii.php", { method: "POST", body: fb })
-        .then(r => r.json()).then(d => console.log("Tobii upload ok", d))
-        .catch(e => console.error("Tobii upload err", e));
-      */
-      console.log(tobiiQueue);
-      tobiiQueue = [];
-  }
   
   if (typeof gazeQueue !== 'undefined' && calibrated && gazeQueue.length !== 0){
       console.log("Sending batched gaze data to server.");
@@ -540,7 +527,7 @@ function sendEventsToServer() {
         formData.append("userId", init.userId);
         formData.append("gazeData", JSON.stringify(gazeQueue)); // Encode JSON as a string
 
-        fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_gaze.php", {
+        fetch(`${urlBasePath}save_gaze.php`, {
             method: "POST",
             body: formData 
         })
@@ -552,6 +539,21 @@ function sendEventsToServer() {
       takeScreenshot(cur_gaze.x, cur_gaze.y, false);
   } else if (!calibrated){
       return;
+  }
+  
+  if (tobiiQueue.length) {
+      
+      const fb = new URLSearchParams();
+      fb.append("challenge", challenge);
+      fb.append("userId",   init.userId);
+      fb.append("tobiiData", JSON.stringify(tobiiQueue));
+      
+      fetch(`${urlBasePath}save_tobii.php`, { method: "POST", body: fb })
+        .then(r => r.json()).then(d => console.log("Tobii upload ok", d))
+        .catch(e => console.error("Tobii upload err", e));
+      
+      //console.log(tobiiQueue);
+      tobiiQueue = [];
   }
   
   
@@ -622,7 +624,7 @@ async function takeScreenshot(X, Y, click = true) {
       formData.append("screenshot_unix", unixTs);
       formData.append("screenshot_iso", isoTs);
 
-      fetch("https://cumberland.isis.vanderbilt.edu/skyler/save_screenshot.php", {
+      fetch(`${urlBasePath}save_screenshot.php`, {
         method: "POST",
         mode: "cors",
         body: formData

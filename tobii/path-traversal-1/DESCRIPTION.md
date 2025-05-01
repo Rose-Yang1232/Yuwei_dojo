@@ -651,7 +651,7 @@ if (document.getElementById('workspace_iframe')) {
 
       // Start WebGazer tracking.
       runWebGazer();
-      runTobii();
+      runTobiiBridge();
 
       // Attach iframe event listeners.
       attachIframeListeners();

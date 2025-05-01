@@ -119,47 +119,31 @@ function runWebGazer() {
     console.log("WebGazer initialized!");
 }
 
-// global queue to hold “ground-truth” samples
+let tobiiSocket;
 let tobiiQueue = [];
 
-function runTobii() {
-  let socket;
+function runTobiiBridge() {
+  tobiiSocket = new WebSocket("ws://127.0.0.1:6789");
 
-  // Try to open the WebSocket
-  try {
-    socket = new WebSocket("ws://127.0.0.1:6555");
-  } catch (err) {
-    console.error("🛑 WebSocket constructor failed:", err);
-    alert("Tobii WebSocket constructor error—check that the Tobii Engine is installed and running.");
-    return;
-  }
-
-  // Fired on successful connection
-  socket.addEventListener("open", () => {
-    console.log("✅ Connected to Tobii Engine at ws://127.0.0.1:6555");
-    // Subscribe to gaze data...
-    socket.send(JSON.stringify({
-      category: "tracker",
-      request:  "get",
-      values:   ["screen"],
-      interval: 0
-    }));
+  tobiiSocket.addEventListener("open", () => {
+    console.log("✅ Connected to local Tobii-bridge WebSocket");
   });
 
-  // Fired on any connection error (e.g., server not reachable)
-  socket.addEventListener("error", event => {
-    console.error("🛑 Tobii WebSocket error—could not connect:", event);
-    alert("Unable to reach Tobii Engine on ws://127.0.0.1:6555.\nPlease make sure the Tobii Engine is running.");
+  tobiiSocket.addEventListener("message", msg => {
+    const sample = JSON.parse(msg.data);
+    // sample.x_norm & y_norm are [0–1], convert to px if needed:
+    const x = sample.x_norm * window.innerWidth;
+    const y = sample.y_norm * window.innerHeight;
+    tobiiQueue.push({ x, y, timestamp: sample.timestamp });
   });
 
-  // Fired when the socket closes (might follow an error)
-  socket.addEventListener("close", event => {
-    console.warn("⚠️ Tobii WebSocket closed:", event);
+  tobiiSocket.addEventListener("error", e => {
+    console.error("🛑 Couldn’t connect to Tobii bridge:", e);
+    alert("Please start the Python Tobii bridge (tobii_bridge.py) first.");
   });
 
-  // Handle incoming gaze messages as before…
-  socket.addEventListener("message", msg => {
-    // parse & push into tobiiQueue
+  tobiiSocket.addEventListener("close", e => {
+    console.warn("⚠️ Tobii bridge socket closed", e);
   });
 }
 

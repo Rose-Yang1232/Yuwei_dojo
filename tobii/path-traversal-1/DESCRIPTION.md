@@ -123,42 +123,46 @@ function runWebGazer() {
 let tobiiQueue = [];
 
 function runTobii() {
-  // connect to the local Tobii Engine
-  const socket = new WebSocket("ws://127.0.0.1:6555");
+  let socket;
 
+  // Try to open the WebSocket
+  try {
+    socket = new WebSocket("ws://127.0.0.1:6555");
+  } catch (err) {
+    console.error("🛑 WebSocket constructor failed:", err);
+    alert("Tobii WebSocket constructor error—check that the Tobii Engine is installed and running.");
+    return;
+  }
+
+  // Fired on successful connection
   socket.addEventListener("open", () => {
-    console.log("🚀 Connected to Tobii Engine");
-    // Subscribe to screen‐coordinate gaze data:
+    console.log("✅ Connected to Tobii Engine at ws://127.0.0.1:6555");
+    // Subscribe to gaze data...
     socket.send(JSON.stringify({
       category: "tracker",
       request:  "get",
-      values:   ["screen"],   // gives you { x, y, timestamp }
-      interval: 0             // 0 = as fast as possible (usually 60+ Hz)
+      values:   ["screen"],
+      interval: 0
     }));
   });
 
+  // Fired on any connection error (e.g., server not reachable)
+  socket.addEventListener("error", event => {
+    console.error("🛑 Tobii WebSocket error—could not connect:", event);
+    alert("Unable to reach Tobii Engine on ws://127.0.0.1:6555.\nPlease make sure the Tobii Engine is running.");
+  });
+
+  // Fired when the socket closes (might follow an error)
+  socket.addEventListener("close", event => {
+    console.warn("⚠️ Tobii WebSocket closed:", event);
+  });
+
+  // Handle incoming gaze messages as before…
   socket.addEventListener("message", msg => {
-    let data = JSON.parse(msg.data);
-    // the format can vary slightly by engine version, but typically:
-    if (data.category === "tracker" && Array.isArray(data.values)) {
-      data.values.forEach(sample => {
-        tobiiQueue.push({
-          x: sample.x,          // screen-coords in px
-          y: sample.y,
-          timestamp: sample.timestamp  // ms since Unix epoch
-        });
-      });
-    }
-  });
-
-  socket.addEventListener("error", err => {
-    console.error("Tobii WebSocket error:", err);
-  });
-
-  socket.addEventListener("close", () => {
-    console.warn("Tobii WebSocket closed");
+    // parse & push into tobiiQueue
   });
 }
+
 
     
 // --- Calibration UI Creation and Styling ---

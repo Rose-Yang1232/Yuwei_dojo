@@ -52,18 +52,29 @@ monitor_locked_terminals() {
         fi
         reposition_window "$TERM2_WIN" "$HALF_WIDTH" 0 "$HALF_WIDTH" "$TOP_HEIGHT"
 
-                # look for a Firefox window titled “Login Page”
-        BROW3_WIN=$(wmctrl -l | awk '/Login Page/{print $1; exit}')
+        ### Browser 3: full width at bottom, renamed to LockedBrowser3 ###
+        BROW3_WIN=$(wmctrl -l | awk '/LockedBrowser3/{print $1; exit}')
         if [ -z "$BROW3_WIN" ]; then
-            # launch Firefox in the background
+            # 1) Launch Firefox and remember its PID
             firefox --new-window "http://challenge.localhost:80/login-page" &
-            # give it a moment to spin up
-            sleep 3
-            BROW3_WIN=$(wmctrl -l | awk '/Login Page/{print $1; exit}')
+            FIREFOX_PID=$!
+
+            # 2) Give it a moment to create its window
+            sleep 2
+
+            # 3) Find the window by PID
+            WIN_ID=$(wmctrl -lp | awk -v pid="$FIREFOX_PID" '$3==pid {print $1; exit}')
+
+            # 4) Rename its title to LockedBrowser3
+            wmctrl -i -r "$WIN_ID" -T "LockedBrowser3"
+
+            BROW3_WIN="$WIN_ID"
         fi
-        # now move/resize it across the bottom
+
+        # 5) Snap it to the bottom
         reposition_window "$BROW3_WIN" \
             0 "$TOP_HEIGHT" "$SCREEN_WIDTH" "$BOTTOM_HEIGHT"
+
 
         sleep 2
     done

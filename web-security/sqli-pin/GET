@@ -6,8 +6,8 @@ def challenge_get():
     if not (username := flask.session.get("user", None)):
         page = "<html><body>Welcome to the login service! Please log in as admin to get the flag."
     
-    
-    
+      
+      
     else:
         page = f"<html><body>Hello, {username}!"
         if username == "admin":
@@ -15,15 +15,11 @@ def challenge_get():
 
 
 
-
-    return (
-        page
-        + """
+    return (page + """
         <hr>
         <form method=post>
         User:<input type=text name=user-alias>Pin:<input type=text name=pin><input type=submit value=Submit>
         </form>
         </body></html>
-    """
-    )
+    """)
     

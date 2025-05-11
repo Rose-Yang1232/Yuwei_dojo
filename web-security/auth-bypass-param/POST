@@ -1,9 +1,6 @@
 db = TemporaryDB()
-# https://www.sqlite.org/lang_createtable.html
 db.execute("""CREATE TABLE users AS SELECT "admin" AS username, ? as password""", [os.urandom(8)])
-# https://www.sqlite.org/lang_insert.html
 db.execute("""INSERT INTO users SELECT "guest" as username, "password" as password""")
-
 
 
 @app.route("/", methods=["POST"])
@@ -24,7 +21,6 @@ def challenge_post():
     if not user:
         flask.abort(403, "Invalid username or password")
 
-    
     
     return flask.redirect(f"""{flask.request.path}?session_user={username}""")
     

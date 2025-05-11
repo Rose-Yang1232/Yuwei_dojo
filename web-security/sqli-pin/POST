@@ -34,3 +34,4 @@ def challenge_post():
       
     flask.session["user"] = username
     return flask.redirect(flask.request.path)
+    

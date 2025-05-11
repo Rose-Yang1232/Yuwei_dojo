@@ -62,22 +62,51 @@ def challenge_post():
 @app.route("/login-page", methods=["GET"])
 def challenge_get():
     if not (username := flask.session.get("user", None)):
-        page = "<html><body>Welcome to the login service! Please log in as admin to get the flag."
+        greeting = "Welcome to the login service! Please log in as admin to get the flag."
     else:
-        page = f"<html><body>Hello, {username}!"
+        greeting = f"Hello, {username}!"
         if username == "admin":
-            page += "<br>Here is your flag: " + open("/flag").read()
+            greeting += "<br>Here is your flag: " + open("/flag").read()
 
-    return (
-        page
-        + """
-        <hr>
-        <form method=post>
-        User:<input type=text name=user-alias>Pin:<input type=text name=pin><input type=submit value=Submit>
-        </form>
-        </body></html>
+    # Note: we include a <head> with CSS to center the body content
+    return f"""
+    <html>
+      <head>
+        <style>
+          html, body {{
+            margin: 0;
+            height: 100%;
+          }}
+          body {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            font-family: sans-serif;
+          }}
+          form {{
+            margin-top: 1em;
+          }}
+        </style>
+      </head>
+      <body>
+        <div>
+          {greeting}
+          <hr>
+          <form method="post">
+            <label>User:
+              <input type="text" name="user-alias">
+            </label>
+            <label>Pin:
+              <input type="text" name="pin">
+            </label>
+            <input type="submit" value="Submit">
+          </form>
+        </div>
+      </body>
+    </html>
     """
-    )
+
 
 
 app.secret_key = os.urandom(8)

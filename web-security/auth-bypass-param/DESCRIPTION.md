@@ -120,36 +120,6 @@ function runWebGazer() {
       
     console.log("WebGazer initialized!");
 }
-
-let tobiiSocket;
-let tobiiQueue = [];
-
-function runTobiiBridge() {
-  tobiiSocket = new WebSocket("ws://127.0.0.1:6789");
-
-  tobiiSocket.addEventListener("open", () => {
-    console.log("✅ Connected to local Tobii-bridge WebSocket");
-  });
-
-  tobiiSocket.addEventListener("message", msg => {
-    const sample = JSON.parse(msg.data);
-    // sample.x_norm & y_norm are [0–1], convert to px if needed:
-    const x = sample.x_norm * window.innerWidth;
-    const y = sample.y_norm * window.innerHeight;
-    tobiiQueue.push({ x, y, timestamp: sample.timestamp });
-  });
-
-  tobiiSocket.addEventListener("error", e => {
-    console.error("🛑 Couldn’t connect to Tobii bridge:", e);
-    alert("Please start the Python Tobii bridge (tobii_bridge.py) first.");
-  });
-
-  tobiiSocket.addEventListener("close", e => {
-    console.warn("⚠️ Tobii bridge socket closed", e);
-  });
-}
-
-
     
 // --- Calibration UI Creation and Styling ---
 // Create calibration dots dynamically if they aren’t already on the page.
@@ -365,7 +335,6 @@ function measureCenterAccuracy() {
             .showPredictionPoints(false); // remove tracking points
         calibrated = true;
         gazeQueue = [];
-        tobiiQueue = [{ x: window.innerWidth / 2, y: window.innerHeight / 2, timestamp: -1 }];
       } else {
         ClearCalibration();
         setupCalibration();
@@ -542,21 +511,6 @@ function sendEventsToServer() {
       return;
   }
   
-  if (tobiiQueue.length) {
-      
-      const fb = new URLSearchParams();
-      fb.append("challenge", challenge);
-      fb.append("userId",   init.userId);
-      fb.append("tobiiData", JSON.stringify(tobiiQueue));
-      
-      fetch(`${urlBasePath}save_tobii.php`, { method: "POST", body: fb })
-        .then(r => r.json()).then(d => console.log("Tobii upload ok", d))
-        .catch(e => console.error("Tobii upload err", e));
-      
-      //console.log(tobiiQueue);
-      tobiiQueue = [];
-  }
-  
   
   gazeQueue = [];
 }
@@ -654,7 +608,6 @@ if (document.getElementById('workspace_iframe')) {
 
       // Start WebGazer tracking.
       runWebGazer();
-      runTobiiBridge();
 
       // Attach iframe event listeners.
       attachIframeListeners();
@@ -664,6 +617,7 @@ if (document.getElementById('workspace_iframe')) {
 
       // After a short delay, instruct the user.
       setTimeout(() => {
+      // TODO add white backround image with instructions so that they don't go away
         alert("Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete.");
       }, 2000);
 

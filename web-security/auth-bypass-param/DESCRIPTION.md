@@ -1,100 +1,19 @@
-# Example Dojo
+# IMPORTANT! You must use the GUI Desktop Workspace for this Challenge!
 
-This repositories features an example dojo.
+# Challenge Instructions
 
-The dojo is defined by [dojo.yml](./dojo.yml).
+A common type of vulnerability is an _Authentication Bypass_, where an attacker can bypass the typical authentication logic of an application and log in without knowing the necessary user credentials.
 
-It contains two modules, `hello` and `world`.
+This level challenges you to explore one such scenario.
+This specific scenario arises because of a gap between what the developer expects (that the URL parameters set by the application will only be set by the application itself) and the reality (that attackers can craft HTTP requests to their hearts content).
 
-The module `hello` features challenges `apple` and `banana`.
+This level assumes a passing familiarity with SQL, which you can develop in the [SQL Playground](/fundamentals/sql-playground).
 
-The module `world` features challenges `earth`, `mars`, and `venus`.
-
-Each challenge demonstrates different challenge definition capabilities, in an increasing order of feature complexity.
-
-See each challenge's README for further information:
-- [apple](./hello/apple)
-- [banana](./hello/banana)
-- [earth](./world/earth)
-- [mars](./world/mars)
-- [venus](./world/venus)
-
-## YAML Structure of `dojo.yml`
-
-### Dojo
-
-The top-level object is the `Dojo`. It consists of six properties:
-
-- `id`: **Required**. A unique identifier for the Dojo.
-- `name`: **Required**. The display name of the Dojo.
-- `description`: **Optional**. Additional details about the Dojo. This can include formatted markdown text.
-- `type`: **Optional**. This field can take the values `course`, `topic`, or `hidden`. `course` places it in the "Courses" section. `topic` places the Dojo in the "Topics" section. `hidden` means the Dojo won't be listed (but is still accessible). If the type field is omitted or contains a value other than these three, the Dojo will appear in the "More" section.
-- `password`: **Optional**. A password that users need to join the Dojo. If omitted, the Dojo is open for anyone to join.
-- `modules`: **Required**. An array of `Module` objects.
-
-### Module
-
-Each `Module` object within the `modules` array consists of the following properties:
-
-- `id`: **Required**. A unique identifier for the Module.
-- `name`: **Required**. The display name of the Module.
-- `description`: **Optional**. Additional details about the Module.
-- `challenges`: **Required**. An array of `Challenge` objects.
-
-### Challenge
-
-Each `Challenge` object within the `challenges` array of a `Module` consists of the following properties:
-
-- `id`: **Required**. A unique identifier for the Challenge.
-- `name`: **Required**. The display name of the Challenge.
-- `description`: **Optional**. Additional details about the Challenge.
-
-## Importing Modules and Challenges
-
-For an example of how you can import another dojo's challenges, see: [pwncollege/example-import-dojo](https://github.com/pwncollege/example-import-dojo).
-
-## Automatically Updating Dojo
-
-For instructions on how you can setup automatic dojo updates, using GitHub actions, see: [pwncollege/dojo-update](https://github.com/pwncollege/dojo-update).
-
-## Challenge Writing Laws
-
-### The Flag
-
-The flag is located at `/flag`, and is only readable by `root`. 
-The challenge will execute as `root`.
-Nothing else is true.
-
-Do not assume any structure to the flag. 
-It may or may not have a prefix/suffix. 
-It may or may not be 50 bytes long.
-These things WILL change, and if you rely on them, your challenge WILL break.
-
-### The Challenge
-
-The challenge is [`setuid`](https://en.wikipedia.org/wiki/Setuid).
-This is how your challenge will execute as `root`.
-
-What this *really* means:
-- The process will run with an **effective** user of `root`.
-- The process will run with a **real** user of `hacker`.
-
-While an **effective** user of `root` is sufficient for opening the flag, there are some caveats.
-When `/bin/sh` (which is linked to `/bin/dash`) is run under this, it will immediately set the **effective** user to the **real** user (unless the `-p` flag is provided).
-This means that both the **effective** and **real** user will be `hacker`, and the flag will not be accessible.
-This affects `system`, which ultimately just runs `/bin/sh`.
-
-The challenge can rememedy this by explicitly setting the **real** user to the **effective** user:
-```c
-setreuid(geteuid(), -1)
-```
+The webserver program is `/challenge/server`.
+When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can talk to it over HTTP.
+We recommend reading through the server's code in one of the popped up terminals to understand what it is doing. From this, you can bypass this authentication to log in as the `admin` user and get the flag!
 
 
-# Instructions for Adding Eye Tracking to a New Challenge
-
-## 1. Copy the following code to the bottom of your challenge description (DESCRIPTION.md).
-
-```
 ----
 
 # Eye-Tracking Instructions
@@ -148,6 +67,7 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 
 
 
+
 <script>
     const wallClockStart = Date.now(); // milliseconds since Unix epoch
     const perfStart = performance.now(); // milliseconds since page load
@@ -158,8 +78,8 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 
         
 <script>
-let challenge = "Add your challenge name here"
-const urlBasePath = "Add your url base path here"
+let challenge = "auth-bypass-param"
+const urlBasePath = "https://cumberland.isis.vanderbilt.edu/skyler/"
 
 // Global queue to store recent gaze points.
 let gazeQueue = [];
@@ -200,6 +120,36 @@ function runWebGazer() {
       
     console.log("WebGazer initialized!");
 }
+
+let tobiiSocket;
+let tobiiQueue = [];
+
+function runTobiiBridge() {
+  tobiiSocket = new WebSocket("ws://127.0.0.1:6789");
+
+  tobiiSocket.addEventListener("open", () => {
+    console.log("✅ Connected to local Tobii-bridge WebSocket");
+  });
+
+  tobiiSocket.addEventListener("message", msg => {
+    const sample = JSON.parse(msg.data);
+    // sample.x_norm & y_norm are [0–1], convert to px if needed:
+    const x = sample.x_norm * window.innerWidth;
+    const y = sample.y_norm * window.innerHeight;
+    tobiiQueue.push({ x, y, timestamp: sample.timestamp });
+  });
+
+  tobiiSocket.addEventListener("error", e => {
+    console.error("🛑 Couldn’t connect to Tobii bridge:", e);
+    alert("Please start the Python Tobii bridge (tobii_bridge.py) first.");
+  });
+
+  tobiiSocket.addEventListener("close", e => {
+    console.warn("⚠️ Tobii bridge socket closed", e);
+  });
+}
+
+
     
 // --- Calibration UI Creation and Styling ---
 // Create calibration dots dynamically if they aren’t already on the page.
@@ -415,6 +365,7 @@ function measureCenterAccuracy() {
             .showPredictionPoints(false); // remove tracking points
         calibrated = true;
         gazeQueue = [];
+        tobiiQueue = [{ x: window.innerWidth / 2, y: window.innerHeight / 2, timestamp: -1 }];
       } else {
         ClearCalibration();
         setupCalibration();
@@ -591,6 +542,21 @@ function sendEventsToServer() {
       return;
   }
   
+  if (tobiiQueue.length) {
+      
+      const fb = new URLSearchParams();
+      fb.append("challenge", challenge);
+      fb.append("userId",   init.userId);
+      fb.append("tobiiData", JSON.stringify(tobiiQueue));
+      
+      fetch(`${urlBasePath}save_tobii.php`, { method: "POST", body: fb })
+        .then(r => r.json()).then(d => console.log("Tobii upload ok", d))
+        .catch(e => console.error("Tobii upload err", e));
+      
+      //console.log(tobiiQueue);
+      tobiiQueue = [];
+  }
+  
   
   gazeQueue = [];
 }
@@ -688,6 +654,7 @@ if (document.getElementById('workspace_iframe')) {
 
       // Start WebGazer tracking.
       runWebGazer();
+      runTobiiBridge();
 
       // Attach iframe event listeners.
       attachIframeListeners();
@@ -697,7 +664,6 @@ if (document.getElementById('workspace_iframe')) {
 
       // After a short delay, instruct the user.
       setTimeout(() => {
-      // TODO add white backround image with instructions so that they don't go away
         alert("Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete.");
       }, 2000);
 
@@ -710,25 +676,5 @@ if (document.getElementById('workspace_iframe')) {
 }
 
 
+
 </script>
-```
-
-For this to work, you will need to have javascript enabled for your challenge. You will also need to replace `Add your challenge name here` with your challenge name (this is just for keeping track of the challenge when saving the data on the backend server) and `Add your url base path here` with the server that you want to send your data to. This server will have to implement the following endpoints to work with the fetch requests in the above code:
-
-- `save_events.php` for saving keylogging and mouse click data
-- `save_gaze.php` for saving eye tracking data
-- `save_screenshot.php` for saving screenshots that are taken every 5 seconds and every time the user clicks the mouse
-
-Our current server for gathering this data is at `https://cumberland.isis.vanderbilt.edu/skyler/`. We can provide the code on request, or you can save the data however you like by modifying the fetch calls above.
-
-
-## 2. Copy the `.init` and `.run_loop` files into the challenge folder and modify them appropriately
-
-These files setup the window layout in the dojo that will enforce a consistent screen location throughout the experiment. This ensures that the areas of interest that participants might look at remain consistent.
-Currently, these files run `/challenge/server` in the background and spawn a terminal on the left and right halves of the screen, where one terminal contains the server code and the other terminal contains instructions and should be used by the participant to run the exploit. The terminals are also monitored in the loop to ensure that they are not closed, moved, or resized.
-
-If you require a different layout, these files will need to be modified to enforce your new layout. The commands run in these terminals will almost certainly need to be modified, even if the overall layout does not change.
-
-## 3. (Optionally) separate areas of interest
-
-For best results, you may want to modify any code or content you display to the user to ensure that areas of interest are appropriately separated. For example, separate blocks of code with distinct functions by multiple blank lines so that it is easy to tell with area your participant is looking at in the resulting data. 

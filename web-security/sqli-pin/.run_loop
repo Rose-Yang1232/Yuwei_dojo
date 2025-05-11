@@ -1,0 +1,89 @@
+#!/bin/sh
+
+reposition_window() {
+    local win_id=$1
+    local x=$2
+    local y=$3
+    local w=$4
+    local h=$5
+
+    wmctrl -ir "$win_id" -b remove,maximized_vert,maximized_horz
+    wmctrl -ir "$win_id" -e 0,"$x","$y","$w","$h"
+}
+
+monitor_locked_terminals() {
+    # Fraction of the available height for the bottom terminal (1/4 here)
+    BOTTOM_RATIO=4
+
+    while true; do
+        # Get screen dimensions
+        SCREEN_RES=$(xdpyinfo | awk '/dimensions/{print $2}')
+        SCREEN_WIDTH=${SCREEN_RES%x*}
+        SCREEN_HEIGHT=${SCREEN_RES#*x}
+
+        # Reserve some space for the panel/toolbars
+        TOOLBAR_HEIGHT=50
+        AVAILABLE_HEIGHT=$(( SCREEN_HEIGHT - TOOLBAR_HEIGHT ))
+
+        # Compute heights
+        BOTTOM_HEIGHT=$(( AVAILABLE_HEIGHT / BOTTOM_RATIO ))
+        TOP_HEIGHT=$(( AVAILABLE_HEIGHT - BOTTOM_HEIGHT ))
+
+        # Left and right widths
+        HALF_WIDTH=$(( SCREEN_WIDTH / 2 ))
+
+        ### Terminal 1: left half, show POST ###
+        TERM1_WIN=$(wmctrl -l | awk '/LockedTerminal1/{print $1; exit}')
+        if [ -z "$TERM1_WIN" ]; then
+            xfce4-terminal --title=LockedTerminal1 \
+                --execute bash -c 'cd /challenge; cat POST; exec bash'
+            sleep 1
+            TERM1_WIN=$(wmctrl -l | awk '/LockedTerminal1/{print $1; exit}')
+        fi
+        reposition_window "$TERM1_WIN" 0 0 "$HALF_WIDTH" "$TOP_HEIGHT"
+
+        ### Terminal 2: right half, show GET ###
+        TERM2_WIN=$(wmctrl -l | awk '/LockedTerminal2/{print $1; exit}')
+        if [ -z "$TERM2_WIN" ]; then
+            xfce4-terminal --title=LockedTerminal2 \
+                --execute bash -c 'cd /challenge; cat GET; exec bash'
+            sleep 1
+            TERM2_WIN=$(wmctrl -l | awk '/LockedTerminal2/{print $1; exit}')
+        fi
+        reposition_window "$TERM2_WIN" "$HALF_WIDTH" 0 "$HALF_WIDTH" "$TOP_HEIGHT"
+
+                # look for a Firefox window titled “Login Page”
+        BROW3_WIN=$(wmctrl -l | awk '/Login Page/{print $1; exit}')
+        if [ -z "$BROW3_WIN" ]; then
+            # launch Firefox in the background
+            firefox --new-window "http://challenge.localhost:80/login-page" &
+            # give it a moment to spin up
+            sleep 3
+            BROW3_WIN=$(wmctrl -l | awk '/Login Page/{print $1; exit}')
+        fi
+        # now move/resize it across the bottom
+        reposition_window "$BROW3_WIN" \
+            0 "$TOP_HEIGHT" "$SCREEN_WIDTH" "$BOTTOM_HEIGHT"
+
+        sleep 2
+    done
+}
+
+# Capture whatever colors the user had before
+OLD_BG=$(xfconf-query -c xfce4-terminal -p /color-background)
+OLD_FG=$(xfconf-query -c xfce4-terminal -p /color-foreground)
+
+# Define a cleanup function to put them back
+cleanup() {
+    xfconf-query -c xfce4-terminal -p /color-background -s "$OLD_BG"
+    xfconf-query -c xfce4-terminal -p /color-foreground -s "$OLD_FG"
+}
+
+# Arrange for cleanup on any exit
+trap cleanup EXIT
+
+# Switch to whitebackground/blacktext for the experiment
+xfconf-query -c xfce4-terminal -p /color-background -s "#FFFFFF"
+xfconf-query -c xfce4-terminal -p /color-foreground -s "#000000"
+
+monitor_locked_terminals

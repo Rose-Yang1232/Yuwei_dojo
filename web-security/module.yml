@@ -18,4 +18,31 @@ challenges:
   auxiliary:
     pwnshop:
       challenge: PathTraversal
-      variants: 1
+      #variants: 1
+- id: path-traversal-2
+  name: Path Traversal 2
+  image: skylergrandel/pwncollege_eyetracking:latest
+  auxiliary:
+    pwnshop:
+      challenge: PathTraversal2
+- id: path-traversal-3
+  name: Path Traversal 3
+  image: skylergrandel/pwncollege_eyetracking:latest
+  auxiliary:
+    pwnshop:
+      challenge: PathTraversal3
+- id: path-traversal-4
+  name: Path Traversal 4
+  image: skylergrandel/pwncollege_eyetracking:latest
+  auxiliary:
+    pwnshop:
+      challenge: PathTraversal4
+- id: auth-bypass-param
+  name: Authentication Bypass 1
+  image: skylergrandel/pwncollege_eyetracking:latest
+- id: sqli-pin
+  name: SQLi 1
+  image: skylergrandel/pwncollege_eyetracking:latest
+  auxiliary:
+    pwnshop:
+      challenge: SQLInjectionPin

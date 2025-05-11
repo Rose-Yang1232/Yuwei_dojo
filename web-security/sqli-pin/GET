@@ -1,0 +1,28 @@
+@app.route("/login-page", methods=["GET"])
+def challenge_get():
+
+
+
+    if not (username := flask.session.get("user", None)):
+        page = "<html><body>Welcome to the login service! Please log in as admin to get the flag."
+    
+    
+    
+    else:
+        page = f"<html><body>Hello, {username}!"
+        if username == "admin":
+            page += "<br>Here is your flag: " + open("/flag").read()
+
+
+
+
+    return (
+        page
+        + """
+        <hr>
+        <form method=post>
+        User:<input type=text name=user-alias>Pin:<input type=text name=pin><input type=submit value=Submit>
+        </form>
+        </body></html>
+    """
+    )

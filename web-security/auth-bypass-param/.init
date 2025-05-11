@@ -1,0 +1,97 @@
+#!/bin/sh
+
+PATH="/run/dojo/bin:$PATH"
+USER="hacker"
+
+xfce_env() {
+    local session_pid
+    session_pid=$(pgrep -u "$USER" xfce4-session | head -n1)
+    xargs -0 -a /proc/"$session_pid"/environ
+}
+
+xfce_run() {
+    id
+    which su
+    echo "$USER"
+    setsid runuser "$USER" -c "env - $(xfce_env) $*"
+}
+
+# Helper function to reposition a window.
+# Usage: reposition_window <window_id> <x> <y> <width> <height>
+reposition_window() {
+    local win_id=$1
+    local x=$2
+    local y=$3
+    local w=$4
+    local h=$5
+    
+    wmctrl -ir "$win_id" -b remove,maximized_vert,maximized_horz
+    wmctrl -ir "$win_id" -e 0,"$x","$y","$w","$h"
+}
+
+# Function to spawn Terminal 1 and Terminal 2 with locked titles.
+spawn_locked_terminals() {
+    # Terminal 1: left half, displays "cat server"
+    xfce_run xfce4-terminal --title=LockedTerminal1 --execute "bash -c 'cd /challenge; cat server; exec bash'" &
+    sleep 2
+    # Terminal 2: right half, displays hint message
+    xfce_run xfce4-terminal --title=LockedTerminal2 --execute "bash -c 'echo Server running on http://challenge.localhost:80 Use the left terminal to view the server code and use curl here!; exec bash'" &
+    sleep 2
+}
+
+# Function to monitor and lock Terminal 1 and Terminal 2
+monitor_locked_terminals() {
+    while true; do
+        # Update screen dimensions.
+        SCREEN_RES=$(xdpyinfo | awk '/dimensions/{print $2}')
+        SCREEN_WIDTH=$(echo "$SCREEN_RES" | cut -d 'x' -f1)
+        SCREEN_HEIGHT=$(echo "$SCREEN_RES" | cut -d 'x' -f2)
+        HALF_WIDTH=$(expr $SCREEN_WIDTH / 2)
+
+        # Check for Terminal 1 by title.
+        TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
+        #if [ -z "$TERM1_WIN" ]; then
+            # Respawn Terminal 1 if it's missing.
+        #    xfce_run xfce4-terminal --title=LockedTerminal1 --execute "bash -c 'cd /challenge; cat server; exec bash'"
+        #    sleep 2
+        #    TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
+        #fi
+        # Lock Terminal 1 to left half.
+        reposition_window "$TERM1_WIN" 0 0 "$HALF_WIDTH" "$SCREEN_HEIGHT"
+
+        # Check for Terminal 2 by title.
+        TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
+        #if [ -z "$TERM2_WIN" ]; then
+            # Respawn Terminal 2 if it's missing.
+        #    xfce_run xfce4-terminal --title=LockedTerminal2 --execute "bash -c 'echo use curl here!; exec bash'"
+        #    sleep 2
+        #    TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
+        #fi
+        # Lock Terminal 2 to right half.
+        reposition_window "$TERM2_WIN" "$HALF_WIDTH" 0 "$HALF_WIDTH" "$SCREEN_HEIGHT"
+
+        # Check every 5 seconds.
+        sleep 5
+    done
+}
+
+(
+    # Wait for xfce4-session to start.
+    while ! pgrep -u "$USER" xfce4-session > /dev/null; do
+        sleep 3
+    done
+
+    # Launch Terminal 3 for the server with a preset geometry.
+    xfce_run xfce4-terminal --geometry=46x20+100+100 --execute "bash -c 'cd /challenge; ./server; exec bash'" &
+    
+    # Launch Terminal 4 for the server with a preset geometry.
+    xfce_run xfce4-terminal --geometry=46x20+100+100 --execute "bash -c 'cd /challenge; ./.run_loop; exec bash'" &
+    
+    # Spawn the locked terminals.
+    #spawn_locked_terminals
+
+    
+
+    # Start the monitor loop in the background.
+    #monitor_locked_terminals
+) &

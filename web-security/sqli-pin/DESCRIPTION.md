@@ -10,6 +10,10 @@ A SQL injection is the same: the developer builds the application to make SQL qu
 The quintessential SQL injection adds a condition so that an application can succeed without knowing the password.
 How can you accomplish this?
 
+The webserver program is `/challenge/server`.
+When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can access it using the firefox window at the bottom of the screen.
+We recommend reading through the server's code (particularly the endpoints) in the left and right terminals to understand what it is doing. From this, you can bypass this authentication to log in as the `admin` user and get the flag! Please note that the code in the windows has been *slightly* modified from the server code that is running the webpage so that the code you are reading will fit on the screen. It is not different in any way that will affect the exploit, however.
+
 ----
 
 # Eye-Tracking Instructions

@@ -10,8 +10,8 @@ This specific scenario arises because of a gap between what the developer expect
 This level assumes a passing familiarity with SQL, which you can develop in the [SQL Playground](/fundamentals/sql-playground).
 
 The webserver program is `/challenge/server`.
-When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can talk to it over HTTP.
-We recommend reading through the server's code in one of the popped up terminals to understand what it is doing. From this, you can bypass this authentication to log in as the `admin` user and get the flag!
+When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can talk to it over HTTP using the bottom terminal.
+We recommend reading through the server's code (particularly the endpoints) in the left and right terminals to understand what it is doing. From this, you can bypass this authentication to log in as the `admin` user and get the flag!
 
 
 ----

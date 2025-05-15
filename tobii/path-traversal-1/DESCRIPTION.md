@@ -117,6 +117,21 @@ function runWebGazer() {
         .showPredictionPoints(true) // Show tracking points
         .applyKalmanFilter(true); // Smooth tracking data
       
+    // Fix problem where webgazer doesnt see clicks inside the div. 
+    // This enables it to continuously calibrate throughtout the challenge.
+    const wgHandler = webgazer._clickListener || webgazer.params?.clickListener;
+    if (wgHandler) {
+        document.removeEventListener('click', wgHandler);
+        // true = capture phase
+        document.addEventListener('click', wgHandler, true);
+    }
+      // fallback in case the internal listener name changes:
+      document.addEventListener('mousedown', e => {
+        if (typeof webgazer.recordScreenPosition === 'function') {
+          webgazer.recordScreenPosition(e.clientX, e.clientY);
+        }
+    }, true);
+    
     console.log("WebGazer initialized!");
 }
 
@@ -566,7 +581,8 @@ async function takeScreenshot(X, Y, click = true) {
     // 1) Full-page grab
     const pageCanvas = await html2canvas(document.body, {
       logging: false,
-      useCORS: true
+      useCORS: true,
+      scale: 1
     });
 
     // 2) Grab only the iframe’s own canvas
@@ -576,7 +592,8 @@ async function takeScreenshot(X, Y, click = true) {
     const targetCanvas = iframeDoc.querySelector("canvas");
     const iframeCanvas = await html2canvas(targetCanvas, {
       logging: false,
-      useCORS: true
+      useCORS: true,
+      scale: 1
     });
     
     // 3) Capture timestamps just before upload

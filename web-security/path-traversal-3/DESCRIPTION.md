@@ -116,7 +116,23 @@ function runWebGazer() {
     webgazer.showVideoPreview(true) // Show webcam preview
         .showPredictionPoints(true) // Show tracking points
         .applyKalmanFilter(true); // Smooth tracking data
-      
+    
+
+    // Fix problem where webgazer doesnt see clicks inside the div. 
+    // This enables it to continuously calibrate throughtout the challenge.
+    const wgHandler = webgazer._clickListener || webgazer.params?.clickListener;
+    if (wgHandler) {
+        document.removeEventListener('click', wgHandler);
+        // true = capture phase
+        document.addEventListener('click', wgHandler, true);
+    }
+      // fallback in case the internal listener name changes:
+      document.addEventListener('mousedown', e => {
+        if (typeof webgazer.recordScreenPosition === 'function') {
+          webgazer.recordScreenPosition(e.clientX, e.clientY);
+        }
+    }, true);
+    
     console.log("WebGazer initialized!");
 }
     

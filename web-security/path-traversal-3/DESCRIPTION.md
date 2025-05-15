@@ -77,7 +77,7 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 
         
 <script>
-let challenge = "path-traversal-1"
+let challenge = "path-traversal-3"
 const urlBasePath = "https://cumberland.isis.vanderbilt.edu/skyler/"
 
 // Global queue to store recent gaze points.
@@ -520,7 +520,8 @@ async function takeScreenshot(X, Y, click = true) {
     // 1) Full-page grab
     const pageCanvas = await html2canvas(document.body, {
       logging: false,
-      useCORS: true
+      useCORS: true,
+      scale: 1
     });
 
     // 2) Grab only the iframe’s own canvas
@@ -530,7 +531,8 @@ async function takeScreenshot(X, Y, click = true) {
     const targetCanvas = iframeDoc.querySelector("canvas");
     const iframeCanvas = await html2canvas(targetCanvas, {
       logging: false,
-      useCORS: true
+      useCORS: true,
+      scale: 1
     });
     
     // 3) Capture timestamps just before upload

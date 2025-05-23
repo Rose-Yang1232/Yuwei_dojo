@@ -37,27 +37,34 @@ monitor_locked_terminals() {
         ### Terminal 1: left half, show POST ###
         TERM1_WIN=$(wmctrl -l | awk '/LockedTerminal1/{print $1; exit}')
         if [ -z "$TERM1_WIN" ]; then
-            xfce4-terminal --title=LockedTerminal1 \
+            xfce4-terminal --hide-menubar --title=LockedTerminal1 \
                 --execute bash -c 'cd /challenge; cat POST; exec bash'
             sleep 1
             TERM1_WIN=$(wmctrl -l | awk '/LockedTerminal1/{print $1; exit}')
         fi
         reposition_window "$TERM1_WIN" 0 0 "$HALF_WIDTH" "$TOP_HEIGHT"
+        xprop -id "$TERM1_WIN" \
+              -f _MOTIF_WM_HINTS 32c \
+              -set _MOTIF_WM_HINTS "0x2, 0x0, 0x0, 0x0, 0x0" >/dev/null 2>&1
 
         ### Terminal 2: right half, show GET ###
         TERM2_WIN=$(wmctrl -l | awk '/LockedTerminal2/{print $1; exit}')
         if [ -z "$TERM2_WIN" ]; then
-            xfce4-terminal --title=LockedTerminal2 \
+            xfce4-terminal --hide-menubar --title=LockedTerminal2 \
                 --execute bash -c 'cd /challenge; cat GET; exec bash'
             sleep 1
             TERM2_WIN=$(wmctrl -l | awk '/LockedTerminal2/{print $1; exit}')
         fi
         reposition_window "$TERM2_WIN" "$HALF_WIDTH" 0 "$HALF_WIDTH" "$TOP_HEIGHT"
+        xprop -id "$TERM2_WIN" \
+              -f _MOTIF_WM_HINTS 32c \
+              -set _MOTIF_WM_HINTS "0x2, 0x0, 0x0, 0x0, 0x0" >/dev/null 2>&1
 
         ### Browser 3
         # Spawn only if we don't have a running PID
         if [ -z "$FIREFOX_PID" ] || ! kill -0 "$FIREFOX_PID" 2>/dev/null; then
-          firefox --new-window "http://challenge.localhost:80/login-page" &
+          env MOZ_WINDOW_CLASS=LockedBrowser3 \
+            firefox --new-window "http://challenge.localhost:80/login-page" &
           FIREFOX_PID=$!
           # give it time to open its window
           sleep 3
@@ -70,6 +77,9 @@ monitor_locked_terminals() {
         if [ -n "$BROW3_WIN" ]; then
           reposition_window "$BROW3_WIN" \
             0 "$TOP_HEIGHT" "$SCREEN_WIDTH" "$BOTTOM_HEIGHT"
+          xprop -id "$BROW3_WIN" \
+              -f _MOTIF_WM_HINTS 32c \
+              -set _MOTIF_WM_HINTS "0x2, 0x0, 0x0, 0x0, 0x0" >/dev/null 2>&1
         fi
 
 

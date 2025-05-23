@@ -11,8 +11,7 @@ When you open the GUI desktop workspace, the server will automatically spin up t
 We recommend reading through the server's code in the terminal on the left to understand what it is doing and to find the weakness!
 
 **HINT:**
-If you're wondering why your solution isn't working, make sure what you're trying to query is what is actually being received by the server! 
-`curl -v [url]` can show you the exact bytes that curl is sending over.
+If you're wondering why your solution isn't working, remember that flask normalizes your path. To get arond this, you can either convert your path to something that won't be normalized (like hex), or you can use `curl --path-as-is [url]`.
 
 ----
 

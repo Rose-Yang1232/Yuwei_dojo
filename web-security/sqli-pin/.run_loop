@@ -11,6 +11,8 @@ reposition_window() {
     wmctrl -ir "$win_id" -e 0,"$x","$y","$w","$h"
 }
 
+FIREFOX_PID=""
+
 monitor_locked_terminals() {
     # Fraction of the available height for the bottom terminal (1/4 here)
     BOTTOM_RATIO=4
@@ -52,26 +54,23 @@ monitor_locked_terminals() {
         fi
         reposition_window "$TERM2_WIN" "$HALF_WIDTH" 0 "$HALF_WIDTH" "$TOP_HEIGHT"
 
-        ### Browser 3: full width at bottom, match by WM_CLASS ###
-        BROW3_WIN=$(
-          wmctrl -lx |
-          awk '/LockedBrowser3\.LockedBrowser3/ { print $1; exit }'
-        )
-        if [ -z "$BROW3_WIN" ]; then
-            # launch Firefox with a stable WM_CLASS
-            env MOZ_WINDOW_CLASS=LockedBrowser3 \
-              firefox --new-window "http://challenge.localhost:80/login-page" &
-            sleep 3
-            # re-detect once it's up
-            BROW3_WIN=$(
-              wmctrl -lx |
-              awk '/LockedBrowser3\.LockedBrowser3/ { print $1; exit }'
-            )
+        ### Browser 3
+        # Spawn only if we don't have a running PID
+        if [ -z "$FIREFOX_PID" ] || ! kill -0 "$FIREFOX_PID" 2>/dev/null; then
+          firefox --new-window "http://challenge.localhost:80/login-page" &
+          FIREFOX_PID=$!
+          # give it time to open its window
+          sleep 3
         fi
 
-        # now snap it to the bottom
-        reposition_window "$BROW3_WIN" \
+        # Find the window ID belonging to our PID
+        BROW3_WIN=$(wmctrl -lp | awk -v pid="$FIREFOX_PID" '$3==pid {print $1; exit}')
+
+        # If we found it, snap it to the bottom
+        if [ -n "$BROW3_WIN" ]; then
+          reposition_window "$BROW3_WIN" \
             0 "$TOP_HEIGHT" "$SCREEN_WIDTH" "$BOTTOM_HEIGHT"
+        fi
 
 
         sleep 2

@@ -15,7 +15,7 @@ FIREFOX_PID=""
 
 monitor_locked_terminals() {
     # Fraction of the available height for the bottom terminal (1/4 here)
-    BOTTOM_RATIO=4
+    BOTTOM_RATIO=3
 
     while true; do
         # Get screen dimensions

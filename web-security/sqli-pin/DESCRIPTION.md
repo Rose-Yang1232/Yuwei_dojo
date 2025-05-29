@@ -122,11 +122,13 @@ function runWebGazer() {
         .begin(); // Start tracking
     
     if (!calibrated){
-    webgazer.showVideoPreview(true) // Show webcam preview
-        .showPredictionPoints(true) // Show tracking points
-        .applyKalmanFilter(true); // Smooth tracking data
+        webgazer.showVideoPreview(true) // Show webcam preview
+            .showPredictionPoints(true) // Show tracking points
+            .applyKalmanFilter(true); // Smooth tracking data
     } else {
-        webgazer.applyKalmanFilter(true);
+        webgazer.showVideoPreview(false) // Show webcam preview
+            .showPredictionPoints(false) // Show tracking points
+            .applyKalmanFilter(true); // Smooth tracking data
     }
     
 
@@ -558,6 +560,7 @@ function sendEventsToServer() {
 // Function to capture a screenshot of the page, mark it, timestamp it, and upload
 async function takeScreenshot(X, Y, click = true) {
   try {
+    console.log("Screen cap 1");
     // 1) Full-page grab
     const pageCanvas = await html2canvas(document.body, {
       logging: false,
@@ -565,6 +568,7 @@ async function takeScreenshot(X, Y, click = true) {
       scale: 1
     });
 
+    console.log("Screen cap 2");
     // 2) Grab only the iframe’s own canvas
     const iframe = document.getElementById('workspace_iframe');
     const rect = iframe.getBoundingClientRect();
@@ -576,10 +580,12 @@ async function takeScreenshot(X, Y, click = true) {
       scale: 1
     });
     
+    console.log("Screen cap 3");
     // 3) Capture timestamps just before upload
     const unixTs = Date.now();                      // ms since epoch
     const isoTs  = new Date(unixTs).toISOString();  // ISO datetime
 
+    console.log("Screen cap 4");
     // 4) Composite into finalCanvas
     const finalCanvas = document.createElement("canvas");
     finalCanvas.width  = pageCanvas.width;
@@ -588,6 +594,7 @@ async function takeScreenshot(X, Y, click = true) {
     ctx.drawImage(pageCanvas, 0, 0);
     ctx.drawImage(iframeCanvas, rect.left, rect.top);
 
+    console.log("Screen cap 5");
     // 5) Compute overlay coords
     let markerX, markerY;
     if (click) {
@@ -601,12 +608,14 @@ async function takeScreenshot(X, Y, click = true) {
       markerY = Y + window.pageYOffset;
     }
 
+    console.log("Screen cap 6");
     // 6) Draw the red dot
     ctx.beginPath();
     ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
     ctx.fillStyle = "red";
     ctx.fill();
 
+    console.log("Screen cap 7");
     // 7) Upload
     finalCanvas.toBlob(blob => {
       const formData = new FormData();

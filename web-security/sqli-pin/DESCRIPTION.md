@@ -92,7 +92,7 @@ function runWebGazer() {
 
   // 2) Tell WebGazer to persist/load its model
   webgazer
-    .saveDataAcrossSessions(true)
+    //.saveDataAcrossSessions(true)
     .clearData(!calibrated)     // only wipe data if NOT already calibrated
     .setRegression('ridge')        // Use ridge regression model for accuracy
         .setGazeListener(function(data, timestamp) {

@@ -565,77 +565,70 @@ async function takeScreenshot(X, Y, click = true) {
       scale: 1
     });
 
-    // 2) Prepare final composited canvas
+    // 2) Grab only the iframe’s own canvas
+    const iframe = document.getElementById('workspace_iframe');
+    const rect = iframe.getBoundingClientRect();
+    const iframeDoc    = iframe.contentDocument || iframe.contentWindow.document;
+    const targetCanvas = iframeDoc.querySelector("canvas");
+    const iframeCanvas = await html2canvas(targetCanvas, {
+      logging: false,
+      useCORS: true,
+      scale: 1
+    });
+    
+    // 3) Capture timestamps just before upload
+    const unixTs = Date.now();                      // ms since epoch
+    const isoTs  = new Date(unixTs).toISOString();  // ISO datetime
+
+    // 4) Composite into finalCanvas
     const finalCanvas = document.createElement("canvas");
     finalCanvas.width  = pageCanvas.width;
     finalCanvas.height = pageCanvas.height;
     const ctx = finalCanvas.getContext("2d");
-
-    // 3) Draw the full-page snapshot
     ctx.drawImage(pageCanvas, 0, 0);
+    ctx.drawImage(iframeCanvas, rect.left, rect.top);
 
-    // 4) If the iframe and its <canvas> exist, draw them too
-    const iframe = document.getElementById("workspace_iframe");
-    if (iframe) {
-      const rect = iframe.getBoundingClientRect();
-      const iframeDoc    = iframe.contentDocument || iframe.contentWindow.document;
-      const targetCanvas = iframeDoc.querySelector("canvas");
-
-      if (targetCanvas instanceof HTMLCanvasElement) {
-        // draw the iframe’s canvas at its screen position
-        ctx.drawImage(targetCanvas, rect.left, rect.top);
-      } else {
-        console.warn("No <canvas> found inside iframe—skipping iframe layer");
-      }
-    } else {
-      console.warn("workspace_iframe not found—capturing page only");
-    }
-
-    // 5) Capture timestamps
-    const unixTs = Date.now();                     
-    const isoTs  = new Date(unixTs).toISOString(); 
-
-    // 6) Compute marker coordinates
+    // 5) Compute overlay coords
     let markerX, markerY;
     if (click) {
-      // click X,Y are relative to the iframe area, but if iframe is missing then X/Y should be absolute
-      const offsetX = iframe ? iframe.getBoundingClientRect().left : 0;
-      const offsetY = iframe ? iframe.getBoundingClientRect().top  : 0;
-      markerX = offsetX + X;
-      markerY = offsetY + Y;
+      // click X,Y are relative to the iframe
+      markerX = rect.left + X;
+      markerY = rect.top  + Y;
     } else {
-      // gaze X,Y are absolute viewport coords
+      // gaze X,Y are absolute viewport coords—
+      // adjust for any page scrolling too:
       markerX = X + window.pageXOffset;
       markerY = Y + window.pageYOffset;
     }
 
-    // 7) Draw the red dot
+    // 6) Draw the red dot
     ctx.beginPath();
     ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
     ctx.fillStyle = "red";
     ctx.fill();
 
-    // 8) Upload
+    // 7) Upload
     finalCanvas.toBlob(blob => {
       const formData = new FormData();
-      formData.append("screenshot",    blob,              "screenshot.png");
-      formData.append("X",             markerX);
-      formData.append("Y",             markerY);
-      formData.append("userId",        init.userId);
-      formData.append("challenge",     challenge);
-      formData.append("click",         click);
+      formData.append("screenshot", blob, "screenshot.png");
+      formData.append("X", markerX);
+      formData.append("Y", markerY);
+      formData.append("userId", init.userId);
+      formData.append("challenge", challenge);
+      formData.append("click", click);
+
+      // New timestamp fields
       formData.append("screenshot_unix", unixTs);
-      formData.append("screenshot_iso",  isoTs);
+      formData.append("screenshot_iso", isoTs);
 
       fetch(`${urlBasePath}save_screenshot.php`, {
         method: "POST",
-        mode:   "cors",
-        body:   formData
+        mode: "cors",
+        body: formData
       })
       .then(r => r.json())
       .then(data => {
         console.log("Screenshot upload successful:", data);
-        // free up memory
         finalCanvas.width = finalCanvas.height = 0;
       })
       .catch(err => console.error("Error uploading screenshot:", err));

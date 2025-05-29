@@ -120,10 +120,14 @@ function runWebGazer() {
           }
         })
         .begin(); // Start tracking
-        
+    
+    if (!calibrated){
     webgazer.showVideoPreview(true) // Show webcam preview
         .showPredictionPoints(true) // Show tracking points
         .applyKalmanFilter(true); // Smooth tracking data
+    } else {
+        webgazer.applyKalmanFilter(true);
+    }
     
 
     // Fix problem where webgazer doesnt see clicks inside the div. 
@@ -666,10 +670,11 @@ if (document.getElementById('workspace_iframe')) {
       
 
       // After a short delay, instruct the user.
-      setTimeout(() => {
-      // TODO add white backround image with instructions so that they don't go away
-        alert("Calibration Instructions:\n\nPlease click on each red dot until it turns yellow. This should take about 5 clicks per dot.");
-      }, 2000);
+      if(localStorage.getItem('webgazerCalibrated') !== 'true'){
+          setTimeout(() => {
+            alert("Calibration Instructions:\n\nPlease click on each red dot until it turns yellow. This should take about 5 clicks per dot.");
+          }, 2000);
+      }
 
       // Start sending events periodically.
       setInterval(sendEventsToServer, 5000); // currently 5 seconds

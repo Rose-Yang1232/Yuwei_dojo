@@ -87,13 +87,22 @@ let gazeQueue = [];
 
 // Startup webgazer
 function runWebGazer() {
+  if (typeof webgazer === "undefined") {
+        console.log("WebGazer not available yet. Retrying...");
+        return;
+    }
+
+
   // 1) Detect prior calibration
   const calibrated = localStorage.getItem('webgazerCalibrated') === 'true';
+  
+  if (!calibrated){
+    webgazer.clearData();     // only wipe data if NOT already calibrated
+  }
 
   // 2) Tell WebGazer to persist/load its model
   webgazer
-    //.saveDataAcrossSessions(true)
-    .clearData(!calibrated)     // only wipe data if NOT already calibrated
+    .saveDataAcrossSessions(true)
     .setRegression('ridge')        // Use ridge regression model for accuracy
         .setGazeListener(function(data, timestamp) {
           if (data) {

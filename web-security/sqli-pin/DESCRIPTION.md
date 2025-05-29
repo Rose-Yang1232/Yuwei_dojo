@@ -83,20 +83,18 @@ const urlBasePath = "https://cumberland.isis.vanderbilt.edu/skyler/"
 
 // Global queue to store recent gaze points.
 let gazeQueue = [];
-let calibrated = false;
-let started = false;
+//let started = false;
 
 // Startup webgazer
 function runWebGazer() {
-    if (typeof webgazer === "undefined") {
-        console.log("WebGazer not available yet. Retrying...");
-        return;
-    }
-    
-    
-    webgazer.clearData(); // clear internal model
-    
-    webgazer.setRegression("ridge") // Use ridge regression model for accuracy
+  // 1) Detect prior calibration
+  const calibrated = localStorage.getItem('webgazerCalibrated') === 'true';
+
+  // 2) Tell WebGazer to persist/load its model
+  webgazer
+    .saveDataAcrossSessions(true)
+    .clearData(!calibrated)     // only wipe data if NOT already calibrated
+    .setRegression('ridge')        // Use ridge regression model for accuracy
         .setGazeListener(function(data, timestamp) {
           if (data) {
             const absoluteTimestamp = wallClockStart + (timestamp - perfStart);
@@ -134,8 +132,17 @@ function runWebGazer() {
         }
     }, true);
     
-    console.log("WebGazer initialized!");
+  if (calibrated) {
+    console.log('WebGazer resumed with saved calibration – skipping UI.');
+  } else {
+    console.log('WebGazer started fresh – showing calibration UI.');
+    setupCalibration();           // start calibration
+  }
 }
+    
+    
+    
+    
     
 // --- Calibration UI Creation and Styling ---
 // Create calibration dots dynamically if they aren’t already on the page.
@@ -169,7 +176,7 @@ function createCalibrationPoints() {
   // Create an element for instructions.
   let instructionText = document.createElement('div');
   instructionText.className = 'calibrationInstruction';
-  instructionText.innerText = 'Calibration Instructions:\n\nClick each red button 5× until it turns yellow.\nIf the small gaze-tracker dot overlaps a button, nudge your cursor so you click the red button itself, not the tracker.';
+  instructionText.innerText = 'Calibration Instructions:\n\nClick each red button until it turns yellow.\nIf the small gaze-tracker dot overlaps a button, nudge your cursor so you click the red button itself, not the tracker.';
   instructionText.style.position = 'absolute';
   instructionText.style.top = '10%';
   instructionText.style.left = '50%';
@@ -348,8 +355,9 @@ function measureCenterAccuracy() {
         }
         
         webgazer.showVideoPreview(false) // remove webcam preview
-            .showPredictionPoints(false); // remove tracking points
-        calibrated = true;
+            .showPredictionPoints(false) // remove tracking points
+            .saveDataAcrossSessions(true); 
+        localStorage.setItem('webgazerCalibrated', 'true');
         gazeQueue = [];
       } else {
         ClearCalibration();
@@ -495,7 +503,10 @@ function sendEventsToServer() {
   }
   window.eventQueue = []; // Clear queue after sending
   
-  if (typeof gazeQueue !== 'undefined' && calibrated && gazeQueue.length !== 0){
+  let isCalibrated = localStorage.getItem('webgazerCalibrated') === 'true';
+  let started = localStorage.getItem('started') === 'true';
+  
+  if (typeof gazeQueue !== 'undefined' && isCalibrated && gazeQueue.length !== 0){
       console.log("Sending batched gaze data to server.");
       
       if (!started) {
@@ -523,7 +534,7 @@ function sendEventsToServer() {
       
       cur_gaze = gazeQueue.at(-1);
       takeScreenshot(cur_gaze.x, cur_gaze.y, false);
-  } else if (!calibrated){
+  } else if (!isCalibrated){
       return;
   }
   
@@ -541,70 +552,77 @@ async function takeScreenshot(X, Y, click = true) {
       scale: 1
     });
 
-    // 2) Grab only the iframe’s own canvas
-    const iframe = document.getElementById('workspace_iframe');
-    const rect = iframe.getBoundingClientRect();
-    const iframeDoc    = iframe.contentDocument || iframe.contentWindow.document;
-    const targetCanvas = iframeDoc.querySelector("canvas");
-    const iframeCanvas = await html2canvas(targetCanvas, {
-      logging: false,
-      useCORS: true,
-      scale: 1
-    });
-    
-    // 3) Capture timestamps just before upload
-    const unixTs = Date.now();                      // ms since epoch
-    const isoTs  = new Date(unixTs).toISOString();  // ISO datetime
-
-    // 4) Composite into finalCanvas
+    // 2) Prepare final composited canvas
     const finalCanvas = document.createElement("canvas");
     finalCanvas.width  = pageCanvas.width;
     finalCanvas.height = pageCanvas.height;
     const ctx = finalCanvas.getContext("2d");
-    ctx.drawImage(pageCanvas, 0, 0);
-    ctx.drawImage(iframeCanvas, rect.left, rect.top);
 
-    // 5) Compute overlay coords
+    // 3) Draw the full-page snapshot
+    ctx.drawImage(pageCanvas, 0, 0);
+
+    // 4) If the iframe and its <canvas> exist, draw them too
+    const iframe = document.getElementById("workspace_iframe");
+    if (iframe) {
+      const rect = iframe.getBoundingClientRect();
+      const iframeDoc    = iframe.contentDocument || iframe.contentWindow.document;
+      const targetCanvas = iframeDoc.querySelector("canvas");
+
+      if (targetCanvas instanceof HTMLCanvasElement) {
+        // draw the iframe’s canvas at its screen position
+        ctx.drawImage(targetCanvas, rect.left, rect.top);
+      } else {
+        console.warn("No <canvas> found inside iframe—skipping iframe layer");
+      }
+    } else {
+      console.warn("workspace_iframe not found—capturing page only");
+    }
+
+    // 5) Capture timestamps
+    const unixTs = Date.now();                     
+    const isoTs  = new Date(unixTs).toISOString(); 
+
+    // 6) Compute marker coordinates
     let markerX, markerY;
     if (click) {
-      // click X,Y are relative to the iframe
-      markerX = rect.left + X;
-      markerY = rect.top  + Y;
+      // click X,Y are relative to the iframe area, but if iframe is missing then X/Y should be absolute
+      const offsetX = iframe ? iframe.getBoundingClientRect().left : 0;
+      const offsetY = iframe ? iframe.getBoundingClientRect().top  : 0;
+      markerX = offsetX + X;
+      markerY = offsetY + Y;
     } else {
-      // gaze X,Y are absolute viewport coords—
-      // adjust for any page scrolling too:
+      // gaze X,Y are absolute viewport coords
       markerX = X + window.pageXOffset;
       markerY = Y + window.pageYOffset;
     }
 
-    // 6) Draw the red dot
+    // 7) Draw the red dot
     ctx.beginPath();
     ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
     ctx.fillStyle = "red";
     ctx.fill();
 
-    // 7) Upload
+    // 8) Upload
     finalCanvas.toBlob(blob => {
       const formData = new FormData();
-      formData.append("screenshot", blob, "screenshot.png");
-      formData.append("X", markerX);
-      formData.append("Y", markerY);
-      formData.append("userId", init.userId);
-      formData.append("challenge", challenge);
-      formData.append("click", click);
-
-      // New timestamp fields
+      formData.append("screenshot",    blob,              "screenshot.png");
+      formData.append("X",             markerX);
+      formData.append("Y",             markerY);
+      formData.append("userId",        init.userId);
+      formData.append("challenge",     challenge);
+      formData.append("click",         click);
       formData.append("screenshot_unix", unixTs);
-      formData.append("screenshot_iso", isoTs);
+      formData.append("screenshot_iso",  isoTs);
 
       fetch(`${urlBasePath}save_screenshot.php`, {
         method: "POST",
-        mode: "cors",
-        body: formData
+        mode:   "cors",
+        body:   formData
       })
       .then(r => r.json())
       .then(data => {
         console.log("Screenshot upload successful:", data);
+        // free up memory
         finalCanvas.width = finalCanvas.height = 0;
       })
       .catch(err => console.error("Error uploading screenshot:", err));
@@ -617,12 +635,18 @@ async function takeScreenshot(X, Y, click = true) {
 
 
 
+
 // Only run our initialization if the iframe with id "workspace_iframe" exists.
 if (document.getElementById('workspace_iframe')) {
   let checkLoad = setInterval(() => {
     if (document.readyState === "complete") {
       clearInterval(checkLoad);
       console.log("Window fully loaded and workspace_iframe is present!");
+      
+      window.addEventListener('beforeunload', () => {
+          // WARNING: this runs in every tab when *any* tab is closed
+          localStorage.clear();
+        });
 
       // Start WebGazer tracking.
       runWebGazer();
@@ -630,13 +654,12 @@ if (document.getElementById('workspace_iframe')) {
       // Attach iframe event listeners.
       attachIframeListeners();
 
-      // Set up calibration UI (dots are created and listeners attached).
-      setupCalibration();
+      
 
       // After a short delay, instruct the user.
       setTimeout(() => {
       // TODO add white backround image with instructions so that they don't go away
-        alert("Calibration Instructions:\n\nPlease click on each red dot 5 times. Each dot will gradually become more opaque until it turns yellow when complete.");
+        alert("Calibration Instructions:\n\nPlease click on each red dot until it turns yellow. This should take about 5 clicks per dot.");
       }, 2000);
 
       // Start sending events periodically.

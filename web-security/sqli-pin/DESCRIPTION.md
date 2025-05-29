@@ -569,16 +569,41 @@ async function takeScreenshot(X, Y, click = true) {
     });
 
     console.log("Screen cap 2");
-    // 2) Grab only the iframe’s own canvas
-    const iframe = document.getElementById('workspace_iframe');
-    const rect = iframe.getBoundingClientRect();
-    const iframeDoc    = iframe.contentDocument || iframe.contentWindow.document;
-    const targetCanvas = iframeDoc.querySelector("canvas");
-    const iframeCanvas = await html2canvas(targetCanvas, {
-      logging: false,
-      useCORS: true,
-      scale: 1
-    });
+    // 2) Grab the iframe’s own content (canvas if present, otherwise the whole body)
+    const iframe        = document.getElementById('workspace_iframe');
+    let   iframeCanvas  = null;
+    let   rect          = { left: 0, top: 0 };
+
+    if (iframe) {
+      rect = iframe.getBoundingClientRect();
+      const iframeDoc    = iframe.contentDocument || iframe.contentWindow.document;
+      const targetCanvas = iframeDoc.querySelector("canvas");
+
+      if (targetCanvas instanceof HTMLCanvasElement) {
+        console.log("Screen cap 2a: found <canvas> inside iframe, capturing just that");
+        iframeCanvas = await html2canvas(targetCanvas, {
+          logging: false,
+          useCORS:  true,
+          scale:    1
+        });
+      } else {
+        console.log("Screen cap 2b: no <canvas>—capturing entire iframe document");
+        // fall back to snapshotting the iframe’s <body>
+        iframeCanvas = await html2canvas(iframeDoc.body, {
+          logging:          false,
+          useCORS:         true,
+          scale:            1,
+          width:            rect.width,
+          height:           rect.height,
+          x:                0,
+          y:                0,
+          windowWidth:      rect.width,
+          windowHeight:     rect.height
+        });
+      }
+    } else {
+      console.warn("workspace_iframe not found—skipping iframe layer");
+    }
     
     console.log("Screen cap 3");
     // 3) Capture timestamps just before upload

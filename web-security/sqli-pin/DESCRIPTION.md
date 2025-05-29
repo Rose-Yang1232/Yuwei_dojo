@@ -579,7 +579,7 @@ async function takeScreenshot(X, Y, click = true) {
       const iframeDoc    = iframe.contentDocument || iframe.contentWindow.document;
       const targetCanvas = iframeDoc.querySelector("canvas");
 
-      if (targetCanvas instanceof HTMLCanvasElement) {
+      if (targetCanvas && targetCanvas.tagName.toLowerCase() === 'canvas') {
         console.log("Screen cap 2a: found <canvas> inside iframe, capturing just that");
         iframeCanvas = await html2canvas(targetCanvas, {
           logging: false,
@@ -617,7 +617,9 @@ async function takeScreenshot(X, Y, click = true) {
     finalCanvas.height = pageCanvas.height;
     const ctx = finalCanvas.getContext("2d");
     ctx.drawImage(pageCanvas, 0, 0);
-    ctx.drawImage(iframeCanvas, rect.left, rect.top);
+    if (iframeCanvas) {
+      ctx.drawImage(iframeCanvas, rect.left, rect.top);
+    }
 
     console.log("Screen cap 5");
     // 5) Compute overlay coords

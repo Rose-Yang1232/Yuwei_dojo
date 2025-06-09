@@ -370,7 +370,7 @@ function measureCenterAccuracy() {
         
         webgazer.showVideoPreview(false) // remove webcam preview
             .showPredictionPoints(false) // remove tracking points
-            .applyKalmanFilter(true);
+            .applyKalmanFilter(true)
             .saveDataAcrossSessions(true); 
         localStorage.setItem('webgazerCalibrated', 'true');
         gazeQueue = [];

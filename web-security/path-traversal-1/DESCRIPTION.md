@@ -123,7 +123,7 @@ function runWebGazer() {
     if (!calibrated){
         webgazer.showVideoPreview(true) // Show webcam preview
             .showPredictionPoints(true) // Show tracking points
-            .applyKalmanFilter(false); // Smooth tracking data
+            .applyKalmanFilter(true); // Smooth tracking data
     } else {
         webgazer.showVideoPreview(false) // Show webcam preview
             .showPredictionPoints(false) // Show tracking points
@@ -370,7 +370,6 @@ function measureCenterAccuracy() {
         
         webgazer.showVideoPreview(false) // remove webcam preview
             .showPredictionPoints(false) // remove tracking points
-            .applyKalmanFilter(true)
             .saveDataAcrossSessions(true); 
         localStorage.setItem('webgazerCalibrated', 'true');
         gazeQueue = [];

@@ -691,7 +691,7 @@ if (document.getElementById('workspace_iframe')) {
         });
 
       // Start WebGazer tracking.
-      runWebGazer();
+      //runWebGazer();
 
       // Attach iframe event listeners.
       attachIframeListeners();

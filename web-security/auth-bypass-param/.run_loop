@@ -65,7 +65,7 @@ monitor_locked_terminals() {
         reposition_window "$TERM3_WIN" \
             0 "$TOP_HEIGHT" "$SCREEN_WIDTH" "$BOTTOM_HEIGHT"
 
-        sleep 2
+        sleep 5
     done
 }
 

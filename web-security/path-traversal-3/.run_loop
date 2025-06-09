@@ -50,7 +50,7 @@ monitor_locked_terminals() {
         reposition_window "$TERM2_WIN" "$HALF_WIDTH" 0 "$HALF_WIDTH" "$ADJ_HEIGHT"
 
         # Check every 5 seconds.
-        sleep 2
+        sleep 5
     done
 }
 

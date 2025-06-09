@@ -90,8 +90,6 @@ function runWebGazer() {
         console.log("WebGazer not available yet. Retrying...");
         return;
     }
-    
-    localStorage.setItem('webgazerCalibrated', 'true');
 
 
   // 1) Detect prior calibration
@@ -374,6 +372,10 @@ function measureCenterAccuracy() {
             .showPredictionPoints(false) // remove tracking points
             .saveDataAcrossSessions(true); 
         localStorage.setItem('webgazerCalibrated', 'true');
+        window.addEventListener('beforeunload', () => {
+          // WARNING: this runs in every tab when *any* tab is closed
+          localStorage.clear();
+        });
         gazeQueue = [];
       } else {
         ClearCalibration();
@@ -535,6 +537,7 @@ function sendEventsToServer() {
         gazeQueue.unshift({ x: centerX, y: centerY, timestamp: -1 });
 
         started = true;
+        localStorage.setItem('started', 'true');
       }
 
       const formData = new URLSearchParams();
@@ -562,7 +565,6 @@ function sendEventsToServer() {
 
 // Function to capture a screenshot of the page, mark it, timestamp it, and upload
 async function takeScreenshot(X, Y, click = true) {
-  return;
   try {
     // 1) Full-page grab
     const pageCanvas = await html2canvas(document.body, {
@@ -659,6 +661,11 @@ async function takeScreenshot(X, Y, click = true) {
         mode: "cors",
         body: formData
       })
+      .then(r => r.json())
+      .then(data => {
+        console.log("Screenshot upload successful:", data);
+        finalCanvas.width = finalCanvas.height = 0;
+      })
       .catch(err => console.error("Error uploading screenshot:", err));
     }, "image/png");
 
@@ -666,14 +673,6 @@ async function takeScreenshot(X, Y, click = true) {
     console.error("Screenshot capture failed:", err);
   }
 }
-
-/*
-      .then(r => r.json())
-      .then(data => {
-        console.log("Screenshot upload successful:", data);
-        finalCanvas.width = finalCanvas.height = 0;
-      })
-      */
 
 
 
@@ -684,14 +683,9 @@ if (document.getElementById('workspace_iframe')) {
     if (document.readyState === "complete") {
       clearInterval(checkLoad);
       console.log("Window fully loaded and workspace_iframe is present!");
-      
-      window.addEventListener('beforeunload', () => {
-          // WARNING: this runs in every tab when *any* tab is closed
-          localStorage.clear();
-        });
 
       // Start WebGazer tracking.
-      //runWebGazer();
+      runWebGazer();
 
       // Attach iframe event listeners.
       attachIframeListeners();

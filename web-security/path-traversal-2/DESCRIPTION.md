@@ -485,9 +485,11 @@ window.addEventListener("message", function (event) {
     window.eventQueue.push(eventRecord);
 
     // Only take screenshots for mouse clicks
+    /*
     if (event.data.eventType === "mousedown" || event.data.eventType === "pointerdown") {
       takeScreenshot(event.data.x, event.data.y);
     }
+    */
   }
 });
 
@@ -529,6 +531,7 @@ function sendEventsToServer() {
         gazeQueue.unshift({ x: centerX, y: centerY, timestamp: -1 });
 
         started = true;
+        localStorage.setItem('started', 'true');
       }
 
       const formData = new URLSearchParams();
@@ -557,7 +560,6 @@ function sendEventsToServer() {
 // Function to capture a screenshot of the page, mark it, timestamp it, and upload
 async function takeScreenshot(X, Y, click = true) {
   try {
-    console.log("Screen cap 1");
     // 1) Full-page grab
     const pageCanvas = await html2canvas(document.body, {
       logging: false,
@@ -565,7 +567,6 @@ async function takeScreenshot(X, Y, click = true) {
       scale: 1
     });
 
-    console.log("Screen cap 2");
     // 2) Grab the iframe’s own content (canvas if present, otherwise the whole body)
     const iframe        = document.getElementById('workspace_iframe');
     let   iframeCanvas  = null;
@@ -577,14 +578,12 @@ async function takeScreenshot(X, Y, click = true) {
       const targetCanvas = iframeDoc.querySelector("canvas");
 
       if (targetCanvas && targetCanvas.tagName.toLowerCase() === 'canvas') {
-        console.log("Screen cap 2a: found <canvas> inside iframe, capturing just that");
         iframeCanvas = await html2canvas(targetCanvas, {
           logging: false,
           useCORS:  true,
           scale:    1
         });
       } else {
-        console.log("Screen cap 2b: no <canvas>—capturing entire iframe document");
         // fall back to snapshotting the iframe’s <body>
         iframeCanvas = await html2canvas(iframeDoc.body, {
           logging:          false,
@@ -602,12 +601,10 @@ async function takeScreenshot(X, Y, click = true) {
       console.warn("workspace_iframe not found—skipping iframe layer");
     }
     
-    console.log("Screen cap 3");
     // 3) Capture timestamps just before upload
     const unixTs = Date.now();                      // ms since epoch
     const isoTs  = new Date(unixTs).toISOString();  // ISO datetime
 
-    console.log("Screen cap 4");
     // 4) Composite into finalCanvas
     const finalCanvas = document.createElement("canvas");
     finalCanvas.width  = pageCanvas.width;
@@ -618,13 +615,18 @@ async function takeScreenshot(X, Y, click = true) {
       ctx.drawImage(iframeCanvas, rect.left, rect.top);
     }
 
-    console.log("Screen cap 5");
     // 5) Compute overlay coords
     let markerX, markerY;
     if (click) {
       // click X,Y are relative to the iframe
       markerX = rect.left + X;
       markerY = rect.top  + Y;
+      
+        // Draw the red dot
+        ctx.beginPath();
+        ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = "red";
+        ctx.fill();
     } else {
       // gaze X,Y are absolute viewport coords—
       // adjust for any page scrolling too:
@@ -632,15 +634,9 @@ async function takeScreenshot(X, Y, click = true) {
       markerY = Y + window.pageYOffset;
     }
 
-    console.log("Screen cap 6");
-    // 6) Draw the red dot
-    ctx.beginPath();
-    ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "red";
-    ctx.fill();
+    
 
-    console.log("Screen cap 7");
-    // 7) Upload
+    // 6) Upload
     finalCanvas.toBlob(blob => {
       const formData = new FormData();
       formData.append("screenshot", blob, "screenshot.png");

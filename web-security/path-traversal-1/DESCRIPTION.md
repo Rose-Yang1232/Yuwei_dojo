@@ -658,13 +658,6 @@ async function takeScreenshot(X, Y, click = true) {
         mode: "cors",
         body: formData
       })
-      /*
-      .then(r => r.json())
-      .then(data => {
-        console.log("Screenshot upload successful:", data);
-        finalCanvas.width = finalCanvas.height = 0;
-      })
-      */
       .catch(err => console.error("Error uploading screenshot:", err));
     }, "image/png");
 
@@ -672,6 +665,14 @@ async function takeScreenshot(X, Y, click = true) {
     console.error("Screenshot capture failed:", err);
   }
 }
+
+/*
+      .then(r => r.json())
+      .then(data => {
+        console.log("Screenshot upload successful:", data);
+        finalCanvas.width = finalCanvas.height = 0;
+      })
+      */
 
 
 

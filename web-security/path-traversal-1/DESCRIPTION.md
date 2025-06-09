@@ -90,6 +90,8 @@ function runWebGazer() {
         console.log("WebGazer not available yet. Retrying...");
         return;
     }
+    
+    localStorage.setItem('webgazerCalibrated', 'true');
 
 
   // 1) Detect prior calibration

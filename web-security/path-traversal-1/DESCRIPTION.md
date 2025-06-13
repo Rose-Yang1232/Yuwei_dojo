@@ -240,7 +240,7 @@ function createCalibrationPoints() {
   const label = document.createElement('label');
     label.innerText = 'Choose camera: ';
     label.style.position = 'absolute';
-    label.style.top      = 'calc(10% + 120px)';
+    label.style.top      = '40%';
     label.style.left     = '50%';
     label.style.transform= 'translateX(-50%)';
     label.style.fontSize = '18px';

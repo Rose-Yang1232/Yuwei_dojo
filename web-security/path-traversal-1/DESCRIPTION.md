@@ -312,6 +312,8 @@ function createCalibrationPoints() {
       webgazer.setCameraConstraints({
         video: { deviceId: { exact: deviceId } }
       });
+      
+      localStorage.setItem('cam', deviceId);
 
       // 3) Restart tracking (reload any saved model)
       await webgazer

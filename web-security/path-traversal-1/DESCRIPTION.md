@@ -479,6 +479,11 @@ function measureCenterAccuracy() {
         webgazer.showVideoPreview(false) // remove webcam preview
             .showPredictionPoints(false) // remove tracking points
             .saveDataAcrossSessions(true); 
+            
+        const videoEl = document.getElementById('webgazerVideoFeed');
+        if (videoEl && videoEl.parentNode) {
+          videoEl.parentNode.removeChild(videoEl);
+        }
         localStorage.setItem('webgazerCalibrated', 'true');
         window.addEventListener('beforeunload', () => {
           // WARNING: this runs in every tab when *any* tab is closed

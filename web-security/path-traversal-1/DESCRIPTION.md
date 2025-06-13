@@ -129,7 +129,7 @@ function runWebGazer() {
       webgazer.setCameraConstraints({
         video: {
           deviceId: { exact: cam },
-          frameRate: { min: 5, ideal: 10, max: 15 },
+          frameRate: { min: 15, ideal: 20, max: 25 },
           facingMode: "user"
         }
       });
@@ -311,7 +311,11 @@ function createCalibrationPoints() {
 
       // 2) Tell it to open exactly that camera
       webgazer.setCameraConstraints({
-        video: { deviceId: { exact: deviceId } }
+        video: {
+          deviceId: { exact: cam },
+          frameRate: { min: 15, ideal: 20, max: 25 },
+          facingMode: "user"
+        }
       });
       
       localStorage.setItem('cam', deviceId);

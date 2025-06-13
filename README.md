@@ -174,10 +174,46 @@ function runWebGazer() {
 
   // 1) Detect prior calibration
   const calibrated = localStorage.getItem('webgazerCalibrated') === 'true';
+  var cam = localStorage.getItem('cam');
+  
   
   if (!calibrated){
     webgazer.clearData();     // only wipe data if NOT already calibrated
   }
+  
+  if (!cam) {
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        if (videoDevices.length > 0) {
+          cam = videoDevices[0].deviceId;
+          localStorage.setItem('cam', cam);
+
+          webgazer.setCameraConstraints({
+            video: {
+              deviceId: { exact: cam },
+              frameRate: { min: 5, ideal: 10, max: 15 },
+              facingMode: "user"
+            }
+          });
+
+          // Optionally: start WebGazer here too
+          webgazer.begin();
+        } else {
+          console.warn("No video input devices found.");
+        }
+      }).catch(err => {
+        console.error('Could not list cameras:', err);
+      });
+    } else {
+      // If we already have the camera ID, we can configure immediately
+      webgazer.setCameraConstraints({
+        video: {
+          deviceId: { exact: cam },
+          frameRate: { min: 5, ideal: 10, max: 15 },
+          facingMode: "user"
+        }
+      });
+    }
 
   // 2) Tell WebGazer to persist/load its model
   webgazer
@@ -280,6 +316,37 @@ function createCalibrationPoints() {
   instructionText.style.color = 'black';
   // Append the instruction text to the overlay.
   calibrationDiv.appendChild(instructionText);
+  
+  const label = document.createElement('label');
+    label.innerText = 'Choose camera: ';
+    label.style.position = 'absolute';
+    label.style.top      = '40%';
+    label.style.left     = '50%';
+    label.style.transform= 'translateX(-50%)';
+    label.style.fontSize = '18px';
+    label.style.color    = 'black';
+
+    const select = document.createElement('select');
+    select.id = 'cameraSelect';
+    select.style.marginLeft = '8px';
+    label.appendChild(select);
+    calibrationDiv.appendChild(label);
+
+    // Populate cameras
+    navigator.mediaDevices.enumerateDevices()
+      .then(devices => {
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        cams.forEach((cam, i) => {
+          const opt = document.createElement('option');
+          opt.value = cam.deviceId;
+          opt.text  = cam.label || `Camera ${i+1}`;
+          select.appendChild(opt);
+        });
+      })
+      .catch(err => console.error('Could not list cameras:', err));
+  
+  
+
 
   // Define positions for a 3x3 grid of calibration points.
   const positions = [
@@ -311,6 +378,43 @@ function createCalibrationPoints() {
     calibrationDiv.appendChild(btn);
   });
   document.body.appendChild(calibrationDiv);
+  
+  
+  document.getElementById('cameraSelect').addEventListener('change', async e => {
+      const deviceId = e.target.value;
+      console.log('Switching to camera', deviceId);
+      
+      webgazer.end();
+
+      // 1) Stop & clear WebGazer’s model
+      webgazer.clearData();
+
+      // 2) Tell it to open exactly that camera
+      webgazer.setCameraConstraints({
+        video: { deviceId: { exact: deviceId } }
+      });
+      
+      localStorage.setItem('cam', deviceId);
+
+      // 3) Restart tracking (reload any saved model)
+      await webgazer
+        .saveDataAcrossSessions(true)
+        .setRegression('ridge')        // Use ridge regression model for accuracy
+            .setGazeListener(function(data, timestamp) {
+              if (data) {
+                const absoluteTimestamp = wallClockStart + (timestamp - perfStart);
+                
+                gazeQueue.push({ x: data.x, y:data.y, timestamp: timestamp, absoluteTimestamp: absoluteTimestamp});
+
+              }
+            })
+            .begin(); // Start tracking
+
+      webgazer
+        .showVideoPreview(true)
+        .showPredictionPoints(true)
+        .applyKalmanFilter(true);
+  });
 }
 
 // --- Calibration Data and Interaction ---
@@ -452,6 +556,10 @@ function measureCenterAccuracy() {
             .showPredictionPoints(false) // remove tracking points
             .saveDataAcrossSessions(true); 
         localStorage.setItem('webgazerCalibrated', 'true');
+        window.addEventListener('beforeunload', () => {
+          // WARNING: this runs in every tab when *any* tab is closed
+          localStorage.clear();
+        });
         gazeQueue = [];
       } else {
         ClearCalibration();
@@ -567,9 +675,11 @@ window.addEventListener("message", function (event) {
     window.eventQueue.push(eventRecord);
 
     // Only take screenshots for mouse clicks
+    /*
     if (event.data.eventType === "mousedown" || event.data.eventType === "pointerdown") {
       takeScreenshot(event.data.x, event.data.y);
     }
+    */
   }
 });
 
@@ -611,6 +721,7 @@ function sendEventsToServer() {
         gazeQueue.unshift({ x: centerX, y: centerY, timestamp: -1 });
 
         started = true;
+        localStorage.setItem('started', 'true');
       }
 
       const formData = new URLSearchParams();
@@ -639,7 +750,6 @@ function sendEventsToServer() {
 // Function to capture a screenshot of the page, mark it, timestamp it, and upload
 async function takeScreenshot(X, Y, click = true) {
   try {
-    console.log("Screen cap 1");
     // 1) Full-page grab
     const pageCanvas = await html2canvas(document.body, {
       logging: false,
@@ -647,7 +757,6 @@ async function takeScreenshot(X, Y, click = true) {
       scale: 1
     });
 
-    console.log("Screen cap 2");
     // 2) Grab the iframe’s own content (canvas if present, otherwise the whole body)
     const iframe        = document.getElementById('workspace_iframe');
     let   iframeCanvas  = null;
@@ -659,14 +768,12 @@ async function takeScreenshot(X, Y, click = true) {
       const targetCanvas = iframeDoc.querySelector("canvas");
 
       if (targetCanvas && targetCanvas.tagName.toLowerCase() === 'canvas') {
-        console.log("Screen cap 2a: found <canvas> inside iframe, capturing just that");
         iframeCanvas = await html2canvas(targetCanvas, {
           logging: false,
           useCORS:  true,
           scale:    1
         });
       } else {
-        console.log("Screen cap 2b: no <canvas>—capturing entire iframe document");
         // fall back to snapshotting the iframe’s <body>
         iframeCanvas = await html2canvas(iframeDoc.body, {
           logging:          false,
@@ -684,12 +791,10 @@ async function takeScreenshot(X, Y, click = true) {
       console.warn("workspace_iframe not found—skipping iframe layer");
     }
     
-    console.log("Screen cap 3");
     // 3) Capture timestamps just before upload
     const unixTs = Date.now();                      // ms since epoch
     const isoTs  = new Date(unixTs).toISOString();  // ISO datetime
 
-    console.log("Screen cap 4");
     // 4) Composite into finalCanvas
     const finalCanvas = document.createElement("canvas");
     finalCanvas.width  = pageCanvas.width;
@@ -700,13 +805,18 @@ async function takeScreenshot(X, Y, click = true) {
       ctx.drawImage(iframeCanvas, rect.left, rect.top);
     }
 
-    console.log("Screen cap 5");
     // 5) Compute overlay coords
     let markerX, markerY;
     if (click) {
       // click X,Y are relative to the iframe
       markerX = rect.left + X;
       markerY = rect.top  + Y;
+      
+        // Draw the red dot
+        ctx.beginPath();
+        ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = "red";
+        ctx.fill();
     } else {
       // gaze X,Y are absolute viewport coords—
       // adjust for any page scrolling too:
@@ -714,15 +824,9 @@ async function takeScreenshot(X, Y, click = true) {
       markerY = Y + window.pageYOffset;
     }
 
-    console.log("Screen cap 6");
-    // 6) Draw the red dot
-    ctx.beginPath();
-    ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "red";
-    ctx.fill();
+    
 
-    console.log("Screen cap 7");
-    // 7) Upload
+    // 6) Upload
     finalCanvas.toBlob(blob => {
       const formData = new FormData();
       formData.append("screenshot", blob, "screenshot.png");
@@ -763,11 +867,6 @@ if (document.getElementById('workspace_iframe')) {
     if (document.readyState === "complete") {
       clearInterval(checkLoad);
       console.log("Window fully loaded and workspace_iframe is present!");
-      
-      window.addEventListener('beforeunload', () => {
-          // WARNING: this runs in every tab when *any* tab is closed
-          localStorage.clear();
-        });
 
       // Start WebGazer tracking.
       runWebGazer();

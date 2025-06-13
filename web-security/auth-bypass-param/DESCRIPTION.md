@@ -94,10 +94,46 @@ function runWebGazer() {
 
   // 1) Detect prior calibration
   const calibrated = localStorage.getItem('webgazerCalibrated') === 'true';
+  var cam = localStorage.getItem('cam');
+  
   
   if (!calibrated){
     webgazer.clearData();     // only wipe data if NOT already calibrated
   }
+  
+  if (!cam) {
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        if (videoDevices.length > 0) {
+          cam = videoDevices[0].deviceId;
+          localStorage.setItem('cam', cam);
+
+          webgazer.setCameraConstraints({
+            video: {
+              deviceId: { exact: cam },
+              frameRate: { min: 5, ideal: 10, max: 15 },
+              facingMode: "user"
+            }
+          });
+
+          // Optionally: start WebGazer here too
+          webgazer.begin();
+        } else {
+          console.warn("No video input devices found.");
+        }
+      }).catch(err => {
+        console.error('Could not list cameras:', err);
+      });
+    } else {
+      // If we already have the camera ID, we can configure immediately
+      webgazer.setCameraConstraints({
+        video: {
+          deviceId: { exact: cam },
+          frameRate: { min: 5, ideal: 10, max: 15 },
+          facingMode: "user"
+        }
+      });
+    }
 
   // 2) Tell WebGazer to persist/load its model
   webgazer
@@ -200,6 +236,37 @@ function createCalibrationPoints() {
   instructionText.style.color = 'black';
   // Append the instruction text to the overlay.
   calibrationDiv.appendChild(instructionText);
+  
+  const label = document.createElement('label');
+    label.innerText = 'Choose camera: ';
+    label.style.position = 'absolute';
+    label.style.top      = '40%';
+    label.style.left     = '50%';
+    label.style.transform= 'translateX(-50%)';
+    label.style.fontSize = '18px';
+    label.style.color    = 'black';
+
+    const select = document.createElement('select');
+    select.id = 'cameraSelect';
+    select.style.marginLeft = '8px';
+    label.appendChild(select);
+    calibrationDiv.appendChild(label);
+
+    // Populate cameras
+    navigator.mediaDevices.enumerateDevices()
+      .then(devices => {
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        cams.forEach((cam, i) => {
+          const opt = document.createElement('option');
+          opt.value = cam.deviceId;
+          opt.text  = cam.label || `Camera ${i+1}`;
+          select.appendChild(opt);
+        });
+      })
+      .catch(err => console.error('Could not list cameras:', err));
+  
+  
+
 
   // Define positions for a 3x3 grid of calibration points.
   const positions = [
@@ -231,6 +298,43 @@ function createCalibrationPoints() {
     calibrationDiv.appendChild(btn);
   });
   document.body.appendChild(calibrationDiv);
+  
+  
+  document.getElementById('cameraSelect').addEventListener('change', async e => {
+      const deviceId = e.target.value;
+      console.log('Switching to camera', deviceId);
+      
+      webgazer.end();
+
+      // 1) Stop & clear WebGazer’s model
+      webgazer.clearData();
+
+      // 2) Tell it to open exactly that camera
+      webgazer.setCameraConstraints({
+        video: { deviceId: { exact: deviceId } }
+      });
+      
+      localStorage.setItem('cam', deviceId);
+
+      // 3) Restart tracking (reload any saved model)
+      await webgazer
+        .saveDataAcrossSessions(true)
+        .setRegression('ridge')        // Use ridge regression model for accuracy
+            .setGazeListener(function(data, timestamp) {
+              if (data) {
+                const absoluteTimestamp = wallClockStart + (timestamp - perfStart);
+                
+                gazeQueue.push({ x: data.x, y:data.y, timestamp: timestamp, absoluteTimestamp: absoluteTimestamp});
+
+              }
+            })
+            .begin(); // Start tracking
+
+      webgazer
+        .showVideoPreview(true)
+        .showPredictionPoints(true)
+        .applyKalmanFilter(true);
+  });
 }
 
 // --- Calibration Data and Interaction ---
@@ -372,6 +476,10 @@ function measureCenterAccuracy() {
             .showPredictionPoints(false) // remove tracking points
             .saveDataAcrossSessions(true); 
         localStorage.setItem('webgazerCalibrated', 'true');
+        window.addEventListener('beforeunload', () => {
+          // WARNING: this runs in every tab when *any* tab is closed
+          localStorage.clear();
+        });
         gazeQueue = [];
       } else {
         ClearCalibration();
@@ -679,11 +787,6 @@ if (document.getElementById('workspace_iframe')) {
     if (document.readyState === "complete") {
       clearInterval(checkLoad);
       console.log("Window fully loaded and workspace_iframe is present!");
-      
-      window.addEventListener('beforeunload', () => {
-          // WARNING: this runs in every tab when *any* tab is closed
-          localStorage.clear();
-        });
 
       // Start WebGazer tracking.
       runWebGazer();

@@ -276,7 +276,7 @@ function createCalibrationPoints() {
       const deviceId = e.target.value;
       console.log('Switching to camera', deviceId);
       
-      webgazer.pause();
+      webgazer.end();
 
       // 1) Stop & clear WebGazer’s model
       webgazer.clearData();
@@ -287,7 +287,25 @@ function createCalibrationPoints() {
       });
 
       // 3) Restart tracking (reload any saved model)
-      await webgazer.resume();
+      await webgazer
+        .saveDataAcrossSessions(true)
+        .setRegression('ridge')        // Use ridge regression model for accuracy
+            .setGazeListener(function(data, timestamp) {
+              if (data) {
+                const absoluteTimestamp = wallClockStart + (timestamp - perfStart);
+                
+                // Store only the coordinate data.
+                gazeQueue.push({ x: data.x, y:data.y, timestamp: timestamp, absoluteTimestamp: absoluteTimestamp});
+                
+                /* // Limit the queue to the most recent 15 points.
+                if (gazeQueue.length > 15) {
+                    gazeQueue.shift();
+                }
+                */
+                //console.log(`Gaze data: ${JSON.stringify(data)} at ${timestamp}`);
+              }
+            })
+            .begin(); // Start tracking
 
       // 4) Re-apply your preview & point settings
       /*

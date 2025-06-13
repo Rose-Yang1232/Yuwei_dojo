@@ -249,7 +249,7 @@ function createCalibrationPoints() {
       // 2) Tell it to open exactly that camera
       webgazer.setCameraConstraints({
         video: { deviceId: { exact: deviceId } }
-      });                                                       :contentReference[oaicite:1]{index=1}
+      });
 
       // 3) Restart tracking (reload any saved model)
       await webgazer.resume();

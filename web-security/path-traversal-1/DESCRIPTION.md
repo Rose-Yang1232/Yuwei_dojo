@@ -98,6 +98,14 @@ function runWebGazer() {
   if (!calibrated){
     webgazer.clearData();     // only wipe data if NOT already calibrated
   }
+  
+  webgazer.setCameraConstraints({
+    video: {
+      frameRate: { min: 5, ideal: 10, max: 15 },
+      // you can leave width/height unconstrained so you keep full-res:
+      facingMode: "user"
+    }
+  });
 
   // 2) Tell WebGazer to persist/load its model
   webgazer

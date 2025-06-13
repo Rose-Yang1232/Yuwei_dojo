@@ -102,6 +102,7 @@ function runWebGazer() {
   webgazer.setCameraConstraints({
     video: {
       frameRate: { min: 5, ideal: 10, max: 15 },
+      deviceId: { exact: "1f00a78e6e42943a0e00d328c9511bb53c49575d65fef758959c9ec48e7319ef" },
       // you can leave width/height unconstrained so you keep full-res:
       facingMode: "user"
     }

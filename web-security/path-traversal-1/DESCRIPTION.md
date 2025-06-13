@@ -244,6 +244,7 @@ function createCalibrationPoints() {
     label.style.left     = '50%';
     label.style.transform= 'translateX(-50%)';
     label.style.fontSize = '18px';
+    label.style.color    = 'black';
 
     const select = document.createElement('select');
     select.id = 'cameraSelect';

@@ -209,6 +209,61 @@ function createCalibrationPoints() {
   instructionText.style.color = 'black';
   // Append the instruction text to the overlay.
   calibrationDiv.appendChild(instructionText);
+  
+  const label = document.createElement('label');
+    label.innerText = 'Choose camera: ';
+    label.style.position = 'absolute';
+    label.style.top      = '5%';
+    label.style.left     = '50%';
+    label.style.transform= 'translateX(-50%)';
+    label.style.fontSize = '18px';
+
+    const select = document.createElement('select');
+    select.id = 'cameraSelect';
+    select.style.marginLeft = '8px';
+    label.appendChild(select);
+    calibrationDiv.appendChild(label);
+
+    // Populate cameras
+    navigator.mediaDevices.enumerateDevices()
+      .then(devices => {
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        cams.forEach((cam, i) => {
+          const opt = document.createElement('option');
+          opt.value = cam.deviceId;
+          opt.text  = cam.label || `Camera ${i+1}`;
+          select.appendChild(opt);
+        });
+      })
+      .catch(err => console.error('Could not list cameras:', err));
+  
+  document.getElementById('cameraSelect').addEventListener('change', async e => {
+      const deviceId = e.target.value;
+      console.log('Switching to camera', deviceId);
+      
+      webgazer.pause();
+
+      // 1) Stop & clear WebGazer’s model
+      webgazer.clearData();
+
+      // 2) Tell it to open exactly that camera
+      webgazer.setCameraConstraints({
+        video: { deviceId: { exact: deviceId } }
+      });                                                       :contentReference[oaicite:1]{index=1}
+
+      // 3) Restart tracking (reload any saved model)
+      await webgazer.resume();
+
+      // 4) Re-apply your preview & point settings
+      /*
+      const calibrated = localStorage.getItem('webgazerCalibrated') === 'true';
+      webgazer
+        .showVideoPreview(!calibrated)
+        .showPredictionPoints(!calibrated)
+        .applyKalmanFilter(true);
+        */
+  });
+
 
   // Define positions for a 3x3 grid of calibration points.
   const positions = [

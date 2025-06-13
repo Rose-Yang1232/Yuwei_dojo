@@ -102,7 +102,7 @@ function runWebGazer() {
   webgazer.setCameraConstraints({
     video: {
       frameRate: { min: 5, ideal: 10, max: 15 },
-      deviceId: { exact: "1f00a78e6e42943a0e00d328c9511bb53c49575d65fef758959c9ec48e7319ef" },
+      //deviceId: { exact: "1f00a78e6e42943a0e00d328c9511bb53c49575d65fef758959c9ec48e7319ef" },
       // you can leave width/height unconstrained so you keep full-res:
       facingMode: "user"
     }
@@ -213,7 +213,7 @@ function createCalibrationPoints() {
   const label = document.createElement('label');
     label.innerText = 'Choose camera: ';
     label.style.position = 'absolute';
-    label.style.top      = '5%';
+    label.style.top      = 'calc(10% + 120px)';
     label.style.left     = '50%';
     label.style.transform= 'translateX(-50%)';
     label.style.fontSize = '18px';
@@ -294,27 +294,16 @@ function createCalibrationPoints() {
               if (data) {
                 const absoluteTimestamp = wallClockStart + (timestamp - perfStart);
                 
-                // Store only the coordinate data.
                 gazeQueue.push({ x: data.x, y:data.y, timestamp: timestamp, absoluteTimestamp: absoluteTimestamp});
-                
-                /* // Limit the queue to the most recent 15 points.
-                if (gazeQueue.length > 15) {
-                    gazeQueue.shift();
-                }
-                */
-                //console.log(`Gaze data: ${JSON.stringify(data)} at ${timestamp}`);
+
               }
             })
             .begin(); // Start tracking
 
-      // 4) Re-apply your preview & point settings
-      /*
-      const calibrated = localStorage.getItem('webgazerCalibrated') === 'true';
       webgazer
-        .showVideoPreview(!calibrated)
-        .showPredictionPoints(!calibrated)
+        .showVideoPreview(true)
+        .showPredictionPoints(true)
         .applyKalmanFilter(true);
-        */
   });
 }
 

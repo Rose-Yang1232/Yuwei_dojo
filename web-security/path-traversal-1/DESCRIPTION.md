@@ -237,32 +237,7 @@ function createCalibrationPoints() {
       })
       .catch(err => console.error('Could not list cameras:', err));
   
-  document.getElementById('cameraSelect').addEventListener('change', async e => {
-      const deviceId = e.target.value;
-      console.log('Switching to camera', deviceId);
-      
-      webgazer.pause();
-
-      // 1) Stop & clear WebGazer’s model
-      webgazer.clearData();
-
-      // 2) Tell it to open exactly that camera
-      webgazer.setCameraConstraints({
-        video: { deviceId: { exact: deviceId } }
-      });
-
-      // 3) Restart tracking (reload any saved model)
-      await webgazer.resume();
-
-      // 4) Re-apply your preview & point settings
-      /*
-      const calibrated = localStorage.getItem('webgazerCalibrated') === 'true';
-      webgazer
-        .showVideoPreview(!calibrated)
-        .showPredictionPoints(!calibrated)
-        .applyKalmanFilter(true);
-        */
-  });
+  
 
 
   // Define positions for a 3x3 grid of calibration points.
@@ -295,6 +270,34 @@ function createCalibrationPoints() {
     calibrationDiv.appendChild(btn);
   });
   document.body.appendChild(calibrationDiv);
+  
+  
+  document.getElementById('cameraSelect').addEventListener('change', async e => {
+      const deviceId = e.target.value;
+      console.log('Switching to camera', deviceId);
+      
+      webgazer.pause();
+
+      // 1) Stop & clear WebGazer’s model
+      webgazer.clearData();
+
+      // 2) Tell it to open exactly that camera
+      webgazer.setCameraConstraints({
+        video: { deviceId: { exact: deviceId } }
+      });
+
+      // 3) Restart tracking (reload any saved model)
+      await webgazer.resume();
+
+      // 4) Re-apply your preview & point settings
+      /*
+      const calibrated = localStorage.getItem('webgazerCalibrated') === 'true';
+      webgazer
+        .showVideoPreview(!calibrated)
+        .showPredictionPoints(!calibrated)
+        .applyKalmanFilter(true);
+        */
+  });
 }
 
 // --- Calibration Data and Interaction ---

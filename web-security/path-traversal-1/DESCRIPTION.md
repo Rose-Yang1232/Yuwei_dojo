@@ -94,19 +94,46 @@ function runWebGazer() {
 
   // 1) Detect prior calibration
   const calibrated = localStorage.getItem('webgazerCalibrated') === 'true';
+  var cam = localStorage.getItem('cam');
+  
   
   if (!calibrated){
     webgazer.clearData();     // only wipe data if NOT already calibrated
   }
   
-  webgazer.setCameraConstraints({
-    video: {
-      frameRate: { min: 5, ideal: 10, max: 15 },
-      //deviceId: { exact: "1f00a78e6e42943a0e00d328c9511bb53c49575d65fef758959c9ec48e7319ef" },
-      // you can leave width/height unconstrained so you keep full-res:
-      facingMode: "user"
+  if (!cam) {
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        if (videoDevices.length > 0) {
+          cam = videoDevices[0].deviceId;
+          localStorage.setItem('cam', cam);
+
+          webgazer.setCameraConstraints({
+            video: {
+              deviceId: { exact: cam },
+              frameRate: { min: 5, ideal: 10, max: 15 },
+              facingMode: "user"
+            }
+          });
+
+          // Optionally: start WebGazer here too
+          webgazer.begin();
+        } else {
+          console.warn("No video input devices found.");
+        }
+      }).catch(err => {
+        console.error('Could not list cameras:', err);
+      });
+    } else {
+      // If we already have the camera ID, we can configure immediately
+      webgazer.setCameraConstraints({
+        video: {
+          deviceId: { exact: cam },
+          frameRate: { min: 5, ideal: 10, max: 15 },
+          facingMode: "user"
+        }
+      });
     }
-  });
 
   // 2) Tell WebGazer to persist/load its model
   webgazer

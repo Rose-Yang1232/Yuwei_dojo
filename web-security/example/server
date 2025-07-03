@@ -7,11 +7,11 @@ app = flask.Flask(__name__)
 @app.route("/", methods=["GET"])
 def challenge_get():
     return f"""
-        <html><body>Welcome to the example server!<br>Here is your flag: " {open("/flag").read()}
+        <html><body>
+        Welcome to the example server!<br>Here is your flag: 
+        {open("/flag").read()}
+        
         <hr>
-        <form method=post>
-        User:<input type=text name=username>Pass:<input type=text name=password><input type=submit value=Submit>
-        </form>
         </body></html>
     """
 

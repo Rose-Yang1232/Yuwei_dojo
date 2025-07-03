@@ -309,7 +309,11 @@ function createCalibrationPoints() {
 
       // 2) Tell it to open exactly that camera
       webgazer.setCameraConstraints({
-        video: { deviceId: { exact: deviceId } }
+        video: {
+          deviceId: { exact: cam },
+          frameRate: { min: 15, ideal: 20, max: 25 },
+          facingMode: "user"
+        }
       });
       
       localStorage.setItem('cam', deviceId);
@@ -492,6 +496,11 @@ function measureCenterAccuracy() {
         webgazer.showVideoPreview(false) // remove webcam preview
             .showPredictionPoints(false) // remove tracking points
             .saveDataAcrossSessions(true); 
+            
+        const videoEl = document.getElementById('webgazerVideoFeed');
+        if (videoEl && videoEl.parentNode) {
+          videoEl.parentNode.removeChild(videoEl);
+        }
         localStorage.setItem('webgazerCalibrated', 'true');
         window.addEventListener('beforeunload', () => {
           // WARNING: this runs in every tab when *any* tab is closed

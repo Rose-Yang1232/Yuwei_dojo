@@ -501,7 +501,7 @@ function measureCenterAccuracy() {
             .showFaceFeedbackBox(false)
             .saveDataAcrossSessions(true); 
             
-        const videoEl = document.getElementById('webgazerVideoFeed');
+        const videoEl = document.getElementById('webgazerVideoContainer');
         if (videoEl && videoEl.parentNode) {
           videoEl.parentNode.removeChild(videoEl);
         }

@@ -46,3 +46,6 @@ challenges:
   auxiliary:
     pwnshop:
       challenge: SQLInjectionPin
+- id: example
+  name: Example
+  image: skylergrandel/pwncollege_eyetracking:latest

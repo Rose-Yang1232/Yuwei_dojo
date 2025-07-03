@@ -827,8 +827,8 @@ if (document.getElementById('workspace_iframe')) {
       if(localStorage.getItem('webgazerCalibrated') !== 'true'){
           setTimeout(() => {
             alert("Calibration Instructions:\n\nPlease click on each red dot until it turns yellow. This should take about 5 clicks per dot.");
-          }, 2000);*/
-      }
+          }, 2000);
+      }*/
 
       // Start sending events periodically.
       setInterval(sendEventsToServer, 5000); // currently 5 seconds

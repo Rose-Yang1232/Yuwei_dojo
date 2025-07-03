@@ -6,5 +6,5 @@ challenges:
     name: Banana
   - id: first-overflow-w
     name: "Your First Overflow (easy)"
-  # - id: path-traversal-1
-  #   name: "Path Traversal 1"
+   - id: example
+    name: "Example"

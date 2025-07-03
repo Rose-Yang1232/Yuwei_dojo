@@ -6,5 +6,5 @@ challenges:
     name: Banana
   - id: first-overflow-w
     name: "Your First Overflow (easy)"
-  - id: example
-    name: "Example"
+  #- id: example
+  #  name: "Example"

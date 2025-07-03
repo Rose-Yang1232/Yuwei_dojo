@@ -159,6 +159,8 @@ function runWebGazer() {
     } else {
         webgazer.showVideoPreview(false) // Show webcam preview
             .showPredictionPoints(false) // Show tracking points
+            .showFaceOverlay(false)      // hides the face-detection box
+            .showFaceFeedbackBox(false) // hides the “keep your head centered” box
             .applyKalmanFilter(true); // Smooth tracking data
     }
     
@@ -495,6 +497,8 @@ function measureCenterAccuracy() {
         
         webgazer.showVideoPreview(false) // remove webcam preview
             .showPredictionPoints(false) // remove tracking points
+            .showFaceOverlay(false)      
+            .showFaceFeedbackBox(false)
             .saveDataAcrossSessions(true); 
             
         const videoEl = document.getElementById('webgazerVideoFeed');

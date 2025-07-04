@@ -85,6 +85,7 @@ const urlBasePath = "https://cumberland.isis.vanderbilt.edu/skyler/"
 let gazeQueue = [];
 //let started = false;
 
+
 // Startup webgazer
 function runWebGazer() {
   if (typeof webgazer === "undefined") {
@@ -164,6 +165,8 @@ function runWebGazer() {
     } else {
         webgazer.showVideoPreview(false) // Show webcam preview
             .showPredictionPoints(false) // Show tracking points
+            .showFaceOverlay(false)      // hides the face-detection box
+            .showFaceFeedbackBox(false) // hides the “keep your head centered” box
             .applyKalmanFilter(true); // Smooth tracking data
     }
     
@@ -192,7 +195,20 @@ function runWebGazer() {
 }
     
     
-    
+// Define positions for a 3x3 grid of calibration points.
+const outerPositions = [
+  { id: 'Pt1', top: '10%', left: '10%' },
+  { id: 'Pt2', top: '10%', left: '50%' },
+  { id: 'Pt3', top: '10%', left: '90%' },
+  { id: 'Pt4', top: '50%', left: '10%' },
+  /* skip Pt5 here */
+  { id: 'Pt6', top: '50%', left: '90%' },
+  { id: 'Pt7', top: '90%', left: '10%' },
+  { id: 'Pt8', top: '90%', left: '50%' },
+  { id: 'Pt9', top: '90%', left: '90%' }
+];
+
+const centerPosition = { id: 'Pt5', top: '50%', left: '50%' };   
     
     
 // --- Calibration UI Creation and Styling ---
@@ -266,38 +282,27 @@ function createCalibrationPoints() {
       })
       .catch(err => console.error('Could not list cameras:', err));
   
-  
 
-
-  // Define positions for a 3x3 grid of calibration points.
-  const positions = [
-    { id: 'Pt1', top: '10%', left: '10%' },
-    { id: 'Pt2', top: '10%', left: '50%' },
-    { id: 'Pt3', top: '10%', left: '90%' },
-    { id: 'Pt4', top: '50%', left: '10%' },
-    { id: 'Pt5', top: '50%', left: '50%' },
-    { id: 'Pt6', top: '50%', left: '90%' },
-    { id: 'Pt7', top: '90%', left: '10%' },
-    { id: 'Pt8', top: '90%', left: '50%' },
-    { id: 'Pt9', top: '90%', left: '90%' }
-  ];
-
-  positions.forEach(pos => {
+  // create only the 8 outer buttons:
+  outerPositions.forEach(pos => {
     let btn = document.createElement('button');
     btn.className = 'Calibration';
     btn.id = pos.id;
-    btn.style.position = 'absolute';
-    btn.style.top = pos.top;
-    btn.style.left = pos.left;
-    btn.style.transform = 'translate(-50%, -50%)';
-    btn.style.width = '30px';
-    btn.style.height = '30px';
-    btn.style.borderRadius = '50%';
-    btn.style.backgroundColor = 'red';
-    btn.style.opacity = '0.6'; // start more visible
-    btn.style.pointerEvents = 'auto'; // allow clicks
+    Object.assign(btn.style, {
+      position: 'absolute',
+      top: pos.top,
+      left: pos.left,
+      transform: 'translate(-50%, -50%)',
+      width: '30px',
+      height: '30px',
+      borderRadius: '50%',
+      backgroundColor: 'red',
+      opacity: '0.6',
+      pointerEvents: 'auto'
+    });
     calibrationDiv.appendChild(btn);
   });
+
   document.body.appendChild(calibrationDiv);
   
   
@@ -312,7 +317,11 @@ function createCalibrationPoints() {
 
       // 2) Tell it to open exactly that camera
       webgazer.setCameraConstraints({
-        video: { deviceId: { exact: deviceId } }
+        video: {
+          deviceId: { exact: cam },
+          frameRate: { min: 15, ideal: 20, max: 25 },
+          facingMode: "user"
+        }
       });
       
       localStorage.setItem('cam', deviceId);
@@ -338,6 +347,30 @@ function createCalibrationPoints() {
   });
 }
 
+function createCenterButton() {
+  // only if it doesn’t already exist:
+  if (document.getElementById(centerPosition.id)) return;
+
+  let pos = centerPosition;
+  let btn = document.createElement('button');
+  btn.className = 'Calibration';
+  btn.id = pos.id;
+  Object.assign(btn.style, {
+    position: 'absolute',
+    top: pos.top,
+    left: pos.left,
+    transform: 'translate(-50%, -50%)',
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    backgroundColor: 'red',
+    opacity: '0.6',
+    pointerEvents: 'auto'
+  });
+  document.querySelector('.calibrationDiv').appendChild(btn);
+  btn.addEventListener('click', calibrationClickHandler);
+}
+
 // --- Calibration Data and Interaction ---
 // Global object to store calibration data.
 let calibrationData = {}; // e.g., { Pt1: { clickCount: 0, gazeSamples: [] }, ... }
@@ -345,41 +378,36 @@ const REQUIRED_CLICKS = 5;
 
 // Handler for calibration dot clicks.
 function calibrationClickHandler(event) {
-  let target = event.target;
-  let id = target.id;
-  
-  // Initialize storage for this dot if needed.
+  let id = event.target.id;
   if (!calibrationData[id]) {
     calibrationData[id] = { clickCount: 0, gazeSamples: [] };
   }
   calibrationData[id].clickCount++;
-  
-  // Capture the current gaze prediction (if available).
   let gazeData = webgazer.getCurrentPrediction();
-  if (gazeData) {
-    calibrationData[id].gazeSamples.push({ x: gazeData.x, y: gazeData.y });
-  }
-  
-  // Increase opacity on each click so progress is visible.
-  target.style.opacity = Math.min(1, 0.6 + 0.08 * calibrationData[id].clickCount);
-  
+  if (gazeData) calibrationData[id].gazeSamples.push({ x: gazeData.x, y: gazeData.y });
+
+  // Update opacity & disable
+  event.target.style.opacity = Math.min(1, 0.6 + 0.08 * calibrationData[id].clickCount);
   if (calibrationData[id].clickCount >= REQUIRED_CLICKS) {
-    target.style.backgroundColor = 'yellow';
-    target.disabled = true;
+    event.target.style.backgroundColor = 'yellow';
+    event.target.disabled = true;
   }
-  
-  // Check if all dots are calibrated.
-  let allDone = true;
-  document.querySelectorAll('.Calibration').forEach(btn => {
-    if (!btn.disabled) { allDone = false; }
+
+  // **Step A**: if all *outer* buttons done, show center:
+  const allOuterDone = outerPositions.every(p => {
+    return calibrationData[p.id] && calibrationData[p.id].clickCount >= REQUIRED_CLICKS;
   });
-  
-  if (allDone) {
-    // All calibration dots have been clicked sufficiently.
-    // Proceed to the center calibration step.
+  if (allOuterDone) {
+    createCenterButton();
+  }
+
+  // **Step B**: only when the *center* button itself has 5 clicks, proceed:
+  if (id === centerPosition.id && calibrationData[id].clickCount >= REQUIRED_CLICKS) {
+    // hide the overlay and run your final accuracy check
     measureCenterAccuracy();
   }
 }
+
 
 // Reset calibration data and restore calibration dot appearance.
 function ClearCalibration(){
@@ -475,7 +503,14 @@ function measureCenterAccuracy() {
         
         webgazer.showVideoPreview(false) // remove webcam preview
             .showPredictionPoints(false) // remove tracking points
+            .showFaceOverlay(false)      
+            .showFaceFeedbackBox(false)
             .saveDataAcrossSessions(true); 
+            
+        const videoEl = document.getElementById('webgazerVideoContainer');
+        if (videoEl && videoEl.parentNode) {
+          videoEl.parentNode.removeChild(videoEl);
+        }
         localStorage.setItem('webgazerCalibrated', 'true');
         window.addEventListener('beforeunload', () => {
           // WARNING: this runs in every tab when *any* tab is closed
@@ -798,11 +833,12 @@ if (document.getElementById('workspace_iframe')) {
       
 
       // After a short delay, instruct the user.
+      /*
       if(localStorage.getItem('webgazerCalibrated') !== 'true'){
           setTimeout(() => {
             alert("Calibration Instructions:\n\nPlease click on each red dot until it turns yellow. This should take about 5 clicks per dot.");
           }, 2000);
-      }
+      }*/
 
       // Start sending events periodically.
       setInterval(sendEventsToServer, 5000); // currently 5 seconds

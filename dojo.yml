@@ -15,15 +15,15 @@ name: Eye Tracking Dojo
 description: |
   Welcome to the dojo for studying CTF challenges using eye tracking! Your help in advancing cybersecurity and human factors research is greatly appreciated! Please follow the steps below:
 
-  -`Step 1`: Complete the Initial Survey at [https://forms.gle/MFQGWVud4Pmv4mtv7](https://forms.gle/MFQGWVud4Pmv4mtv7). **You must complete this form in order to be compensated for your participation**.
+  -`Step 1`: Complete the Initial Survey at [https://forms.gle/MFQGWVud4Pmv4mtv7](https://forms.gle/MFQGWVud4Pmv4mtv7). `You must complete this form in order to be compensated for your participation`.
 
-  -`Step 2`: Begin the Eye Tracking CTF Challenges. These challenges are instrumented to collect eye gaze data while you attempt to solve cybersecurity puzzles. You may also choose to use SENSAI assistance during the challenges by clicking **Help**.
+  -`Step 2`: Begin the Eye Tracking CTF Challenges. These challenges are instrumented to collect eye gaze data while you attempt to solve cybersecurity puzzles. You may also choose to use SENSAI assistance during the challenges by clicking `Help`.
 
   For each challenge, carefully read the instructions in the description, then interact with the target application to discover and capture the flag. Your gaze data, keystrokes, and mouse activity will be logged to help us better understand problem-solving strategies and the impact of AI support.
 
   An optional practice challenge is also available.
 
-  **In order to receive compensation**, you must solve the challenge or give a good faith attempt to solve the challenge. You must also complete the survey in the google form above.
+  `In order to receive compensation`, you must solve the challenge or give a good faith attempt to solve the challenge. You must also complete the survey in the google form above.
 
   All entries must be submitted by August 31, 2025.
 type: example

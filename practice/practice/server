@@ -1,0 +1,19 @@
+#!/opt/pwn.college/python
+
+import flask
+
+app = flask.Flask(__name__)
+
+@app.route("/", methods=["GET"])
+def challenge_get():
+    return f"""
+        <html><body>
+        Welcome to the example server!<br>Here is your flag: 
+        {open("/flag").read()}
+        
+        <hr>
+        </body></html>
+    """
+
+app.config['SERVER_NAME'] = f"challenge.localhost:80"
+app.run("challenge.localhost", 80)

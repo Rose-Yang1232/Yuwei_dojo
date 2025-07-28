@@ -1,0 +1,17 @@
+# name: Web Security
+# challenges:
+#   - id: path-traversal-1
+#     name: Path Traversal
+
+name: Practice
+auxiliary:
+  pwnshop:
+    walkthrough: true
+    binary_name_prefix: web-security
+    build_image: pwncollege/challenge-legacy:latest
+    verify_image: pwncollege/challenge-legacy:latest
+    binary_name: server
+challenges:
+- id: practice
+  name: Practice
+  image: skylergrandel/pwncollege_eyetracking:latest #roseeeee11111/example-dojo:latest

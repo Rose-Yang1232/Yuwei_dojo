@@ -28,7 +28,7 @@ description: |
   All entries must be submitted by August 31, 2025.
 type: example
 award:
-  emoji: 👁
+  emoji: 👀
 image: skylergrandel/pwncollege_eyetracking:latest
 #image: pwncollege/challenge-legacy:latest
 modules:

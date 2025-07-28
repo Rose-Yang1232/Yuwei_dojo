@@ -1,0 +1,38 @@
+#!/bin/sh
+
+PATH="/run/dojo/bin:$PATH"
+USER="hacker"
+
+xfce_env() {
+    local session_pid
+    session_pid=$(pgrep -u "$USER" xfce4-session | head -n1)
+    xargs -0 -a /proc/"$session_pid"/environ
+}
+
+xfce_run() {
+    id
+    which su
+    echo "$USER"
+    setsid runuser "$USER" -c "env - $(xfce_env) $*"
+}
+
+(
+    # Wait for xfce4-session to start.
+    while ! pgrep -u "$USER" xfce4-session > /dev/null; do
+        sleep 3
+    done
+
+    # Launch Terminal 3 for the server with a preset geometry.
+    xfce_run xfce4-terminal --geometry=46x20+100+100 --execute "bash -c 'cd /challenge; ./server; exec bash'" &
+    
+    # Launch Terminal 4 for the server with a preset geometry.
+    xfce_run xfce4-terminal --geometry=46x20+100+100 --execute "bash -c 'cd /challenge; ./.run_loop; exec bash'" &
+    
+    # Spawn the locked terminals.
+    #spawn_locked_terminals
+
+    
+
+    # Start the monitor loop in the background.
+    #monitor_locked_terminals
+) &

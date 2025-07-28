@@ -1,0 +1,32 @@
+#!/opt/pwn.college/python
+import os
+import flask
+app = flask.Flask(__name__)
+app.config["SERVER_NAME"] = f"challenge.localhost:80"
+app.secret_key = os.urandom(8)
+
+
+
+@app.route("/package/<path:path>", methods=["GET"])
+@app.route("/package", methods=["GET"])
+def challenge(path="index.html"):
+
+
+
+    requested_path = app.root_path + "/files/" + path
+    print(f"DEBUG: {requested_path=}")
+
+
+
+    try:
+        return open(requested_path).read()
+    except FileNotFoundError:
+        flask.abort(404, f"No {requested_path} from directory {os.getcwd()}")
+    except PermissionError:
+        flask.abort(403, requested_path)
+    except Exception as e:
+        flask.abort(500, requested_path + ":" + str(e))
+
+
+
+app.run("challenge.localhost", 80)

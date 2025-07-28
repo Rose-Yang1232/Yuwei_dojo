@@ -18,7 +18,7 @@ challenges:
   auxiliary:
     pwnshop:
       challenge: PathTraversal
-      #variants: 1
+      variants: 4
 - id: path-traversal-2
   name: Path Traversal 2
   image: skylergrandel/pwncollege_eyetracking:latest

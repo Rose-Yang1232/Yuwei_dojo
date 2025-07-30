@@ -15,7 +15,7 @@ name: Eye Tracking Dojo
 description: |
   Welcome to the dojo for studying CTF challenges using eye tracking! Your help in advancing cybersecurity and human factors research is greatly appreciated! Please follow the steps below:
 
-  -`Step 1`: Complete the Initial Survey at [https://forms.gle/MFQGWVud4Pmv4mtv7](https://forms.gle/MFQGWVud4Pmv4mtv7). `You must complete this form in order to be compensated for your participation`.
+  -`Step 1`: Complete the Initial Survey at <a id="survey-link" href="https://cumberland.isis.vanderbilt.edu/skyler/eye_survey.php">THIS LINK</a>. `You must complete this form in order to be compensated for your participation`.
 
   -`Step 2`: Begin the Eye Tracking CTF Challenges. These challenges are instrumented to collect eye gaze data while you attempt to solve cybersecurity puzzles. You may also choose to use SENSAI assistance during the challenges by clicking `Help`.
 
@@ -27,16 +27,18 @@ description: |
 
   All entries must be submitted by August 31, 2025.
 
-  **Your pwn.college ID:**  
-  <div id="show‑userid"></div>
-
   <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const el = document.getElementById('show‑userid');
-    if(el && window.init) {
-      el.textContent = init.userId;
-    }
-  });
+    document.addEventListener('DOMContentLoaded', () => {
+      // Grab the ID that CTFd made available in init.userId
+      const uid = (window.init && init.userId) || '';
+
+      // Update the survey link to include ?userId=<id>
+      const link = document.getElementById('survey-link');
+      if (link && uid) {
+        const base = link.href.split('?')[0];
+        link.href = base + '?userId=' + encodeURIComponent(uid);
+      }
+    });
   </script>
 type: example
 award:

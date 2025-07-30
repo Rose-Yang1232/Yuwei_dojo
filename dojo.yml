@@ -26,6 +26,18 @@ description: |
   `In order to receive compensation`, you must solve the challenge or give a good faith attempt to solve the challenge. You must also complete the survey in the google form above. Completing these steps will result in a compensation of `$TODO`
 
   All entries must be submitted by August 31, 2025.
+
+  **Your pwn.college ID:**  
+  <div id="show‑userid"></div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('show‑userid');
+  if(el && window.init) {
+    el.textContent = init.userId;
+  }
+});
+  </script>
 type: example
 award:
   emoji: 👀

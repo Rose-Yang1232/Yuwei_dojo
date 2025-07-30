@@ -32,11 +32,11 @@ description: |
 
   <script>
   document.addEventListener('DOMContentLoaded', () => {
-  const el = document.getElementById('show‑userid');
-  if(el && window.init) {
-    el.textContent = init.userId;
-  }
-});
+    const el = document.getElementById('show‑userid');
+    if(el && window.init) {
+      el.textContent = init.userId;
+    }
+  });
   </script>
 type: example
 award:

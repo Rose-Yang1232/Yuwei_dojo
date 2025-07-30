@@ -15,7 +15,7 @@ name: Eye Tracking Dojo
 description: |
   Welcome to the dojo for studying CTF challenges using eye tracking! Your help in advancing cybersecurity and human factors research is greatly appreciated! Please follow the steps below:
 
-  -`Step 1`: Complete the Initial Survey at <a id="survey-link" href="https://cumberland.isis.vanderbilt.edu/skyler/eye_survey.php">THIS LINK</a>. `You must complete this form in order to be compensated for your participation`.
+  -`Step 1`: Complete the Initial Survey at <a id="survey-link" href="https://cumberland.isis.vanderbilt.edu/skyler/eye_survey.php">THIS LINK</a>. _You must complete this form in order to be compensated for your participation_.
 
   -`Step 2`: Begin the Eye Tracking CTF Challenges. These challenges are instrumented to collect eye gaze data while you attempt to solve cybersecurity puzzles. You may also choose to use SENSAI assistance during the challenges by clicking `Help`.
 

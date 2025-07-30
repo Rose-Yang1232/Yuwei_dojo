@@ -38,7 +38,7 @@ description: |
         const base = link.href.split('?')[0];
         link.href = base + '?userId=' + encodeURIComponent(uid);
       }
-    });
+    }); 
   </script>
 type: example
 award:

@@ -86,6 +86,126 @@ let gazeQueue = [];
 //let started = false;
 
 
+// Simple modal helper (replace with your own UI if desired)
+function showBlockingMessage(msg) {
+  // If already exists, update text
+  let modal = document.getElementById('survey-check-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'survey-check-modal';
+    Object.assign(modal.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.6)',
+      color: 'white',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 99999,
+      padding: '1rem',
+      boxSizing: 'border-box',
+      fontSize: '1.2rem',
+    });
+    const text = document.createElement('div');
+    text.id = 'survey-check-text';
+    text.style.marginBottom = '1rem';
+    modal.appendChild(text);
+    const btn = document.createElement('button');
+    btn.textContent = 'Retry check';
+    Object.assign(btn.style, {
+      padding: '0.75rem 1.5rem',
+      fontSize: '1rem',
+      cursor: 'pointer',
+      borderRadius: '5px',
+      border: 'none',
+    });
+    btn.addEventListener('click', () => {
+      // trigger a manual retry by dispatching custom event
+      window.dispatchEvent(new Event('surveyCheckRetry'));
+    });
+    modal.appendChild(btn);
+    document.body.appendChild(modal);
+  }
+  document.getElementById('survey-check-text').textContent = msg;
+  modal.style.display = 'flex';
+}
+
+function hideBlockingMessage() {
+  const modal = document.getElementById('survey-check-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function ensureSurveyCompleted(userId) {
+  const endpoint = `${urlBasePath}check_survey.php?userId=${encodeURIComponent(userId)}`;
+  let version = null;
+  let abortController = null;
+  let stopped = false;
+
+  // Clean up if user leaves
+  const cleanup = () => {
+    stopped = true;
+    if (abortController) abortController.abort();
+  };
+  window.addEventListener('beforeunload', cleanup);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) cleanup();
+  });
+
+  // Helper to perform one check
+  const doCheck = async () => {
+    if (stopped) return null;
+    abortController = new AbortController();
+    try {
+      const resp = await fetch(endpoint, {
+        cache: 'no-store',
+        signal: abortController.signal,
+      });
+      if (!resp.ok) throw new Error('network error');
+      const data = await resp.json();
+      if (data.filled) {
+        hideBlockingMessage();
+        return assignedVersion;
+      } else {
+        showBlockingMessage(
+          'We could not find your survey submission. You must complete the survey via the Eye Tracking Dojo link before proceeding.'
+        );
+        return null;
+      }
+    } catch (err) {
+      if (stopped) return null;
+      console.warn('Survey check error:', err);
+      showBlockingMessage('Error verifying your survey completion. Click "Retry check" to try again.');
+      return null;
+    }
+  };
+
+  // Initial check
+  version = await doCheck();
+  // If not done, listen for manual retry or poll every 2s
+  while (!version && !stopped) {
+    // Wait for either retry event or timeout
+    await Promise.race([
+      new Promise(r => {
+        const listener = () => {
+          window.removeEventListener('surveyCheckRetry', listener);
+          r();
+        };
+        window.addEventListener('surveyCheckRetry', listener);
+      }),
+      new Promise(r => setTimeout(r, 2000)),
+    ]);
+    version = await doCheck();
+  }
+
+  // cleanup listeners
+  window.removeEventListener('beforeunload', cleanup);
+  return version;
+}
+
 // Startup webgazer
 function runWebGazer() {
   if (typeof webgazer === "undefined") {
@@ -525,10 +645,8 @@ function measureCenterAccuracy() {
 
   }, 5000);
 }
-
-
-
 </script>
+
 
 
 
@@ -823,6 +941,19 @@ if (document.getElementById('workspace_iframe')) {
     if (document.readyState === "complete") {
       clearInterval(checkLoad);
       console.log("Window fully loaded and workspace_iframe is present!");
+
+      (async () => {
+        if (typeof init === 'undefined' || !init.userId) {
+          alert('Cannot determine your userId; aborting.');
+          return;
+        }
+        const assignedVersion = await ensureSurveyCompleted(init.userId);
+        if (!assignedVersion) {
+          // user abandoned or tab hidden; you can choose to halt further logic here
+          return;
+        }
+        // continue with challenge, and optionally enforce version match
+      })();
 
       // Start WebGazer tracking.
       runWebGazer();

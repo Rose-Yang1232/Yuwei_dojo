@@ -169,12 +169,23 @@ async function ensureSurveyCompleted(userId) {
       if (!resp.ok) throw new Error('network error');
       const data = await resp.json();
       if (data.filled) {
+        const assignedVersion = data.version; // 1..4
+        const expectedChallenge = `path-traversal-${assignedVersion}`;
+        if (challenge !== expectedChallenge) {
+          showBlockingMessage(
+            `You are assigned version ${assignedVersion} of the path traversal challenge ` +
+            `(expected: ${expectedChallenge}), but this page is "${challenge}". ` +
+            `Please navigate to your assigned version before proceeding.`
+          );
+          return null;
+        }
+        // correct version
         hideBlockingMessage();
-        version = data.version;
-        alert(`Survey found. You are assigned path traversal version ${version}. Proceeding...`);
-        return version;
+        return assignedVersion;
       } else {
-        showBlockingMessage('We could not find your survey submission. You must complete the survey via the Eye Tracking Dojo link before proceeding.');
+        showBlockingMessage(
+          'We could not find your survey submission. You must complete the survey via the Eye Tracking Dojo link before proceeding.'
+        );
         return null;
       }
     } catch (err) {

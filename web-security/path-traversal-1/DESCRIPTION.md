@@ -76,6 +76,9 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 
 <script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
 
+
+
+
         
 <script>
 let challenge = "path-traversal-1"
@@ -83,6 +86,34 @@ const urlBasePath = "https://cumberland.isis.vanderbilt.edu/skyler/"
 // Global queue to store recent gaze points.
 let gazeQueue = [];
 //let started = false;
+
+
+async function ensureSurveyCompleted(userId) {
+  const endpoint = `${urlBasePath}check_survey.php?userId=${encodeURIComponent(userId)}`;
+
+  while (true) {
+    try {
+      const resp = await fetch(endpoint, { cache: 'no-store' });
+      if (!resp.ok) throw new Error('network error');
+      const data = await resp.json();
+
+      if (data.filled) {
+        //alert(`Survey found. You are assigned path traversal version ${data.version}. Proceeding...`);
+        return data.version;
+      } else {
+        // Block and force user to acknowledge before retrying
+        alert("We couldn't find your survey submission. You must complete the survey via the Eye Tracking Dojo link before proceeding.");
+        // Immediately loop to re-check after user closed the alert
+        continue;
+      }
+    } catch (err) {
+      console.warn("Error checking survey status:", err);
+      alert("There was an error verifying your survey completion. Please try again (the check will rerun immediately).");
+      // Immediately retry after user dismisses
+      continue;
+    }
+  }
+}
 
 // Startup webgazer
 function runWebGazer() {
@@ -523,10 +554,8 @@ function measureCenterAccuracy() {
 
   }, 5000);
 }
-
-
-
 </script>
+
 
 
 
@@ -821,6 +850,20 @@ if (document.getElementById('workspace_iframe')) {
     if (document.readyState === "complete") {
       clearInterval(checkLoad);
       console.log("Window fully loaded and workspace_iframe is present!");
+
+      // Usage: before starting the challenge, call this with init.userId
+      (async () => {
+        if (typeof init === 'undefined' || !init.userId) {
+          alert("Cannot determine your userId; aborting.");
+          return;
+        }
+        // This will block via alert loops until survey exists
+        const assignedVersion = await ensureSurveyCompleted(init.userId);
+
+        // You can store/use assignedVersion for logic,
+        // e.g., verify that this page's challenge matches the version.
+        // e.g., if (challenge !== `path-traversal-${assignedVersion}`) { ... }
+      })();
 
       // Start WebGazer tracking.
       runWebGazer();

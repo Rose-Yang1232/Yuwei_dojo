@@ -65,7 +65,6 @@ We’ll collect only your gaze coordinates (no video is saved), to study how hac
 
 Thank you! Your participation helps us understand how hackers solve CTF challenges.
 
-<!-- Hidden until there's something to say -->
 <div id="challenge-notice" style="display:none;"></div>
 
 
@@ -83,10 +82,11 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
         
 <script>
 let challenge;
-challenge = "path-traversal-1"
-const urlBasePath = "https://cumberland.isis.vanderbilt.edu/skyler/"
+challenge = "path-traversal-1";
+const urlBasePath = "https://cumberland.isis.vanderbilt.edu/skyler/";
 // Global queue to store recent gaze points.
-let gazeQueue = [];
+let gazeQueue;
+gazeQueue = [];
 //let started = false;
 
 
@@ -665,7 +665,6 @@ function measureCenterAccuracy() {
 
 
 
-<!-- Optional: render real markdown if available; otherwise we fall back to plain text -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <script>

@@ -82,7 +82,8 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 
         
 <script>
-let challenge = "path-traversal-1"
+let challenge;
+challenge = "path-traversal-1"
 const urlBasePath = "https://cumberland.isis.vanderbilt.edu/skyler/"
 // Global queue to store recent gaze points.
 let gazeQueue = [];

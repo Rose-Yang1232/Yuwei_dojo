@@ -65,7 +65,8 @@ We’ll collect only your gaze coordinates (no video is saved), to study how hac
 
 Thank you! Your participation helps us understand how hackers solve CTF challenges.
 
-
+<!-- Hidden until there's something to say -->
+<div id="challenge-notice" style="display:none;"></div>
 
 
 <script>
@@ -661,6 +662,136 @@ function measureCenterAccuracy() {
 </script>
 
 
+
+
+<!-- Optional: render real markdown if available; otherwise we fall back to plain text -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<script>
+(() => {
+  const noticeEl = document.getElementById('challenge-notice');
+
+  function renderMD(md) {
+    if (window.marked?.parse) {
+      noticeEl.innerHTML = marked.parse(md);
+    } else {
+      // Plain text fallback if "marked" isn't available
+      noticeEl.textContent = md;
+    }
+    noticeEl.style.display = '';
+  }
+
+  function clearNotice() {
+    noticeEl.innerHTML = '';
+    noticeEl.style.display = 'none';
+  }
+
+  async function ensureSurveyPreview(userId, {
+    urlBasePath = window.urlBasePath,
+    expectedChallenge = window.challenge,        // e.g., "path-traversal-2"
+    pollEveryMs = 2000,
+    enablePolling = true
+  } = {}) {
+    let abortController = null;
+    let stopped = false;
+
+    const cleanup = () => {
+      stopped = true;
+      if (abortController) abortController.abort();
+    };
+    window.addEventListener('beforeunload', cleanup);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) cleanup();
+    });
+
+    const endpoint = `${urlBasePath}check_survey.php?userId=${encodeURIComponent(userId)}`;
+
+    const showRetry = () => {
+      const btn = noticeEl.querySelector('#retry-check');
+      btn?.addEventListener('click', () => {
+        window.dispatchEvent(new Event('surveyCheckRetry'));
+      });
+    };
+
+    const doCheck = async () => {
+      if (stopped) return null;
+      abortController = new AbortController();
+      try {
+        const resp = await fetch(endpoint, { cache: 'no-store', signal: abortController.signal });
+        if (!resp.ok) throw new Error('network error');
+        const data = await resp.json();
+
+        if (!data.filled) {
+          renderMD([
+            '### Heads up',
+            '',
+            'We could not find your survey submission. Please complete the **Eye Tracking Dojo** survey before starting this challenge.',
+            '',
+            '<button id="retry-check" type="button">Retry check</button>'
+          ].join('\n'));
+          showRetry();
+          return null;
+        }
+
+        const assignedVersion = data.version; // 1..n
+        const assignedChallenge = `path-traversal-${assignedVersion}`;
+
+        if (expectedChallenge && expectedChallenge !== assignedChallenge) {
+          renderMD([
+            '### This page isn’t your assigned version',
+            '',
+            `- Assigned version: **${assignedVersion}**`,
+            `- This page: \`${expectedChallenge}\``,
+            '',
+            `Open the page for \`${assignedChallenge}\` instead.`,
+            '',
+            '<button id="retry-check" type="button">Retry check</button>'
+          ].join('\n'));
+          showRetry();
+          return null;
+        }
+
+        // All good — hide any prior notice
+        clearNotice();
+        return assignedVersion;
+      } catch (err) {
+        if (stopped) return null;
+        renderMD([
+          '### Error verifying survey',
+          '',
+          'Please try again.',
+          '',
+          `<details><summary>Details</summary><pre>${String(err)}</pre></details>`,
+          '',
+          '<button id="retry-check" type="button">Retry check</button>'
+        ].join('\n'));
+        showRetry();
+        return null;
+      }
+    };
+
+    let version = await doCheck();
+    while (!version && !stopped && enablePolling) {
+      await Promise.race([
+        new Promise(r => {
+          const listener = () => { window.removeEventListener('surveyCheckRetry', listener); r(); };
+          window.addEventListener('surveyCheckRetry', listener);
+        }),
+        new Promise(r => setTimeout(r, pollEveryMs))
+      ]);
+      version = await doCheck();
+    }
+
+    window.removeEventListener('beforeunload', cleanup);
+    return version;
+  }
+
+  // --- Auto-run (soft check) ---
+  const userId = window.userId || new URLSearchParams(location.search).get('userId');
+  if (!userId) return; // Nothing to show if we can’t identify the user
+  ensureSurveyPreview(userId, { expectedChallenge: window.challenge });
+})();
+</script>
 
 
 

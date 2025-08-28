@@ -1074,6 +1074,8 @@ window._challengeStarted = false;
 window._eventsInterval = null;
 
 async function startChallengeFlow() {
+  console.log("Starting Challenge Flow...")
+  
   if (window._challengeStarted) return;
   window._challengeStarted = true;
 
@@ -1113,10 +1115,6 @@ const autoStartOnIframe = new MutationObserver(() => {
 });
 autoStartOnIframe.observe(document.documentElement, { childList: true, subtree: true });
 
-// defer until the page is fully loaded
-window.addEventListener('load', () => {
-  console.log("Window loaded; waiting for Start or iframe insertion…");
-});
 
 
 

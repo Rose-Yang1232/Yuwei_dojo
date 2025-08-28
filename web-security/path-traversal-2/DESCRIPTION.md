@@ -804,9 +804,11 @@ function attachIframeListeners(iframe) {
 }
 
 function watchIframe() {
-  // attach to any existing iframe immediately
   const existing = document.getElementById('workspace_iframe');
-  if (existing) attachIframeListeners(existing);
+  if (existing && !existing._listenersAttached) {
+    existing._listenersAttached = true;
+    attachIframeListeners(existing);
+  }
 
   // observe DOM for future insertions/replacements
   const domObserver = new MutationObserver(() => {
@@ -1101,19 +1103,39 @@ async function startChallengeFlow() {
   }
 }
 
-// auto-start as soon as the iframe is inserted
-const autoStartOnIframe = new MutationObserver(() => {
+(function bootstrapChallenge() {
+  // 1) If iframe already present, try to start immediately
   if (document.getElementById('workspace_iframe')) {
+    console.log('[boot] iframe already present');
+    startChallengeFlow();
+  }
+
+  // 2) Poll as a safety net (covers shadow DOM/virtual DOM cases where mutations aren’t seen)
+  const pollIntervalMs = 250;
+  const pollStopAfterMs = 120000; // stop after 2 minutes
+  const pollId = setInterval(() => {
+    if (window._challengeStarted) { clearInterval(pollId); return; }
+    const iframe = document.getElementById('workspace_iframe');
+    if (iframe) {
+      console.log('[boot] iframe found by polling');
+      startChallengeFlow();
+      // not doing fullscreen here (no user gesture)
+    }
+  }, pollIntervalMs);
+  setTimeout(() => { try { clearInterval(pollId); } catch {} }, pollStopAfterMs);
+
+  // 3) Start button (delegated so it works even if added later)
+  document.addEventListener('click', (e) => {
+    const startBtn = e.target.closest('[data-start-challenge], #startChallengeBtn, .btn-challenge-start');
+    if (!startBtn) return;
+
+    console.log('[boot] starting via Start click');
     startChallengeFlow();
 
-    const btn = document.getElementById('fullscreen');
-    if (btn) {
-      try { btn.click(); } catch (e) { /* ignore */ }
-    }
-    autoStartOnIframe.disconnect();
-  }
-});
-autoStartOnIframe.observe(document.documentElement, { childList: true, subtree: true });
+    // Attempt fullscreen under the same user gesture (if your toggle exists by then)
+    queueMicrotask(() => document.getElementById('fullscreen')?.click());
+  });
+})();
 
 
 

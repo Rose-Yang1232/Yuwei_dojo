@@ -85,58 +85,102 @@ gazeQueue = [];
 //let started = false;
 
 
-// Simple modal helper (replace with your own UI if desired)
-function showBlockingMessage(msg) {
-  // If already exists, update text
-  let modal = document.getElementById('survey-check-modal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'survey-check-modal';
-    Object.assign(modal.style, {
-      position: 'fixed',
-      top: '0',
-      left: '0',
-      width: '100%',
-      height: '100%',
-      background: 'rgba(0,0,0,0.6)',
-      color: 'white',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 99999,
-      padding: '1rem',
-      boxSizing: 'border-box',
-      fontSize: '1.2rem',
-    });
-    const text = document.createElement('div');
-    text.id = 'survey-check-text';
-    text.style.marginBottom = '1rem';
-    modal.appendChild(text);
-    const btn = document.createElement('button');
-    btn.textContent = 'Retry check';
-    Object.assign(btn.style, {
-      padding: '0.75rem 1.5rem',
-      fontSize: '1rem',
-      cursor: 'pointer',
-      borderRadius: '5px',
-      border: 'none',
-    });
-    btn.addEventListener('click', () => {
-      // trigger a manual retry by dispatching custom event
-      window.dispatchEvent(new Event('surveyCheckRetry'));
-    });
-    modal.appendChild(btn);
-    document.body.appendChild(modal);
-  }
-  document.getElementById('survey-check-text').textContent = msg;
-  modal.style.display = 'flex';
+// Flag to stop sending/recording while blocked
+window._workspaceBlocked = false;
+
+let _wsbRO = null; // ResizeObserver for blocker
+
+function cancelEyeTrackingFlow() {
+  // 1) Remove calibration overlay/background
+  document.querySelector('.calibrationDiv')?.remove();
+  document.querySelector('.calibrationBackground')?.remove();
+
+  // 2) Stop WebGazer & clear state
+  try { webgazer.showVideoPreview(false).showPredictionPoints(false).showFaceOverlay(false).showFaceFeedbackBox(false); } catch {}
+  try { webgazer.end(); } catch {}
+  try { webgazer.clearData(); } catch {}
+
+  // Remove any residual DOM from WebGazer
+  const vc = document.getElementById('webgazerVideoContainer');
+  if (vc && vc.parentNode) vc.parentNode.removeChild(vc);
+
+  // Clear calibration flags so the challenge won’t proceed
+  localStorage.removeItem('webgazerCalibrated');
+  localStorage.removeItem('started');
+  try { gazeQueue = []; } catch {}
+
+  // 3) Block the workspace so they must restart
+  showWorkspaceBlocker('Eye tracking canceled. Click “Restart challenge” to continue.');
 }
 
-function hideBlockingMessage() {
-  const modal = document.getElementById('survey-check-modal');
-  if (modal) modal.style.display = 'none';
+
+function positionWorkspaceBlocker() {
+  const iframe = document.getElementById('workspace_iframe');
+  const blocker = document.getElementById('workspace-blocker');
+  if (!iframe || !blocker) return;
+  const r = iframe.getBoundingClientRect();
+  Object.assign(blocker.style, {
+    position: 'fixed',
+    left: r.left + 'px',
+    top: r.top + 'px',
+    width: r.width + 'px',
+    height: r.height + 'px',
+  });
 }
+
+function showWorkspaceBlocker(msg = 'Eye tracking was canceled. Click “Restart challenge” to continue.') {
+  window._workspaceBlocked = true;
+
+  let blocker = document.getElementById('workspace-blocker');
+  if (!blocker) {
+    blocker = document.createElement('div');
+    blocker.id = 'workspace-blocker';
+    Object.assign(blocker.style, {
+      background: 'rgba(0,0,0,0.6)',
+      color: '#fff',
+      zIndex: 99998,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      textAlign: 'center',
+      padding: '1rem',
+      pointerEvents: 'auto',
+      borderRadius: '4px'
+    });
+
+    const inner = document.createElement('div');
+    inner.innerHTML = `
+      <div style="font-weight:600; margin-bottom: 0.5rem">${msg}</div>
+      <div><button type="button" id="wsb-restart" class="btn btn-primary">Restart challenge</button></div>
+    `;
+    blocker.appendChild(inner);
+    document.body.appendChild(blocker);
+
+    // Clicking our button triggers your real restart control
+    blocker.querySelector('#wsb-restart').addEventListener('click', () => {
+      document.getElementById('challenge-restart')?.click();
+    });
+
+    window.addEventListener('resize', positionWorkspaceBlocker);
+    window.addEventListener('scroll', positionWorkspaceBlocker, true);
+    _wsbRO = new ResizeObserver(positionWorkspaceBlocker);
+    const iframe = document.getElementById('workspace_iframe');
+    if (iframe) _wsbRO.observe(iframe);
+  }
+
+  positionWorkspaceBlocker();
+  blocker.style.display = 'flex';
+}
+
+function hideWorkspaceBlocker() {
+  window._workspaceBlocked = false;
+  const blocker = document.getElementById('workspace-blocker');
+  if (blocker) blocker.remove();
+  window.removeEventListener('resize', positionWorkspaceBlocker);
+  window.removeEventListener('scroll', positionWorkspaceBlocker, true);
+  if (_wsbRO) { try { _wsbRO.disconnect(); } catch {} _wsbRO = null; }
+}
+
 
 async function ensureSurveyCompleted(userId) {
   const endpoint = `${urlBasePath}check_survey.php?userId=${encodeURIComponent(userId)}`;
@@ -169,7 +213,7 @@ async function ensureSurveyCompleted(userId) {
         const assignedVersion = data.version; // 1..4
         const expectedChallenge = `path-traversal-${assignedVersion}`;
         if (challenge !== expectedChallenge) {
-          showBlockingMessage(
+          showWorkspaceBlocker(
             `You are assigned version ${assignedVersion} of the path traversal challenge ` +
             `(expected: ${expectedChallenge}), but this page is "${challenge}". ` +
             `Please navigate to your assigned version before proceeding.`
@@ -177,10 +221,10 @@ async function ensureSurveyCompleted(userId) {
           return null;
         }
         // correct version
-        hideBlockingMessage();
+        hideWorkspaceBlocker();
         return assignedVersion;
       } else {
-        showBlockingMessage(
+        showWorkspaceBlocker(
           'We could not find your survey submission. You must complete the survey via the Eye Tracking Dojo link before proceeding.'
         );
         return null;
@@ -188,7 +232,7 @@ async function ensureSurveyCompleted(userId) {
     } catch (err) {
       if (stopped) return null;
       console.warn('Survey check error:', err);
-      showBlockingMessage('Error verifying your survey completion. Click "Retry check" to try again.');
+      showWorkspaceBlocker('Error verifying your survey completion. Click "Retry check" to try again.');
       return null;
     }
   };
@@ -475,6 +519,25 @@ function createCalibrationPoints() {
         .showPredictionPoints(true)
         .applyKalmanFilter(true);
   });
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.id = 'calibrationCancel';
+  cancelBtn.textContent = 'Cancel eye tracking';
+  Object.assign(cancelBtn.style, {
+    position: 'absolute',
+    bottom: '8%',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '0.6rem 1rem',
+    fontSize: '16px',
+    cursor: 'pointer',
+    borderRadius: '8px',
+    border: '1px solid #888',
+    background: '#f8f9fa',
+  });
+  cancelBtn.addEventListener('click', cancelEyeTrackingFlow);
+  calibrationDiv.appendChild(cancelBtn);
 }
 
 function createCenterButton() {
@@ -667,78 +730,99 @@ function measureCenterAccuracy() {
 <script>
 window.eventQueue = window.eventQueue || []; // Stores events before sending
 
+// Wait for an element to exist; selector can be a string or a () => element
+function waitForElement(selectorOrFn, timeout = 30000) {
+  return new Promise((resolve, reject) => {
+    const check = typeof selectorOrFn === 'function' ? selectorOrFn : () => document.querySelector(selectorOrFn);
+    const found = check();
+    if (found) return resolve(found);
 
-function attachIframeListeners() {
-  const iframe = document.getElementById('workspace_iframe');
+    const obs = new MutationObserver(() => {
+      const el = check();
+      if (el) { obs.disconnect(); resolve(el); }
+    });
+    obs.observe(document.documentElement, { childList: true, subtree: true });
 
-  if (!iframe) {
-    console.warn("Iframe not available, retrying...");
-    setTimeout(attachIframeListeners, 500); // Retry after 500ms
-    return;
-  }
-
-  function injectScript() {
-      try {
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        if (!iframeDoc) return;
-
-        // 1. Remove any previous injection
-        const old = iframeDoc.getElementById('eventForwarder');
-        if (old) {
-          console.log("Removing previous forwarder script");
-          old.remove();
-        }
-
-        // 2. Create & tag the new script
-        const script = iframeDoc.createElement("script");
-        script.id = "eventForwarder";      // <-- our “handle” so we can find it later
-        script.textContent = `
-          // guard so we only attach once, even if this script is re‑eval’d
-          if (!window._forwarderSetup) {
-            window._forwarderSetup = true;
-
-            function forwardEvent(event, type) {
-              let data = { type: "iframeClick", eventType: type, timestamp: Date.now() };
-              if (type === "keydown") data.key = event.key;
-              else { data.x = event.clientX; data.y = event.clientY; }
-              window.parent.postMessage(data, "*");
-            }
-
-            document.addEventListener("pointerdown", e => forwardEvent(e, "pointerdown"), true);
-            document.addEventListener("keydown",     e => forwardEvent(e, "keydown"),     true);
-          }
-        `;
-
-        // 3. Inject it
-        iframeDoc.head.appendChild(script);
-        console.log("Injected new forwarder script");
-      } catch (err) {
-        console.warn("Injection failed:", err);
-      }
-    }
-
-
-  // Inject event listeners immediately
-  //injectScript();
-  iframe.addEventListener("load", injectScript);
-
-  // Observe changes to iframe
-  const observer = new MutationObserver((mutationsList, observer) => {
-    for (let mutation of mutationsList) {
-      if (mutation.type === "attributes" && mutation.attributeName === "src") {
-        console.log("Iframe source changed. Reinjecting event listeners...");
-        injectScript();
-      }
+    if (timeout) {
+      setTimeout(() => { obs.disconnect(); reject(new Error('waitForElement timeout')); }, timeout);
     }
   });
-
-  observer.observe(iframe, { attributes: true });
 }
 
 
 
+function attachIframeListeners(iframe) {
+  if (!iframe) return;
+
+  function injectScript() {
+    try {
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      if (!iframeDoc) return;
+
+      // remove any previous forwarder we injected
+      const old = iframeDoc.getElementById('eventForwarder');
+      if (old) old.remove();
+
+      const script = iframeDoc.createElement('script');
+      script.id = 'eventForwarder';
+      script.textContent = `
+        if (!window._forwarderSetup) {
+          window._forwarderSetup = true;
+          function forwardEvent(event, type) {
+            let data = { type: "iframeClick", eventType: type, timestamp: Date.now() };
+            if (type === "keydown") data.key = event.key;
+            else { data.x = event.clientX; data.y = event.clientY; }
+            window.parent.postMessage(data, "*");
+          }
+          document.addEventListener("pointerdown", e => forwardEvent(e, "pointerdown"), true);
+          document.addEventListener("keydown",     e => forwardEvent(e, "keydown"),     true);
+        }
+      `;
+      iframeDoc.head.appendChild(script);
+      console.log("[forwarder] injected into iframe");
+    } catch (err) {
+      console.warn("[forwarder] injection failed:", err);
+    }
+  }
+
+  // inject whenever the iframe loads
+  iframe.addEventListener('load', injectScript);
+
+  // re-inject if src changes
+  const attrObserver = new MutationObserver(muts => {
+    for (const m of muts) {
+      if (m.type === 'attributes' && m.attributeName === 'src') {
+        console.log("[forwarder] iframe src changed; re-injecting…");
+        injectScript();
+      }
+    }
+  });
+  attrObserver.observe(iframe, { attributes: true });
+
+  // best effort immediate inject (in case it's already loaded)
+  injectScript();
+}
+
+function watchIframe() {
+  // attach to any existing iframe immediately
+  const existing = document.getElementById('workspace_iframe');
+  if (existing) attachIframeListeners(existing);
+
+  // observe DOM for future insertions/replacements
+  const domObserver = new MutationObserver(() => {
+    const el = document.getElementById('workspace_iframe');
+    if (el && !el._listenersAttached) {
+      el._listenersAttached = true; // simple guard per element
+      attachIframeListeners(el);
+    }
+  });
+  domObserver.observe(document.documentElement, { childList: true, subtree: true });
+}
+
+
 
 window.addEventListener("message", function (event) {
+  if (window._workspaceBlocked) return;
   if (event.data && event.data.type === "iframeClick") {
     console.log("Captured event inside iframe:", event.data);
 
@@ -770,6 +854,11 @@ window.addEventListener("message", function (event) {
 
 // Function to send batched events to the server every 10 seconds
 function sendEventsToServer() {
+  if (window._workspaceBlocked) {
+    window.eventQueue = [];
+    return;
+  }
+  
   if (window.eventQueue.length !== 0) { // Don't send if there's nothing to send
 
       console.log("Sending batched events to server:", window.eventQueue);
@@ -944,50 +1033,90 @@ async function takeScreenshot(X, Y, click = true) {
 
 
 
+document.addEventListener('click', (e) => {
+  const restart = e.target.closest('#challenge-restart');
+  if (!restart) return;
 
-// Only run our initialization if the iframe with id "workspace_iframe" exists.
-if (document.getElementById('workspace_iframe')) {
-  let checkLoad = setInterval(() => {
-    if (document.readyState === "complete") {
-      clearInterval(checkLoad);
-      console.log("Window fully loaded and workspace_iframe is present!");
+  // Unblock UI
+  hideWorkspaceBlocker();
 
-      (async () => {
-        if (typeof init === 'undefined' || !init.userId) {
-          alert('Cannot determine your userId; aborting.');
-          return;
-        }
-        const assignedVersion = await ensureSurveyCompleted(init.userId);
-        if (!assignedVersion) {
-          // user abandoned or tab hidden; you can choose to halt further logic here
-          return;
-        }
-        // continue with challenge, and optionally enforce version match
-      })();
+  // Ensure clean state (force re-calibration on restart)
+  try { webgazer.end(); webgazer.clearData(); } catch {}
+  localStorage.removeItem('webgazerCalibrated');
+  localStorage.removeItem('started');
+  try { gazeQueue = []; } catch {}
 
-      // Start WebGazer tracking.
-      runWebGazer();
+  // If you attach iframe listeners/observers, clear them here
+  const iframe = document.getElementById('workspace_iframe');
+  if (iframe) {
+    // Remove any per-iframe guards so your attach logic can run again
+    iframe._listenersAttached = false;
 
-      // Attach iframe event listeners.
-      attachIframeListeners();
+    // Easiest way to drop any injected scripts/listeners inside the iframe:
+    // reload the iframe (no-op if src unchanged by backend)
+    try { iframe.src = iframe.src; } catch {}
+  }
 
-      
+  // If you use a watcher (MutationObserver or polling), kick it again
+  if (typeof watchIframe === 'function') watchIframe();
 
-      // After a short delay, instruct the user.
-      /*
-      if(localStorage.getItem('webgazerCalibrated') !== 'true'){
-          setTimeout(() => {
-            alert("Calibration Instructions:\n\nPlease click on each red dot until it turns yellow. This should take about 5 clicks per dot.");
-          }, 2000);
-      }*/
+  // Start your normal flow again (survey gate -> WebGazer -> etc.)
+  // If your UI expects the user to click "Start" again, you can omit this.
+  if (typeof startChallengeFlow === 'function') startChallengeFlow();
+});
 
-      // Start sending events periodically.
-      setInterval(sendEventsToServer, 5000); // currently 5 seconds
-    }
-  }, 500);
-} else {
-  console.warn("workspace_iframe not found; skipping initialization.");
+
+
+
+
+// Single-run guard + interval guard
+window._challengeStarted = false;
+window._eventsInterval = null;
+
+async function startChallengeFlow() {
+  if (window._challengeStarted) return;
+  window._challengeStarted = true;
+
+  if (typeof init === 'undefined' || !init.userId) {
+    alert('Cannot determine your userId; aborting.');
+    window._challengeStarted = false;
+    return;
+  }
+
+  // Gate on survey + version
+  const assignedVersion = await ensureSurveyCompleted(init.userId);
+  if (!assignedVersion) return;
+
+  // Start WebGazer & calibration (as before)
+  runWebGazer();
+
+  // Begin watching for iframe insertions and (re)attach listeners
+  watchIframe();
+
+  // Kick off periodic uploads once; safe to call even before iframe exists
+  if (!window._eventsInterval) {
+    window._eventsInterval = setInterval(sendEventsToServer, 5000);
+  }
 }
+
+// auto-start as soon as the iframe is inserted
+const autoStartOnIframe = new MutationObserver(() => {
+  if (document.getElementById('workspace_iframe')) {
+    startChallengeFlow();
+
+    const btn = document.getElementById('fullscreen');
+    if (btn) {
+      try { btn.click(); } catch (e) { /* ignore */ }
+    }
+    autoStartOnIframe.disconnect();
+  }
+});
+autoStartOnIframe.observe(document.documentElement, { childList: true, subtree: true });
+
+// defer until the page is fully loaded
+window.addEventListener('load', () => {
+  console.log("Window loaded; waiting for Start or iframe insertion…");
+});
 
 
 

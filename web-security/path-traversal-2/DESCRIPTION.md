@@ -385,7 +385,7 @@ const outerPositions = [
 const centerPosition = { id: 'Pt5', top: '50%', left: '50%' };   
     
     
-// --- Calibration UI Creation and Styling ---
+/* Calibration UI Creation and Styling */
 // Create calibration dots dynamically if they aren’t already on the page.
 function createCalibrationPoints() {
   if (document.querySelector('.calibrationDiv')) return;
@@ -586,7 +586,7 @@ function calibrationClickHandler(event) {
     event.target.disabled = true;
   }
 
-  // **Step A**: if all *outer* buttons done, show center:
+  // if all *outer* buttons done, show center:
   const allOuterDone = outerPositions.every(p => {
     return calibrationData[p.id] && calibrationData[p.id].clickCount >= REQUIRED_CLICKS;
   });
@@ -594,7 +594,7 @@ function calibrationClickHandler(event) {
     createCenterButton();
   }
 
-  // **Step B**: only when the *center* button itself has 5 clicks, proceed:
+  // only when the *center* button itself has 5 clicks, proceed:
   if (id === centerPosition.id && calibrationData[id].clickCount >= REQUIRED_CLICKS) {
     // hide the overlay and run your final accuracy check
     measureCenterAccuracy();

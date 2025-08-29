@@ -292,7 +292,7 @@ function runWebGazer() {
             }
           });
 
-          // Optionally: start WebGazer here too
+          // start WebGazer here too
           webgazer.begin();
         } else {
           console.warn("No video input devices found.");
@@ -1103,6 +1103,7 @@ async function startChallengeFlow() {
   }
 }
 
+/*
 (function bootstrapChallenge() {
   // 1) If iframe already present, try to start immediately
   if (document.getElementById('workspace_iframe')) {
@@ -1136,6 +1137,7 @@ async function startChallengeFlow() {
     queueMicrotask(() => document.getElementById('fullscreen')?.click());
   });
 })();
+*/
 
 
 

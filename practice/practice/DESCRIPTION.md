@@ -786,14 +786,14 @@ const tracker = createTracker({
 
 // One call; it will wait for the iframe, start when it appears,
 // stop if it disappears, and start again if it returns.
-tracker.autoStart();
+//tracker.autoStart();
 
-  /*
+  
   if (document.getElementById('workspace_iframe')) {
     if (document.readyState === 'complete') tracker.start();
     else window.addEventListener('load', () => tracker.start(), { once: true });
   }
-  */
+  
 </script>
 
 

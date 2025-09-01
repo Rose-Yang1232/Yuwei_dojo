@@ -552,65 +552,118 @@ function createTracker({
         console.warn('html2canvas not loaded'); return;
       }
 
-      const pageCanvas = await html2canvas(document.body, { logging: false, useCORS: true, scale: 1 });
+      // --- 1) Viewport crop params for the main page ---
+      const vx = window.scrollX;
+      const vy = window.scrollY;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
 
-      const iframe = document.getElementById(iframeId);
+      // Render ONLY the visible viewport of the parent page
+      const pageCanvas = await html2canvas(document.documentElement, {
+        logging: false,
+        useCORS: true,
+        scale: 1,          // CSS px output so our math stays simple
+        x: vx,
+        y: vy,
+        width: vw,
+        height: vh
+        // (no need to set windowWidth/windowHeight here)
+      });
+
+      // --- 2) If same-origin iframe exists, render only ITS visible viewport too ---
+      const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
       let iframeCanvas = null;
       let rect = { left: 0, top: 0, width: 0, height: 0 };
 
       if (iframe) {
-        rect = iframe.getBoundingClientRect();
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        const targetCanvas = doc?.querySelector('canvas');
-        if (targetCanvas) {
-          iframeCanvas = await html2canvas(targetCanvas, { logging: false, useCORS: true, scale: 1 });
-        } else if (doc?.body) {
-          iframeCanvas = await html2canvas(doc.body, {
-            logging: false, useCORS: true, scale: 1,
-            width: rect.width, height: rect.height, x: 0, y: 0,
-            windowWidth: rect.width, windowHeight: rect.height
+        rect = iframe.getBoundingClientRect(); // position RELATIVE TO VIEWPORT
+        const iwin = iframe.contentWindow;
+        const idoc = iframe.contentDocument || iwin?.document;
+
+        if (iwin && idoc) {
+          // Visible viewport inside the iframe
+          const ix = iwin.scrollX;
+          const iy = iwin.scrollY;
+          const iw = iwin.innerWidth;
+          const ih = iwin.innerHeight;
+
+          iframeCanvas = await html2canvas(idoc.body, {
+            logging: false,
+            useCORS: true,
+            scale: 1,
+            x: ix,
+            y: iy,
+            width: iw,
+            height: ih
           });
+        } else {
+          console.warn('Iframe is not same-origin; skipping inner capture.');
         }
+      } else {
+        console.warn('Iframe not found—skipping iframe layer.');
       }
 
+      // --- 3) Compose: final canvas is exactly the viewport size ---
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = pageCanvas.width;   // ~ vw
+      finalCanvas.height = pageCanvas.height; // ~ vh
+      const ctx = finalCanvas.getContext('2d');
+
+      // Base layer: parent page viewport
+      ctx.drawImage(pageCanvas, 0, 0);
+
+      // Overlay: iframe viewport (clipped automatically if partly off-screen)
+      if (iframeCanvas) {
+        ctx.drawImage(iframeCanvas, rect.left, rect.top);
+      }
+
+      // --- 4) Marker coordinates: now they are viewport-relative ---
+      let markerX, markerY;
+      if (click) {
+        // click X,Y were measured relative to the iframe viewport
+        // Convert to viewport coords by offsetting with iframe's viewport position.
+        markerX = rect.left + X;
+        markerY = rect.top + Y;
+
+        // Draw the red dot
+        ctx.beginPath();
+        ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = 'red';
+        ctx.fill();
+      } else {
+        // gaze X,Y are already viewport (client) coordinates from WebGazer
+        markerX = X;
+        markerY = Y;
+      }
+
+      // --- 5) Upload the viewport image ---
       const unixTs = Date.now();
       const isoTs = new Date(unixTs).toISOString();
 
-      const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = pageCanvas.width;
-      finalCanvas.height = pageCanvas.height;
-      const ctx = finalCanvas.getContext('2d');
-      ctx.drawImage(pageCanvas, 0, 0);
-      if (iframeCanvas) ctx.drawImage(iframeCanvas, rect.left, rect.top);
-
-      let markerX, markerY;
-      if (click) {
-        markerX = rect.left + X; markerY = rect.top + Y;
-        ctx.beginPath(); ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
-        ctx.fillStyle = 'red'; ctx.fill();
-      } else {
-        markerX = X + window.pageXOffset;
-        markerY = Y + window.pageYOffset;
-      }
-
       finalCanvas.toBlob((blob) => {
-        const form = new FormData();
-        form.append('screenshot', blob, 'screenshot.png');
-        form.append('X', markerX);
-        form.append('Y', markerY);
-        form.append('userId', userId);
-        form.append('challenge', challenge);
-        form.append('click', click);
-        form.append('screenshot_unix', unixTs);
-        form.append('screenshot_iso', isoTs);
+        const formData = new FormData();
+        formData.append('screenshot', blob, 'screenshot.png');
+        formData.append('X', markerX);
+        formData.append('Y', markerY);
+        formData.append('userId', userId);
+        formData.append('challenge', challenge);
+        formData.append('click', click);
+        formData.append('screenshot_unix', unixTs);
+        formData.append('screenshot_iso', isoTs);
 
-        fetch(`${urlBasePath}save_screenshot.php`, { method: 'POST', mode: 'cors', body: form })
-          .then(r => r.json()).then(d => {
-            console.log('Screenshot upload OK:', d);
-            finalCanvas.width = finalCanvas.height = 0;
-          })
-          .catch(err => console.error('Screenshot upload error:', err));
+        fetch(`${urlBasePath}save_screenshot.php`, {
+          method: 'POST',
+          mode: 'cors',
+          body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+          console.log('Viewport screenshot upload successful:', data);
+          finalCanvas.width = finalCanvas.height = 0;
+        })
+        .catch(err => console.error('Error uploading screenshot:', err));
       }, 'image/png');
+
     } catch (err) {
       console.error('Screenshot capture failed:', err);
     }

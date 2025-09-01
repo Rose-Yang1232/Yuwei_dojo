@@ -771,6 +771,8 @@ function createTracker({
 
 
 <script>
+  console.log("JS running");
+  
   const tracker = createTracker({
     iframeId: 'workspace_iframe',
     iframeSelector: '#workspace_iframe',

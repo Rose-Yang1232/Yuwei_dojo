@@ -743,7 +743,7 @@ function createTracker({
 
     console.log("Test 2");
 
-    // Helper that (re)acts to DOM changes
+    // Helper that reacts to DOM changes
     const reconcile = () => {
       const iframe = resolveIframe();
       if (iframe && !state.running) {
@@ -769,24 +769,24 @@ function createTracker({
 
 
   // Expose a tiny controller
-  return { start, stop, destroy };
+  return { start, stop, destroy, autoStart };
 }
 
   
-  const tracker = createTracker({
-    iframeId: 'workspace_iframe',
-    iframeSelector: '#workspace_iframe',
-    challenge: 'example',
-    urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
-    userId: init.userId,             // pwn.college provides this
-    tickMs: 5000,                    // batch interval
-    minAccuracy: 85                  // calibration threshold
-  });
+const tracker = createTracker({
+  iframeId: 'workspace_iframe',
+  iframeSelector: '#workspace_iframe',
+  challenge: 'example',
+  urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
+  userId: init.userId,             // pwn.college provides this
+  tickMs: 5000,                    // batch interval
+  minAccuracy: 85                  // calibration threshold
+});
 
 
-  // One call; it will wait for the iframe, start when it appears,
-  // stop if it disappears, and start again if it returns.
-  tracker.autoStart();
+// One call; it will wait for the iframe, start when it appears,
+// stop if it disappears, and start again if it returns.
+tracker.autoStart();
 
   /*
   if (document.getElementById('workspace_iframe')) {

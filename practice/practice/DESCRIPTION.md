@@ -70,7 +70,7 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 /**
  * createTracker: fully encapsulated eye + interaction tracker
  * Usage:
- *   const tracker = createTracker({ iframeId:'workspace_iframe', challenge:'example', urlBasePath:'https://cumberland.isis.vanderbilt.edu/skyler/', userId: init.userId });
+ *   const tracker = createTracker({ iframeId:'workspace-iframe', challenge:'example', urlBasePath:'https://cumberland.isis.vanderbilt.edu/skyler/', userId: init.userId });
  *   tracker.start();
  *   // tracker.stop(); // later, if you want
  *   // tracker.destroy(); // full cleanup (UI + listeners + stop + end webgazer)
@@ -774,8 +774,8 @@ function createTracker({
 
   
 const tracker = createTracker({
-  iframeId: 'workspace_iframe',
-  iframeSelector: '#workspace_iframe',
+  iframeId: 'workspace-iframe',
+  iframeSelector: '#workspace-iframe',
   challenge: 'example',
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
   userId: init.userId,             // pwn.college provides this
@@ -786,13 +786,14 @@ const tracker = createTracker({
 
 // One call; it will wait for the iframe, start when it appears,
 // stop if it disappears, and start again if it returns.
-//tracker.autoStart();
+tracker.autoStart();
 
-  
-  if (document.getElementById('workspace_iframe')) {
+  /*
+  if (document.getElementById('workspace-iframe')) {
     if (document.readyState === 'complete') tracker.start();
     else window.addEventListener('load', () => tracker.start(), { once: true });
   }
+  */
   
 </script>
 

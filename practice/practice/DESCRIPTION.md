@@ -768,8 +768,6 @@ function createTracker({
   return { start, stop, destroy };
 }
 
-
-<script>
   console.log("JS running");
   
   const tracker = createTracker({
@@ -781,6 +779,8 @@ function createTracker({
     tickMs: 5000,                    // batch interval
     minAccuracy: 85                  // calibration threshold
   });
+
+  console.log("test");
 
   // One call; it will wait for the iframe, start when it appears,
   // stop if it disappears, and start again if it returns.

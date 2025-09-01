@@ -101,7 +101,6 @@ function createTracker({
     domObserver: null
   };
 
-  console.log("working");
 
   // ---- Namespaced localStorage helpers ----
   const ns = `gaze:${challenge || 'default'}:${userId || 'anon'}:`;
@@ -738,8 +737,11 @@ function createTracker({
   }
 
   function autoStart() {
+    console.log("Test 1");
     // If we’re already watching, do nothing
     if (state.domObserver) return;
+
+    console.log("Test 2");
 
     // Helper that (re)acts to DOM changes
     const reconcile = () => {
@@ -765,13 +767,11 @@ function createTracker({
     state.domObserver = mo;
   }
 
-  console.log("end");
 
   // Expose a tiny controller
   return { start, stop, destroy };
 }
 
-  console.log("JS running");
   
   const tracker = createTracker({
     iframeId: 'workspace_iframe',
@@ -783,7 +783,6 @@ function createTracker({
     minAccuracy: 85                  // calibration threshold
   });
 
-  console.log("test");
 
   // One call; it will wait for the iframe, start when it appears,
   // stop if it disappears, and start again if it returns.

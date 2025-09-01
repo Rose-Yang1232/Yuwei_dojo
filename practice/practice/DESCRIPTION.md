@@ -622,7 +622,6 @@ function createTracker({
   }
 
   // --- Cross-tab presence (shared via localStorage) ---
-  const ns = `gaze:${challenge || 'default'}:${userId || 'anon'}:`; // already in Option B
   const PRESENCE_PREFIX = `${ns}tab:`;      // keys look like: gaze:<challenge>:<userId>:tab:<uuid>
   const tabId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2);
   const HEARTBEAT_MS = 2000;                // how often we refresh our presence

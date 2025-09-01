@@ -1093,10 +1093,10 @@ if (document.getElementById('workspace_iframe')) {
         }
         const assignedVersion = await ensureSurveyCompleted(init.userId);
         if (!assignedVersion) {
-          // user abandoned or tab hidden; you can choose to halt further logic here
+          // user abandoned or tab hidden
           return;
         }
-        // continue with challenge, and optionally enforce version match
+        // continue with challenge
       })();
 
       // Start WebGazer tracking.

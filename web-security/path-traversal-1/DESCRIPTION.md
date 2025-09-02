@@ -1128,7 +1128,7 @@ const tracker = createTracker({
   iframeId: 'workspace-iframe',
   iframeSelector: '#workspace-iframe, #workspace_iframe',
   challenge: 'path-traversal-1',
-  bannerElId = 'challenge-notice-1',
+  bannerElId: 'challenge-notice-1',
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
   userId: init.userId,             // pwn.college provides this
   expectedContainerId: 'challenges-body-1',

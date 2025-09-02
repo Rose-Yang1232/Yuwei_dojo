@@ -1136,7 +1136,7 @@ function createTracker({
 }
 
   
-const tracker = createTracker({
+const tracker_2 = createTracker({
   iframeId: 'workspace-iframe',
   iframeSelector: '#workspace-iframe, #workspace_iframe',
   challenge: 'path-traversal-2',
@@ -1150,11 +1150,11 @@ const tracker = createTracker({
 });
 
 // Show/hide the banner based on survey/version BEFORE attempting to start anything
-tracker.checkBanner();
+tracker_2.checkBanner();
 
 
 // One call; it will wait for the iframe, start when it appears,
 // stop if it disappears, and start again if it returns.
-tracker.autoStart();
+tracker_2.autoStart();
   
 </script>

@@ -1047,6 +1047,17 @@ function createTracker({
     }
   }
 
+  function showNotice(el, text) {
+    el.textContent = text;
+    el.style.display = 'block';
+    el.style.fontWeight = '700';
+    el.style.color = '#c00000';
+    el.style.background = '#fff';
+    el.style.padding = '10px 12px';
+    el.style.border = '1px solid #c00000';
+    el.style.borderRadius = '6px';
+  }
+
   async function checkBanner() {
     const el = document.getElementById(bannerElId);
     if (!el) return; // silently skip if the page doesn't have it
@@ -1058,15 +1069,13 @@ function createTracker({
 
       const { filled, version } = await resp.json(); // { filled: bool, version: number }
       if (!filled) {
-        el.textContent = 'We could not find your survey submission. Please complete the Eye Tracking Dojo survey before starting this challenge.';
-        el.style.display = '';
+        showNotice(el, 'We could not find your survey submission. Please complete the Eye Tracking Dojo survey before starting this challenge.');
         return null;
       }
 
       const assigned = `path-traversal-${version}`;
       if (assigned !== challenge) {
-        el.textContent = `This page isn’t your assigned version. Assigned: ${assigned}. You are currently on: ${challenge}. Please open ${assigned} instead.`;
-        el.style.display = '';
+        showNotice(el, `This page isn’t your assigned version. Assigned: ${assigned}. You are currently on: ${challenge}. Please open ${assigned} instead.`);
         return null;
       }
 
@@ -1079,8 +1088,7 @@ function createTracker({
       console.warn('Survey check error:', err);
       const el2 = document.getElementById(bannerElId);
       if (el2) {
-        el2.textContent = 'Error verifying survey. Please try again.';
-        el2.style.display = '';
+        showNotice(el2, 'Error verifying survey. Please try again.');
       }
       return null;
     }

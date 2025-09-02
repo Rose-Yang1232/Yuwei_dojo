@@ -81,6 +81,7 @@ function createTracker({
   challenge,
   urlBasePath,
   userId,
+  expectedContainerId,
   tickMs = 5000,
   minAccuracy = 85,
   allowCalibrationSkip = false,
@@ -791,11 +792,30 @@ function createTracker({
     });
   }
 
+  function getExpectedContainer() {
+    return expectedContainerId ? document.getElementById(expectedContainerId) : null;
+  }
 
 
   function resolveIframe() {
-    if (iframeSelector) return document.querySelector(iframeSelector);
-    if (iframeId)       return document.getElementById(iframeId);
+    const container = getExpectedContainer();
+
+    // Prefer the selector if provided; else fall back to id
+    const selector = iframeSelector || (iframeId ? `#${iframeId}` : null);
+
+    if (container && selector) {
+      // Only look inside the expected container
+      return container.querySelector(selector);
+    }
+
+    if (container && iframeId && !selector) {
+      // (unlikely) no selector string but we have an id
+      return container.querySelector(`#${iframeId}`);
+    }
+
+    // No expected container specified: original behavior
+    if (selector) return document.querySelector(selector);
+    if (iframeId)  return document.getElementById(iframeId);
     return null;
   }
 
@@ -854,28 +874,30 @@ function createTracker({
     if (state.running) return;
 
     const iframe = resolveIframe();
-    if (!iframe) {                 // if called too early, just bail
-      console.warn('No iframe yet; start() ignored.');
+    const container = getExpectedContainer();
+    const ok = iframe && (!container || container.contains(iframe));
+
+    if (!ok) {
+      console.warn('No matching iframe under expected container; start() ignored.');
       return;
     }
 
-    // presence/heartbeat
+    // presence/heartbeat…
     touchPresence();
     sweepStalePeers();
     state.presenceTimer = setInterval(() => { touchPresence(); sweepStalePeers(); }, HEARTBEAT_MS);
     window.addEventListener('storage', onStorage);
 
     runWebGazer();
-    attachIframeListeners();       // this already handles iframe 'load' + 'src' changes
+    attachIframeListeners();
     setupMessageHandler();
 
     if (!state.intervalId) state.intervalId = setInterval(sendEventsToServer, tickMs);
     state.running = true;
 
-    // ensure we clean up correctly if the tab is closed
-    // window.addEventListener('pagehide', onPageHide, { once: true });
     window.addEventListener('beforeunload', onPageHide, { once: true });
   }
+
 
 
   function stop() {
@@ -914,35 +936,38 @@ function createTracker({
   }
 
   function autoStart() {
-    console.log("Test 1");
-    // If we’re already watching, do nothing
     if (state.domObserver) return;
 
-    console.log("Test 2");
-
-    // Helper that reacts to DOM changes
     const reconcile = () => {
       const iframe = resolveIframe();
-      if (iframe && !state.running) {
-        start();                   // starts everything
-      } else if (!iframe && state.running) {
-        stop();                    // cleanly stops; last-tab logic remains intact
+      const container = getExpectedContainer();
+      const ok = iframe && (!container || container.contains(iframe));
+
+      if (ok && !state.running) {
+        start();
+      } else if (!ok && state.running) {
+        stop();
       }
     };
 
-    // Try immediately (in case the iframe is already there)
+    // Try immediately
     reconcile();
 
-    // Watch for dynamic insertion/removal
-    const mo = new MutationObserver(() => {
-      // Cheap guard: only run reconcile if something relevant might have changed
-      // (In practice, reconcile is light, so calling directly is fine.)
-      reconcile();
-    });
+    // Watch DOM for container/iframe add/remove
+    const mo = new MutationObserver(reconcile);
 
-    mo.observe(document.documentElement, { childList: true, subtree: true });
+    // If you know the container id, we can scope the observer once it appears
+    const container = getExpectedContainer();
+    if (container) {
+      mo.observe(container, { childList: true, subtree: true });
+    } else {
+      // Container itself may be created later; watch the whole doc
+      mo.observe(document.documentElement, { childList: true, subtree: true });
+    }
+
     state.domObserver = mo;
   }
+
 
 
   // Expose a tiny controller
@@ -956,6 +981,7 @@ const tracker = createTracker({
   challenge: 'example',
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
   userId: init.userId,             // pwn.college provides this
+  expectedContainerId: 'challenges-body-1'
   tickMs: 5000,                    // batch interval
   minAccuracy: 85,                  // calibration threshold
   allowCalibrationSkip: true,

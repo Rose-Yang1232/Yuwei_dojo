@@ -83,6 +83,7 @@ function createTracker({
   userId,
   tickMs = 5000,
   minAccuracy = 85,
+  allowCalibrationSkip = false,
 }) {
   // ---- Private clocks for absolute timestamps ----
   const wallClockStart = Date.now();        // ms since epoch
@@ -296,6 +297,33 @@ function createTracker({
       overlay.appendChild(btn);
     });
 
+    if (allowCalibrationSkip) {
+      const skip = document.createElement('button');
+      skip.type = 'button';
+      skip.textContent = 'Skip calibration (dev)';
+      Object.assign(skip.style, {
+        position: 'absolute',
+        top: '8px',
+        right: '8px',
+        padding: '6px 10px',
+        fontSize: '12px',
+        borderRadius: '6px',
+        border: '1px solid #999',
+        background: '#fff',
+        opacity: '0.85',
+        cursor: 'pointer',
+        pointerEvents: 'auto',
+        zIndex: 10000
+      });
+      skip.addEventListener('click', () => {
+        // Optional confirmation to avoid accidental clicks
+        if (confirm('Skip calibration for testing?')) {
+          finalizeCalibrationSuccess({ reason: 'dev-skip', overall: 100 });
+        }
+      });
+      overlay.appendChild(skip);
+    }
+
     document.body.appendChild(overlay);
 
     // Camera change handler — FIXED to use selected deviceId
@@ -425,22 +453,37 @@ function createTracker({
       const proceed = confirm(`Calibration complete!\nOverall accuracy: ${overall}%\nDo you want to move on? Press Cancel to calibrate again.`);
       if (!proceed) { ClearCalibration(); setupCalibration(); return; }
 
-      const calibDiv = document.querySelector('.calibrationDiv');
-      if (calibDiv) calibDiv.style.display = 'none';
-      const bg = document.querySelector('.calibrationBackground');
-      if (bg) bg.remove();
-
-      webgazer.showVideoPreview(false).showPredictionPoints(false).showFaceOverlay(false).showFaceFeedbackBox(false).saveDataAcrossSessions(true);
-
-      const videoEl = document.getElementById('webgazerVideoContainer');
-      if (videoEl?.parentNode) videoEl.parentNode.removeChild(videoEl);
-
-      ls.set('webgazerCalibrated', 'true');
-      state.gazeQueue.length = 0; // reset
+      finalizeCalibrationSuccess({ reason: 'measured', overall });
     }, 5000);
   }
 
-  // ---------- Iframe listeners (pointer + key) ----------
+  function finalizeCalibrationSuccess({ reason = 'measured', overall = 100 } = {}) {
+    // Hide calibration UI
+    const calibDiv = document.querySelector('.calibrationDiv');
+    if (calibDiv) calibDiv.style.display = 'none';
+    const bg = document.querySelector('.calibrationBackground');
+    if (bg) bg.remove();
+
+    // Turn off previews/overlays but keep the trained model
+    webgazer
+      .showVideoPreview(false)
+      .showPredictionPoints(false)
+      .showFaceOverlay(false)
+      .showFaceFeedbackBox(false)
+      .saveDataAcrossSessions(true);
+
+    // Remove webgazer’s floating video container if present
+    const videoEl = document.getElementById('webgazerVideoContainer');
+    if (videoEl?.parentNode) videoEl.parentNode.removeChild(videoEl);
+
+    // Mark calibrated in namespaced storage and clear transient gaze samples
+    ls.set('webgazerCalibrated', 'true');
+    state.gazeQueue.length = 0;
+
+    console.log(`Calibration finalized (${reason}); overall=${overall}%`);
+  }
+
+  // ---------- Iframe listeners ----------
   function attachIframeListeners() {
     const iframe = document.getElementById(iframeId);
     if (!iframe) {
@@ -470,7 +513,7 @@ function createTracker({
             document.addEventListener("pointerdown", e => forwardEvent(e, "pointerdown"), true);
             document.addEventListener("keydown",     e => forwardEvent(e, "keydown"),     true);
 
-            // ----- NEW: snapshot the iframe's visible viewport -----
+            // ----- snapshot the iframe's visible viewport -----
             async function snapshotViewport() {
               try {
                 const vw = window.innerWidth;
@@ -638,7 +681,7 @@ function createTracker({
         }
       }
 
-      // ---- C) Compose final image = parent viewport (+ optional iframe layer) ----
+      // ---- C) Compose final image = parent viewport  ----
       const finalCanvas = document.createElement('canvas');
       finalCanvas.width = pageCanvas.width;
       finalCanvas.height = pageCanvas.height;
@@ -799,7 +842,7 @@ function createTracker({
     // localStorage.removeItem(`${ns}cam`); // also forget camera so user picks again next time
   }
 
-  // storage event helps react quickly when peers go away (optional)
+  // storage event helps react quickly when peers go away
   function onStorage(e) {
     if (!e || !e.key || !e.key.startsWith(PRESENCE_PREFIX)) return;
     // no immediate action needed; presence is consulted at stop/pagehide time
@@ -914,7 +957,8 @@ const tracker = createTracker({
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
   userId: init.userId,             // pwn.college provides this
   tickMs: 5000,                    // batch interval
-  minAccuracy: 85                  // calibration threshold
+  minAccuracy: 85,                  // calibration threshold
+  allowCalibrationSkip: true,
 });
 
 

@@ -981,7 +981,7 @@ const tracker = createTracker({
   challenge: 'example',
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
   userId: init.userId,             // pwn.college provides this
-  expectedContainerId: 'challenges-body-1'
+  expectedContainerId: 'challenges-body-1',
   tickMs: 5000,                    // batch interval
   minAccuracy: 85,                  // calibration threshold
   allowCalibrationSkip: true,

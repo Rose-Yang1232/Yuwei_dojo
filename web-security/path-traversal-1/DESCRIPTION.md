@@ -62,17 +62,7 @@ We’ll collect only your gaze coordinates (no video is saved), to study how hac
 
 Thank you! Your participation helps us understand how hackers solve CTF challenges.
 
-<style>
-  #challenge-notice-1 {
-    display: none;                
-    font-weight: 700;             /* bold */
-    color: #c00000;               /* red text */
-    background: #fff;             /* white background */
-    padding: 10px 12px;           /* breathing room (optional) */
-    border: 1px solid #c00000;    /* thin red border */
-    border-radius: 6px;           /* rounded corners */
-  }
-</style>
+
 
 <div id="challenge-notice-1" style="display:none;"></div>
 

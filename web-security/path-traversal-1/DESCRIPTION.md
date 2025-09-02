@@ -62,6 +62,18 @@ We’ll collect only your gaze coordinates (no video is saved), to study how hac
 
 Thank you! Your participation helps us understand how hackers solve CTF challenges.
 
+<style>
+  #challenge-notice-1 {
+    display: none;                
+    font-weight: 700;             /* bold */
+    color: #c00000;               /* red text */
+    background: #fff;             /* white background */
+    padding: 10px 12px;           /* breathing room (optional) */
+    border: 1px solid #c00000;    /* thin red border */
+    border-radius: 6px;           /* rounded corners */
+  }
+</style>
+
 <div id="challenge-notice-1" style="display:none;"></div>
 
 
@@ -1056,14 +1068,14 @@ function createTracker({
 
       const { filled, version } = await resp.json(); // { filled: bool, version: number }
       if (!filled) {
-        el.textContent = '### We could not find your survey submission. Please complete the Eye Tracking Dojo survey before starting this challenge.';
+        el.textContent = 'We could not find your survey submission. Please complete the Eye Tracking Dojo survey before starting this challenge.';
         el.style.display = '';
         return null;
       }
 
       const assigned = `path-traversal-${version}`;
       if (assigned !== challenge) {
-        el.textContent = `### This page isn’t your assigned version. Assigned: ${assigned}. You are currently on: ${challenge}. Please open ${assigned} instead.`;
+        el.textContent = `This page isn’t your assigned version. Assigned: ${assigned}. You are currently on: ${challenge}. Please open ${assigned} instead.`;
         el.style.display = '';
         return null;
       }
@@ -1077,7 +1089,7 @@ function createTracker({
       console.warn('Survey check error:', err);
       const el2 = document.getElementById(bannerElId);
       if (el2) {
-        el2.textContent = '### Error verifying survey. Please try again.';
+        el2.textContent = 'Error verifying survey. Please try again.';
         el2.style.display = '';
       }
       return null;

@@ -1024,7 +1024,7 @@ function createTracker({
 
       const assignedVersion = data.version; // 1..n
       const assignedChallenge = `path-traversal-${assignedVersion}`;
-      const expectedChallenge = challenge;   // e.g., 'path-traversal-1' passed in config
+      const expectedChallenge = challenge;
 
       if (expectedChallenge !== assignedChallenge) {
         showIframeBlockingMessage(

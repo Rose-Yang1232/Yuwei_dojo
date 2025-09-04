@@ -1147,7 +1147,7 @@ function createTracker({
 const tracker_5 = createTracker({
   iframeId: 'workspace-iframe',
   iframeSelector: '#workspace-iframe, #workspace_iframe',
-  challenge: 'sqli-pin',
+  challenge: 'auth-bypass-param',
   bannerElId: 'challenge-notice-5', // div above for checking if the user is allowed to take this challenge  
   // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
   expectedContainerId: 'challenges-body-5', 

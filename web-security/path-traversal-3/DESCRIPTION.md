@@ -86,9 +86,11 @@ function createTracker({
   iframeSelector,  
   challenge,
   bannerElId,
+  expectedContainerId,
+  requireVersionMatch = true,
+  versionToChallenge = v => `path-traversal-${v}`,
   urlBasePath,
   userId,
-  expectedContainerId,
   tickMs = 5000,
   minAccuracy = 85,
   allowCalibrationSkip = false,
@@ -1025,22 +1027,25 @@ function createTracker({
       }
 
       const assignedVersion = data.version; // 1..n
-      const assignedChallenge = `path-traversal-${assignedVersion}`;
-      const expectedChallenge = challenge;
 
-      if (expectedChallenge !== assignedChallenge) {
-        showIframeBlockingMessage(
-          `You are assigned version ${assignedVersion} of the path traversal challenge ` +
-          `(expected here: ${expectedChallenge}). Please open "${assignedChallenge}" instead.`
-        );
-        // Optional: light polling in case assignment changes server-side
-        surveyPollTimer = setTimeout(() => gateAndMaybeStart(false), 2000);
-        return;
+      if (requireVersionMatch) {
+        const assignedChallenge = versionToChallenge(assignedVersion);
+        const expectedChallenge = challenge;
+
+        if (expectedChallenge !== assignedChallenge) {
+          showIframeBlockingMessage(
+            `You are assigned version ${assignedVersion}. ` +
+            `(expected here: ${expectedChallenge}). Please open "${assignedChallenge}" instead.`
+          );
+          surveyPollTimer = setTimeout(() => gateAndMaybeStart(false), 2000);
+          return;
+        }
       }
 
       // All good — hide modal and start the tracker
       hideIframeBlockingMessage();
-      start(); // uses your existing start() which kicks off WebGazer, listeners, timers, etc.
+      start();
+
 
     } catch (err) {
       console.warn('Survey check error:', err);
@@ -1075,9 +1080,11 @@ function createTracker({
         return null;
       }
 
-      const assigned = `path-traversal-${version}`;
-      if (assigned !== challenge) {
-        showNotice(el, `This page isn’t your assigned version. Assigned: ${assigned}. You are currently on: ${challenge}. Please open ${assigned} instead.`);
+      const assigned = versionToChallenge(version);
+
+      if (requireVersionMatch && assigned !== challenge) {
+        showNotice(el, `This page isn’t your assigned version. Assigned: ${assigned}. `
+          + `You are currently on: ${challenge}. Please open ${assigned} instead.`);
         return null;
       }
 
@@ -1140,10 +1147,12 @@ const tracker_3 = createTracker({
   iframeId: 'workspace-iframe',
   iframeSelector: '#workspace-iframe, #workspace_iframe',
   challenge: 'path-traversal-3',
-  bannerElId: 'challenge-notice-3',
+  bannerElId: 'challenge-notice-3', // div above for checking if the user is allowed to take this challenge  
+  // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
+  expectedContainerId: 'challenges-body-3', 
+  requireVersionMatch: true,
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
   userId: init.userId,             // pwn.college provides this
-  expectedContainerId: 'challenges-body-3',
   tickMs: 5000,                    // batch interval
   minAccuracy: 85,                  // calibration threshold
   allowCalibrationSkip: true,

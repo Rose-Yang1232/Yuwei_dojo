@@ -466,30 +466,26 @@ function createTracker({
   }
 
   function finalizeCalibrationSuccess({ reason = 'measured', overall = 100 } = {}) {
-    // Hide calibration UI
-    const calibDiv = document.querySelector('.calibrationDiv');
-    if (calibDiv) calibDiv.style.display = 'none';
-    const bg = document.querySelector('.calibrationBackground');
-    if (bg) bg.remove();
+      // Remove calibration UI completely so a new challenge can rebuild it
+      document.querySelector('.calibrationDiv')?.remove();          // ← changed
+      document.querySelector('.calibrationBackground')?.remove();
 
-    // Turn off previews/overlays but keep the trained model
-    webgazer
-      .showVideoPreview(false)
-      .showPredictionPoints(false)
-      .showFaceOverlay(false)
-      .showFaceFeedbackBox(false)
-      .saveDataAcrossSessions(true);
+      webgazer
+         .showVideoPreview(false)
+         .showPredictionPoints(false)
+         .showFaceOverlay(false)
+         .showFaceFeedbackBox(false)
+         .saveDataAcrossSessions(true);
 
-    // Remove webgazer’s floating video container if present
-    const videoEl = document.getElementById('webgazerVideoContainer');
-    if (videoEl?.parentNode) videoEl.parentNode.removeChild(videoEl);
+      const videoEl = document.getElementById('webgazerVideoContainer');
+      if (videoEl?.parentNode) videoEl.parentNode.removeChild(videoEl);
 
-    // Mark calibrated in namespaced storage and clear transient gaze samples
-    ls.set('webgazerCalibrated', 'true');
-    state.gazeQueue.length = 0;
+      ls.set('webgazerCalibrated', 'true');
+      state.gazeQueue.length = 0;
 
-    console.log(`Calibration finalized (${reason}); overall=${overall}%`);
+      console.log(`Calibration finalized (${reason}); overall=${overall}%`);
   }
+
 
   // ---------- Iframe listeners ----------
   function attachIframeListeners() {

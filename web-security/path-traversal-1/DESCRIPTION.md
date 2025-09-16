@@ -87,6 +87,7 @@ function createTracker({
   expectedContainerId,
   requireVersionMatch = true,
   versionToChallenge = v => `path-traversal-${v}`,
+  challengeTimeMinutes = 25,
   urlBasePath,
   userId,
   tickMs = 5000,
@@ -107,6 +108,9 @@ function createTracker({
     iframeMutationObserver: null,
     cleanupFns: [],
     running: false,
+    expireTimerId: null,
+    bannerObserver: null,
+    bannerReadyObserver: null,
     domObserver: null
   };
 
@@ -125,6 +129,153 @@ function createTracker({
       }
     }
   };
+
+  // --- Time limit (25 min by default), shared across tabs with localStorage ---
+  const CHALLENGE_TIME_MS = Math.max(1, challengeTimeMinutes) * 60 * 1000;
+
+  function getDeadline() {
+    const v = Number(ls.get('deadline'));
+    return Number.isFinite(v) ? v : 0;
+  }
+  function setDeadline(ts) { ls.set('deadline', String(ts)); }
+  function isTimedOut() {
+    const d = getDeadline();
+    return ls.get('timedOut') === 'true' || (d && Date.now() >= d);
+  }
+  function markTimedOut() { ls.set('timedOut', 'true'); }
+
+  function timeoutMessageText() {
+    return 'Time is up for this challenge. Please move on to the next challenge, or finish the experiment if you have completed all challenges. This challenge is now finished. Failing to finish this challenge will NOT affect your compensation.';
+  }
+
+  function clearExpiryAlarm() {
+    if (state.expireTimerId) {
+      clearTimeout(state.expireTimerId);
+      state.expireTimerId = null;
+    }
+  }
+
+  function scheduleExpiryAlarm() {
+    clearExpiryAlarm();
+    const d = getDeadline();
+    if (!d) return;
+    const delay = Math.max(0, d - Date.now());
+    state.expireTimerId = setTimeout(() => {
+      if (isTimedOut()) return;           // another tab may have fired already
+      markTimedOut();                      // broadcast to other tabs
+      recordCompletionOnce('timed out');
+      showIframeBlockingMessage(timeoutMessageText(), { showRetry: false });
+      stop();                              // stop uploads/listeners
+    }, delay);
+  }
+
+  function clearTimerKeys() { ls.rm('deadline'); ls.rm('timedOut'); }
+
+  // --- Completion recording (deduped across tabs) ---
+  function completionKey(k) { return lsKey(`completion:${k}`); }
+
+  async function recordCompletionOnce(method) {
+    // method is "timed out" or "found flag"
+    if (localStorage.getItem(completionKey('completed')) === 'true') return;      // already done
+    if (localStorage.getItem(completionKey('queued')) === 'true') return;         // in-flight / already attempted
+    try {
+      localStorage.setItem(completionKey('queued'), 'true');
+
+      const form = new URLSearchParams();
+      form.append('userId', userId);
+      form.append('challenge', challenge);
+      form.append('method', method); // "timed out" | "found flag"
+
+      const resp = await fetch(`${urlBasePath}record_completion.php`, {
+        method: 'POST',
+        body: form,
+        cache: 'no-store',
+      });
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const ok = await resp.json().catch(() => ({}));
+      if (ok && ok.status === 'ok') {
+        localStorage.setItem(completionKey('completed'), 'true');
+        localStorage.setItem(completionKey('method'), method);
+      } else {
+        // allow retry on next trigger
+        localStorage.removeItem(completionKey('queued'));
+      }
+    } catch (e) {
+      // allow retry later (e.g., user reload / another tab fires)
+      localStorage.removeItem(completionKey('queued'));
+      console.warn('recordCompletionOnce failed:', e);
+    }
+  }
+
+  function getBannerEl() {
+    const container = getExpectedContainer();
+    // IMPORTANT: if multiple challenges share the same id in the DOM,
+    // querying inside the expected container avoids false positives.
+    return container
+      ? container.querySelector('#workspace-notification-banner')
+      : document.getElementById('workspace-notification-banner');
+  }
+
+  function bannerShowsSolved(el) {
+    if (!el) return false;
+    const txt = (el.textContent || '').toLowerCase();
+    if (txt.includes('solved')) return true;  // simplest and robust
+
+    // Optional extra heuristics (kept lenient): green success styling
+    try {
+      const clsOk = el.classList?.contains('animate-banner');
+      const inline = (el.getAttribute('style') || '').toLowerCase();
+      const computed = (getComputedStyle(el).borderColor || '').toLowerCase();
+      if (clsOk && (inline.includes('brand-green') || computed.includes('green'))) return true;
+    } catch (_) {}
+    return false;
+  }
+
+
+  function ensureBannerWatcher() {
+    if (state.bannerObserver) return; // already watching
+
+    const installOn = (el) => {
+      if (!el) return false;
+
+      // Immediate check (covers “Solved” already present)
+      if (bannerShowsSolved(el)) {
+        recordCompletionOnce('found flag');
+      }
+
+      const ob = new MutationObserver(() => {
+        if (bannerShowsSolved(el)) {
+          recordCompletionOnce('found flag');
+        }
+      });
+      ob.observe(el, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['class', 'style']
+      });
+      state.bannerObserver = ob;
+      return true;
+    };
+
+    // Try right now
+    if (installOn(getBannerEl())) return;
+
+    // If banner not in DOM yet, watch for it under the expected container (or whole doc if none)
+    const root = getExpectedContainer() || document.documentElement;
+    const ready = new MutationObserver(() => {
+      const el = getBannerEl();
+      if (el && installOn(el)) {
+        ready.disconnect();
+        state.bannerReadyObserver = null;
+      }
+    });
+    ready.observe(root, { childList: true, subtree: true });
+    state.bannerReadyObserver = ready;
+  }
+
 
   // ---- Calibration data ----
   const calibrationData = {}; // { PtX: { clickCount, gazeSamples[] } }
@@ -482,6 +633,12 @@ function createTracker({
 
       ls.set('webgazerCalibrated', 'true');
       state.gazeQueue.length = 0;
+
+      // Start the 25-minute deadline if not already set (shared across tabs)
+      if (!getDeadline()) {
+        setDeadline(Date.now() + CHALLENGE_TIME_MS);
+      }
+      scheduleExpiryAlarm();
 
       console.log(`Calibration finalized (${reason}); overall=${overall}%`);
   }
@@ -867,12 +1024,29 @@ function createTracker({
 
   // storage event helps react quickly when peers go away
   function onStorage(e) {
-    if (!e || !e.key || !e.key.startsWith(PRESENCE_PREFIX)) return;
-    // no immediate action needed; presence is consulted at stop/pagehide time
+    if (!e || !e.key) return;
+
+    // Another tab marked timeout -> enforce here too
+    if (e.key === lsKey('timedOut') && e.newValue === 'true') {
+      recordCompletionOnce('timed out');
+      showIframeBlockingMessage(timeoutMessageText(), { showRetry: false });
+      stop();
+      return;
+    }
+
+    // If someone set/changed the shared deadline, reschedule our local alarm
+    if (e.key === lsKey('deadline')) {
+      scheduleExpiryAlarm();
+      return;
+    }
+
+    // Presence keys: keep existing no-op behavior
+    if (!e.key.startsWith(PRESENCE_PREFIX)) return;
   }
 
 
-  function showIframeBlockingMessage(msg) {
+
+  function showIframeBlockingMessage(msg, { showRetry = true } = {}) {
     const iframe = resolveIframe();
     if (!iframe || !iframe.contentWindow) return;
     const doc = iframe.contentDocument || iframe.contentWindow.document;
@@ -896,6 +1070,7 @@ function createTracker({
       modal.appendChild(text);
 
       const btn = doc.createElement('button');
+      btn.id = 'survey-check-retry';
       btn.type = 'button';
       btn.textContent = 'Retry check';
       Object.assign(btn.style, {
@@ -903,8 +1078,7 @@ function createTracker({
         borderRadius: '6px', border: 'none', background: '#fff', color: '#000'
       });
       btn.addEventListener('click', () => {
-        // User manually asked to re-check; try the gate again
-        gateAndMaybeStart(/*manual*/ true);
+        gateAndMaybeStart(true); // manual retry
       });
       modal.appendChild(btn);
 
@@ -913,8 +1087,12 @@ function createTracker({
 
     const label = doc.getElementById('survey-check-text');
     if (label) label.textContent = msg;
+    const retryBtn = doc.getElementById('survey-check-retry');
+    if (retryBtn) retryBtn.style.display = showRetry ? '' : 'none';
+
     modal.style.display = 'flex';
   }
+
 
   function hideIframeBlockingMessage() {
     const iframe = resolveIframe();
@@ -929,6 +1107,12 @@ function createTracker({
   // ---------- Lifecycle ----------
   function start() {
     if (state.running) return;
+
+    if (isTimedOut()) {
+      showIframeBlockingMessage(timeoutMessageText(), { showRetry: false });
+      return;
+    }
+
 
     const iframe = resolveIframe();
     const container = getExpectedContainer();
@@ -951,6 +1135,7 @@ function createTracker({
 
     if (!state.intervalId) state.intervalId = setInterval(sendEventsToServer, tickMs);
     state.running = true;
+    scheduleExpiryAlarm();
 
     window.addEventListener('beforeunload', onPageHide, { once: true });
   }
@@ -962,8 +1147,12 @@ function createTracker({
     if (state.intervalId) { clearInterval(state.intervalId); state.intervalId = null; }
     if (state.msgHandler) { window.removeEventListener('message', state.msgHandler); state.msgHandler = null; }
     if (state.iframeMutationObserver) { state.iframeMutationObserver.disconnect(); state.iframeMutationObserver = null; }
+    if (state.bannerObserver) { state.bannerObserver.disconnect(); state.bannerObserver = null; }
+    if (state.bannerReadyObserver) { state.bannerReadyObserver.disconnect(); state.bannerReadyObserver = null; }
     state.cleanupFns.splice(0).forEach(fn => { try { fn(); } catch {} });
     state.running = false;
+    clearExpiryAlarm();  // keep the shared deadline, just stop this tab’s alarm
+
 
     // stop presence heartbeat and remove our entry
     if (state.presenceTimer) { clearInterval(state.presenceTimer); state.presenceTimer = null; }
@@ -974,6 +1163,7 @@ function createTracker({
     sweepStalePeers();
     if (countLivePeers() === 0) {
       clearCalibrationKeys();
+      clearTimerKeys(); // Reset timer. Remove if we want timer to persist even after they close out of everything
     }
   }
 
@@ -1004,6 +1194,13 @@ function createTracker({
   async function gateAndMaybeStart(manual = false) {
     // If we’re already running, do nothing
     if (state.running) return;
+
+    if (isTimedOut()) {
+      markTimedOut();
+      recordCompletionOnce('timed out');
+      showIframeBlockingMessage(timeoutMessageText(), { showRetry: false });
+      return;
+    }
 
     // Clear any prior poll
     if (surveyPollTimer) { clearTimeout(surveyPollTimer); surveyPollTimer = null; }
@@ -1039,6 +1236,7 @@ function createTracker({
       // All good — hide modal and start the tracker
       hideIframeBlockingMessage();
       start();
+      scheduleExpiryAlarm();
 
 
     } catch (err) {
@@ -1103,6 +1301,8 @@ function createTracker({
     if (state.domObserver) return;
 
     const reconcile = () => {
+      ensureBannerWatcher();
+
       const iframe = resolveIframe();
       const container = expectedContainerId ? document.getElementById(expectedContainerId) : null;
       const ok = iframe && (!container || container.contains(iframe));
@@ -1145,6 +1345,7 @@ const tracker_1 = createTracker({
   // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
   expectedContainerId: 'challenges-body-1', 
   requireVersionMatch: true,
+  challengeTimeMinutes = 25,
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
   userId: init.userId,             // pwn.college provides this
   tickMs: 5000,                    // batch interval

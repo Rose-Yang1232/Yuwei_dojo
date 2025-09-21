@@ -37,15 +37,27 @@ challenges:
   auxiliary:
     pwnshop:
       challenge: PathTraversal4
+- id: cmdi-ls-semicolon
+  name: CMDi
+  image: skylergrandel/pwncollege_eyetracking:latest
+  auxiliary:
+    pwnshop:
+      challenge: CommandInjectionLS
 - id: auth-bypass-param
-  name: Authentication Bypass 1
+  name: Authentication Bypass
   image: skylergrandel/pwncollege_eyetracking:latest
 - id: sqli-pin
-  name: SQLi 1
+  name: SQLi
   image: skylergrandel/pwncollege_eyetracking:latest
   auxiliary:
     pwnshop:
       challenge: SQLInjectionPin
+- id: xss-stored-alert
+  name: XSS
+  image: skylergrandel/pwncollege_eyetracking:latest
+  auxiliary:
+    pwnshop:
+      challenge: XSSStoredAlert
 #- id: example
 #  name: Example
 #  image: skylergrandel/pwncollege_eyetracking:latest

@@ -2,13 +2,16 @@
 
 # Challenge Instructions
 
-This is an practice challenge for demonstrating how the eye tracking challenges work in this dojo.
-The goal is to successfully curl to the server running in the background.
+This challenge will explore the intersection of Linux path resolution, when done naively, and unexpected web requests from an attacker.
+We've implemented a simple web server for you --- it will serve up files from /challenge/files over HTTP.
+Can you trick it into giving you the flag?
 
 The webserver program is `/challenge/server`.
-When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can talk to it over HTTP using the right terminal. The server's code is displayed in the left terminal.
+When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can talk to it over HTTP (using the terminal that will appear on the right).
+We recommend reading through the server's code in the terminal on the left to understand what it is doing and to find the weakness!
 
-You can communicate with the server using `curl http://challenge.localhost:80/` in the right terminal.
+**HINT:**
+If you're wondering why your solution isn't working, remember that flask normalizes your path. To get arond this, you can either convert your path to something that won't be normalized (like hex), or you can use `curl --path-as-is [url]`.
 
 
 

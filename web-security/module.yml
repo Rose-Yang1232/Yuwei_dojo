@@ -40,9 +40,6 @@ challenges:
 - id: cmdi-ls-semicolon
   name: CMDi
   image: skylergrandel/pwncollege_eyetracking:latest
-  auxiliary:
-    pwnshop:
-      challenge: CommandInjectionLS
 - id: auth-bypass-param
   name: Authentication Bypass
   image: skylergrandel/pwncollege_eyetracking:latest

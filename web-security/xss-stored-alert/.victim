@@ -1,84 +1,39 @@
 #!/opt/pwn.college/python
-
-"""
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import TimeoutException
-import requests,urllib.parse,psutil,atexit,time,sys,os
-
-os.environ.clear(); os.environ["PATH"]="/usr/bin:/bin"
-if 80 not in {s.laddr.port for s in psutil.net_connections(kind="inet") if s.status=="LISTEN"}: sys.exit(1)
-
-opts=Options(); opts.add_argument("--headless")
-drv=webdriver.Firefox(service=Service(log_path="/dev/null"), options=opts)
-atexit.register(drv.quit)
-URL="http://challenge.localhost:80/"; KEY="xss-signal"
-
-while True:
-    try: drv.get(URL)
-    except Exception: time.sleep(.5); continue
-
-
-    try: WebDriverWait(drv,1).until(lambda d: d.execute_script(f"return localStorage.getItem('{KEY}')==='1'"))
-    except TimeoutException: time.sleep(.5); continue
-    else:
-
-
-        try: flag = open("/flag").read().strip()
-        except Exception: flag = None
-
-
-        if flag:
-            try: requests.post(urllib.parse.urljoin(URL, "/"), data={"content": flag}, timeout=3)
-            except Exception: pass
-            try: drv.execute_script(f"localStorage.removeItem('{KEY}')")
-            except Exception: pass
-    time.sleep(1)
-"""
-
-#!/opt/pwn.college/python
-
-import psutil
-import urllib
-import atexit
-import time
-import sys
-import os
-
+import psutil, atexit, time, sys, os, requests
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.firefox.service import Service as FirefoxService
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import TimeoutException
 
 os.setuid(os.geteuid())
 os.environ.clear()
 os.environ["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-options = FirefoxOptions()
-options.add_argument("--headless")
+options = FirefoxOptions(); options.add_argument("--headless")
 service = FirefoxService(log_path="/dev/null")
 browser = webdriver.Firefox(service=service, options=options)
 atexit.register(browser.quit)
 
-open_ports = {s.laddr.port for s in psutil.net_connections(kind="inet") if s.status == "LISTEN"}
-if 80 not in open_ports:
-    print("Service doesn't seem to be running?")
-    sys.exit(1)
+if 80 not in {s.laddr.port for s in psutil.net_connections(kind="inet") if s.status == "LISTEN"}:
+    print("Service doesn't seem to be running?"); sys.exit(1)
 
-challenge_url = "http://challenge.localhost:80/"
+URL = "http://challenge.localhost:80/"
+KEY = "xss-signal"   # change to secret token if you want participants to read the victim
 
-print(f"Visiting {challenge_url}")
-browser.get(challenge_url)
-try:
-    WebDriverWait(browser, 1).until(EC.alert_is_present())
-except TimeoutException:
-    print("Failure: JavaScript alert did not trigger...")
-    sys.exit(3)
-else:
-    print("Alert triggered! Your reward:")
-    print(open("/flag").read().strip())
+while True:
+    try: browser.get(URL)
+    except Exception: time.sleep(.5); continue
+
+    # wait up to 1s for localStorage key to be set to '1'
+    try: WebDriverWait(browser,1).until(lambda d: d.execute_script(f"return localStorage.getItem('{KEY}')==='1'"))
+    except TimeoutException: time.sleep(.5); continue
+    else:
+        try: flag = open("/flag").read().strip()
+        except Exception: flag = None
+        if flag:
+            try: requests.post(URL, data={"content": flag}, timeout=3)
+            except Exception: pass
+            try: browser.execute_script(f"localStorage.removeItem('{KEY}')")
+            except Exception: pass
+    time.sleep(1)

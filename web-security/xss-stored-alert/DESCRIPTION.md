@@ -21,7 +21,7 @@ This means that you can trick a victim user into running JavaScript that you con
 
 The webserver program is `/challenge/server`.
 When you open the GUI desktop workspace, the server and victim will automatically spin up to run in the background. You can view the resulting page in a firefox window that will appear on the right.
-We recommend reading through the victim's code in the terminal on the left to understand what it is doing and how you can force it to give you the flag! Note that the victim's code in this terminal has had the imports
+We recommend reading through the victim's code in the terminal on the left to understand what it is doing and how you can force it to give you the flag! Note that the victim's code in this terminal has had the imports and other unimportant code removed.
 
 
 ----

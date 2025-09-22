@@ -20,11 +20,11 @@ monitor_locked_terminals() {
         HALF_WIDTH=$(( SCREEN_WIDTH / 2 ))
         TOP_HEIGHT=$(( AVAILABLE_HEIGHT ))   # use full available height for halves
 
-        ### Terminal 1: left half, show POST ###
+        ### Terminal 1: left half, show victim ###
         TERM1_WIN=$(wmctrl -l | awk '/LockedTerminal1/{print $1; exit}')
         if [ -z "$TERM1_WIN" ]; then
             xfce4-terminal --hide-menubar --title=LockedTerminal1 \
-                --execute bash -c 'cd /challenge; cat POST; exec bash' &
+                --execute bash -c 'cd /challenge; cat victim; exec bash' &
             sleep 1
             TERM1_WIN=$(wmctrl -l | awk '/LockedTerminal1/{print $1; exit}')
         fi

@@ -1,35 +1,24 @@
 #!/opt/pwn.college/python
-
-import subprocess
-import flask
-import os
-
+import subprocess, flask, os
 app = flask.Flask(__name__)
 
 
 @app.route("/serve", methods=["GET"])
 def challenge():
+    
+    
     arg = flask.request.args.get("top-path", "/challenge")
     command = f"ls -l {arg}"
 
-    print(f"DEBUG: {command=}")
-    result = subprocess.run(
-        command,  # the command to run
-        shell=True,  # use the shell to run this command
-        stdout=subprocess.PIPE,  # capture the standard output
-        stderr=subprocess.STDOUT,  # 2>&1
-        encoding="latin",  # capture the resulting output as text
-    ).stdout
 
-    return f"""
-        <html><body>
-        Welcome to the dirlister service! Please choose a directory to list the files of:
+    print(f"DEBUG: {command=}")
+    result = subprocess.run(command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,encoding="latin",).stdout
+
+
+    return f"""<html><body>Welcome to the dirlister service! Please choose a directory to list the files of:
         <form action="/serve"><input type=text name=top-path><input type=submit value=Submit></form>
-        <hr>
-        <b>Output of {command}:</b><br>
-        <pre>{result}</pre>
-        </body></html>
-        """
+        <hr><b>Output of {command}:</b><br><pre>{result}</pre>
+        </body></html>"""
 
 
 os.setuid(os.geteuid())

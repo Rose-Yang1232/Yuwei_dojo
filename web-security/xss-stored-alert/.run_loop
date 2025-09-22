@@ -1,0 +1,74 @@
+#!/bin/sh
+
+reposition_window() {
+    local win_id=$1; local x=$2; local y=$3; local w=$4; local h=$5
+    wmctrl -ir "$win_id" -b remove,maximized_vert,maximized_horz
+    wmctrl -ir "$win_id" -e 0,"$x","$y","$w","$h"
+}
+
+FIREFOX_PID=""
+
+monitor_locked_terminals() {
+    while true; do
+        # Screen dims
+        SCREEN_RES=$(xdpyinfo | awk '/dimensions/{print $2}')
+        SCREEN_WIDTH=${SCREEN_RES%x*}
+        SCREEN_HEIGHT=${SCREEN_RES#*x}
+
+        TOOLBAR_HEIGHT=50
+        AVAILABLE_HEIGHT=$(( SCREEN_HEIGHT - TOOLBAR_HEIGHT ))
+        HALF_WIDTH=$(( SCREEN_WIDTH / 2 ))
+        TOP_HEIGHT=$(( AVAILABLE_HEIGHT ))   # use full available height for halves
+
+        ### Terminal 1: left half, show POST ###
+        TERM1_WIN=$(wmctrl -l | awk '/LockedTerminal1/{print $1; exit}')
+        if [ -z "$TERM1_WIN" ]; then
+            xfce4-terminal --hide-menubar --title=LockedTerminal1 \
+                --execute bash -c 'cd /challenge; cat POST; exec bash' &
+            sleep 1
+            TERM1_WIN=$(wmctrl -l | awk '/LockedTerminal1/{print $1; exit}')
+        fi
+        [ -n "$TERM1_WIN" ] && reposition_window "$TERM1_WIN" 0 0 "$HALF_WIDTH" "$TOP_HEIGHT"
+        [ -n "$TERM1_WIN" ] && xprop -id "$TERM1_WIN" -f _MOTIF_WM_HINTS 32c \
+            -set _MOTIF_WM_HINTS "0x2, 0x0, 0x0, 0x0, 0x0" >/dev/null 2>&1
+
+        ### Browser: right half, show challenge page ###
+        # Spawn firefox only if we don't have a running PID
+        if [ -z "$FIREFOX_PID" ] || ! kill -0 "$FIREFOX_PID" 2>/dev/null; then
+            # Using MOZ_WINDOW_CLASS helps later matching; if you prefer isolated profile use --no-remote -P <profile>
+            env MOZ_WINDOW_CLASS=LockedBrowser firefox --new-window "http://challenge.localhost:80/" &
+            FIREFOX_PID=$!
+            sleep 2
+        fi
+
+        # Try to find the window by matching the PID first
+        BROW_WIN=$(wmctrl -lp | awk -v pid="$FIREFOX_PID" '$3==pid {print $1; exit}')
+
+        # fallback: try matching the WM_CLASS set by MOZ_WINDOW_CLASS (wmctrl -lx shows class)
+        if [ -z "$BROW_WIN" ]; then
+            BROW_WIN=$(wmctrl -lx | awk 'tolower($0) ~ /lockedbrowser/ {print $1; exit}')
+        fi
+
+        # If we found the firefox window, snap it to the right half (same top height as terminal)
+        if [ -n "$BROW_WIN" ]; then
+            reposition_window "$BROW_WIN" "$HALF_WIDTH" 0 "$HALF_WIDTH" "$TOP_HEIGHT"
+            xprop -id "$BROW_WIN" -f _MOTIF_WM_HINTS 32c \
+                -set _MOTIF_WM_HINTS "0x2, 0x0, 0x0, 0x0, 0x0" >/dev/null 2>&1
+        fi
+
+        sleep 5
+    done
+}
+
+# Capture and change terminal colors (unchanged from your script)
+OLD_BG=$(xfconf-query -c xfce4-terminal -p /color-background)
+OLD_FG=$(xfconf-query -c xfce4-terminal -p /color-foreground)
+cleanup() {
+    xfconf-query -c xfce4-terminal -p /color-background -s "$OLD_BG"
+    xfconf-query -c xfce4-terminal -p /color-foreground -s "$OLD_FG"
+}
+trap cleanup EXIT
+xfconf-query -c xfce4-terminal -p /color-background -s "#FFFFFF"
+xfconf-query -c xfce4-terminal -p /color-foreground -s "#000000"
+
+monitor_locked_terminals

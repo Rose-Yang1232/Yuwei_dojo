@@ -1,4 +1,13 @@
 #!/opt/pwn.college/python
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import TimeoutException
+import requests,urllib.parse,psutil,atexit,time,sys,os
+
+os.environ.clear(); os.environ["PATH"]="/usr/bin:/bin"
+if 80 not in {s.laddr.port for s in psutil.net_connections(kind="inet") if s.status=="LISTEN"}: sys.exit(1)
 
 opts=Options(); opts.add_argument("--headless")
 drv=webdriver.Firefox(service=Service(log_path="/dev/null"), options=opts)
@@ -21,5 +30,7 @@ while True:
 
         if flag:
             try: requests.post(urllib.parse.urljoin(URL, "/"), data={"content": flag}, timeout=3)
+            except Exception: pass
+            try: drv.execute_script(f"localStorage.removeItem('{KEY}')")
             except Exception: pass
     time.sleep(1)

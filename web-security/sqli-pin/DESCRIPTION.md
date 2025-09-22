@@ -67,19 +67,19 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 
 
 
-<div id="challenge-notice-6" style="display:none;"></div>
+<div id="challenge-notice-7" style="display:none;"></div>
 
 
 <script>
 
   
-const tracker_6 = createTracker({
+const tracker_7 = createTracker({
   iframeId: 'workspace-iframe',
   iframeSelector: '#workspace-iframe, #workspace_iframe',
   challenge: 'sqli-pin',
-  bannerElId: 'challenge-notice-6', // div above for checking if the user is allowed to take this challenge  
+  bannerElId: 'challenge-notice-7', // div above for checking if the user is allowed to take this challenge  
   // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
-  expectedContainerId: 'challenges-body-6', 
+  expectedContainerId: 'challenges-body-7', 
   requireVersionMatch: false,
   challengeTimeMinutes: 25,
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
@@ -90,11 +90,11 @@ const tracker_6 = createTracker({
 });
 
 // Show/hide the banner based on survey/version BEFORE attempting to start anything
-tracker_6.checkBanner();
+tracker_7.checkBanner();
 
 
 // One call; it will wait for the iframe, start when it appears,
 // stop if it disappears, and start again if it returns.
-tracker_6.autoStart();
+tracker_7.autoStart();
   
 </script>

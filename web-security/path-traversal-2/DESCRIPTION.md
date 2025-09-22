@@ -81,7 +81,7 @@ const tracker_2 = createTracker({
   // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
   expectedContainerId: 'challenges-body-2', 
   requireVersionMatch: true,
-  challengeTimeMinutes = 25,
+  challengeTimeMinutes: 25,
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
   userId: init.userId,             // pwn.college provides this
   tickMs: 5000,                    // batch interval

@@ -19,14 +19,14 @@ if 80 not in {s.laddr.port for s in psutil.net_connections(kind="inet") if s.sta
     print("Service doesn't seem to be running?"); sys.exit(1)
 
 URL = "http://challenge.localhost:80/"
-KEY = "xss-signal"   # change to secret token if you want participants to read the victim
+KEY = "pwn"
 
 while True:
     try: browser.get(URL)
     except Exception: time.sleep(.5); continue
 
     # wait up to 1s for localStorage key to be set to '1'
-    try: WebDriverWait(browser,1).until(lambda d: d.execute_script(f"return localStorage.getItem('{KEY}')==='1'"))
+    try: WebDriverWait(browser,1).until(lambda d: d.execute_script(f"return localStorage.getItem('{KEY}')==='1337'"))
     except TimeoutException: time.sleep(.5); continue
     else:
         try: flag = open("/flag").read().strip()

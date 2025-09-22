@@ -16,6 +16,7 @@ For example, this turns your browser into a clock:
 ```
 
 Basically, the HTML `<script>` tag tells the browser that what is inside that tag is JavaScript, and the browser executes it.
+
 This application is vulnerable to _Cross Site Scripting_.
 This means that you can trick a victim user into running JavaScript that you convince the webpage to display to that user.
 
@@ -26,8 +27,8 @@ We recommend reading through the victim's code in the terminal on the left to un
 
 ----
 **DEBUGGING:**
-Here, we need a slightly more advanced approach to debugging.
-Two main things can go wrong here.
+Before you start assuming something is wrong, `try reloading the webpage` in the firefox browser. Since this webpage doesn't poll or stream content, new posts may not appear until you reload the page.
+Otherwise, two main things can go wrong here.
 
 1. First, you might not be injecting your `<script>` tag properly.
    You should check this similar to the debugging path of the previous challenge: bring it up in Firefox and View Source or Inspect Element to make sure it looks correct.

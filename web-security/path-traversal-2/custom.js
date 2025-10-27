@@ -1,0 +1,1 @@
+console.log("Custom JS in Path Traversal 2")

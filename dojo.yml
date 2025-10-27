@@ -45,6 +45,7 @@ description: |
     }); 
   </script>
 type: example
+allow_iframe: false
 award:
   emoji: 👀
 image: skylergrandel/pwncollege_eyetracking:latest

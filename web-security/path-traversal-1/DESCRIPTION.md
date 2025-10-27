@@ -1,4 +1,5 @@
 # IMPORTANT! You must use the GUI Desktop Workspace for this Challenge!
+Click `Workspace` in the ribbon above after starting the challenge.
 
 # Challenge Instructions
 
@@ -223,7 +224,7 @@ function createTracker({
   function bannerShowsSolved(el) {
     if (!el) return false;
     const txt = (el.textContent || '').toLowerCase();
-    if (txt.includes('solved')) return true;  // simplest and robust
+    if (txt.includes('solved')) return true; 
 
     // Optional extra heuristics (kept lenient): green success styling
     try {
@@ -242,7 +243,7 @@ function createTracker({
     const installOn = (el) => {
       if (!el) return false;
 
-      // Immediate check (covers “Solved” already present)
+      // Immediate check (covers "Solved" already present)
       if (bannerShowsSolved(el)) {
         recordCompletionOnce('found flag');
       }
@@ -409,7 +410,8 @@ function createTracker({
     instructionText.className = 'calibrationInstruction';
     instructionText.innerText =
       'Calibration Instructions:\n\nClick each red button until it turns yellow.\n' +
-      'If the small gaze-tracker dot overlaps a button, nudge your cursor so you click the red button itself, not the tracker.';
+      'If the small gaze-tracker dot overlaps a button, nudge your cursor so you click the red button itself, not the tracker.\n'+
+      'Ensure you are in a well-lit room and your face is clearly visible in the video in the top left';
     Object.assign(instructionText.style, {
       position: 'absolute', top: '10%', left: '50%',
       transform: 'translateX(-50%)', fontSize: '24px',
@@ -608,7 +610,7 @@ function createTracker({
         : 0;
 
       if (overall < minAccuracy) {
-        alert(`Calibration complete!\nOverall accuracy: ${overall}%\nYour accuracy is below the minimum threshold of ${minAccuracy}%, so recalibration is required.`);
+        alert(`Calibration complete!\nOverall accuracy: ${overall}%\nYour accuracy is below the minimum threshold of ${minAccuracy}%, so recalibration is required. Please ensure the room is well-lit to aid accuracy.`);
         ClearCalibration(); setupCalibration(); return;
       }
 
@@ -1215,7 +1217,7 @@ function createTracker({
           'We could not find your survey submission. ' +
           'Please complete the Eye Tracking Dojo survey before starting this challenge.'
         );
-        // Optional: light polling unless the user clicks Retry
+        // light polling unless the user clicks Retry
         surveyPollTimer = setTimeout(() => gateAndMaybeStart(false), 2000);
         return;
       }

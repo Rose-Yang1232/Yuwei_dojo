@@ -7,7 +7,8 @@ setInterval(() => {
   // 6080 was in the workspace for me
  
   if ($("#workspace-select").length) {
-    if ($("#workspace-select").val() != "desktop: 6080") {
+    if ( $("#workspace-select").is(":visible") && 
+         $("#workspace-select").val() != "desktop: 6080") {
       if (typeof selectService === "function") {
         $("#workspace-select").val("desktop: 6080").change(); // update the UI element
         // force selection if we find the workspace selector menu and

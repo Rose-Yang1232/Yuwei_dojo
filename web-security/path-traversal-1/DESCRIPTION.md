@@ -75,6 +75,27 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
+// force removal of workspace iframe if they start the challenge on this
+// page... until pwn.college supports removal of workspace iframe...
+$( document ).ready ( function () {
+  if (!window.location.href.includes("workspace")) {
+    if ($("#workspace-iframe").length) {
+      console.log("Removing iframe from DOM.");
+      // remove iframe from DOM, force them to use the workspace URL.
+      $("#workspace-iframe").remove();
+
+      // put in a message (TODO make this suck less)
+      $("#challenge-workspace").append("<div><h2>You must use the Workspace tab for this challenge.  Please click Workspace at the top of the page</h2></div>");
+    }
+  }
+});
+
+
+
+
+
+
+
 /**
  * createTracker: fully encapsulated eye + interaction tracker
  * Usage:

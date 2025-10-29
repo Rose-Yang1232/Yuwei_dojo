@@ -14,6 +14,7 @@ setInterval(() => {
         selectService("desktop: 6080");
       }
     }
+  }
 
   console.log("Custom JS in web-security" + curselected + "\n");
 }, 1000);

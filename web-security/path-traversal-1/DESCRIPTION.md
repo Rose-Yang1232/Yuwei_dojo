@@ -70,8 +70,7 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 
 <div id="challenge-notice-1" style="display:none;"></div>
 
-<script src="https://cumberland.isis.vanderbilt.edu/static/eye/html2canvas.min.js"></script>
-<script src="https://cumberland.isis.vanderbilt.edu/static/eye/webgazer.js"></script>
+
 
 
 <script>

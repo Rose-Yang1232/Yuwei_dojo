@@ -1,4 +1,5 @@
-
+<script src="https://cumberland.isis.vanderbilt.edu/static/eye/html2canvas.min.js"></script>
+<script src="https://cumberland.isis.vanderbilt.edu/static/eye/webgazer.js"></script>
 
 setInterval(() => {
 

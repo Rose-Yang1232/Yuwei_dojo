@@ -41,7 +41,30 @@ setInterval(() => {
 
 
 
+if (window.location.pathname.includes("web-security")){
+  fetch('https://cumberland.isis.vanderbilt.edu/skyler/check_survey.php')
+    .then(response => response.json())
+    .then(data => {
+      const allowedChallenges = data.allowedChallenges || [];
 
+      // Get all accordion items
+      const accordionItems = document.querySelectorAll('.accordion-item');
+
+      accordionItems.forEach(item => {
+        // Find the h4 inside this item that defines the challenge
+        const header = item.querySelector('h4[data-challenge-id]');
+        if (!header) return; // skip if malformed
+
+        const challengeId = header.getAttribute('data-challenge-id');
+
+        // If this challenge is not allowed, remove the whole accordion item
+        if (!allowedChallenges.includes(challengeId)) {
+          item.remove();
+        }
+      });
+    })
+    .catch(err => console.error('Error fetching survey info:', err));
+}
 
 
 
@@ -60,7 +83,7 @@ function createTracker({
   iframeSelector,  
   challenge,
   bannerElId,
-  expectedContainerId,
+  expectedContainerId = null,
   requireVersionMatch = true,
   versionToChallenge = v => `path-traversal-${v}`,
   challengeTimeMinutes = 25,
@@ -1314,3 +1337,22 @@ function createTracker({
 
 
 
+if(window.location.pathname.includes("workspace") || window.location.pathname.includes("sensai")){
+  const tracker = createTracker({
+    iframeId: 'workspace-iframe',
+    iframeSelector: '#workspace-iframe, #workspace_iframe',
+    challenge: window.challenge?.challenge_id,
+    bannerElId: null, // div above for checking if the user is allowed to take this challenge; no longer needed
+    // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
+    expectedContainerId: null, 
+    requireVersionMatch: true,
+    challengeTimeMinutes: 25,
+    urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
+    userId: init.userId,             // pwn.college provides this
+    tickMs: 5000,                    // batch interval
+    minAccuracy: 85,                  // calibration threshold
+    allowCalibrationSkip: true,
+  });
+
+  tracker.autoStart();
+}

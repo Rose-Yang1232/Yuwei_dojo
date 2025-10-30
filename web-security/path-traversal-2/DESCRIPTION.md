@@ -72,7 +72,89 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 
 <script>
 
-  
+/*
+const versionToChallenge = v => `path-traversal-${v}`;
+
+function showNotice(el, text) {
+  el.textContent   = text;
+  el.style.display = 'block';
+  el.style.fontWeight   = '700';
+  el.style.color        = '#c00000';
+  el.style.background   = '#fff';
+  el.style.padding      = '10px 12px';
+  el.style.border       = '1px solid #c00000';
+  el.style.borderRadius = '6px';
+}
+
+function hideNotice(el) {
+  el.textContent = '';
+  el.style.display = 'none';
+}
+
+// Checks if the user is allowed to take a challenge.
+// Returns { ok, assignedVersion, assignedChallenge, reason }.
+// Also updates page banner
+async function checkChallengeEligibility({
+  userId,
+  challenge,
+  urlBasePath,
+  requireVersionMatch = true,
+  bannerElId,
+}) {
+  const banner = bannerElId ? document.getElementById(bannerElId) : null;
+
+  try {
+    const endpoint = `${urlBasePath}check_survey.php?userId=${encodeURIComponent(userId)}`;
+    const resp = await fetch(endpoint, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json(); // { filled: boolean, version: number }
+
+    if (!data?.filled) {
+      const msg = 'We could not find your survey submission. Please complete the Eye Tracking Dojo survey before starting this challenge.';
+      if (banner) showNotice(banner, msg);
+      return { ok: false, assignedVersion: null, assignedChallenge: null, reason: 'no-survey' };
+    }
+
+    const assignedVersion = data.version;
+    const assignedChallenge = versionToChallenge(assignedVersion);
+
+    if (requireVersionMatch && assignedChallenge !== challenge) {
+      const msg = `This page isn’t your assigned version. Assigned: ${assignedChallenge}. You are currently on: ${challenge}. Please open ${assignedChallenge} instead.`;
+      if (banner) showNotice(banner, msg);
+      return { ok: false, assignedVersion, assignedChallenge, reason: 'version-mismatch' };
+    }
+
+    if (banner) hideNotice(banner);
+    return { ok: true, assignedVersion, assignedChallenge, reason: 'ok' };
+  } catch (err) {
+    const msg = 'Error verifying your survey completion. Please try again.';
+    if (banner) showNotice(banner, msg);
+    return { ok: false, assignedVersion: null, assignedChallenge: null, reason: 'network-error' };
+  }
+}
+
+checkChallengeEligibility({
+  userId,
+  challenge,
+  urlBasePath,
+  requireVersionMatch = true,
+  bannerElId,
+})
+
+(async () => {
+  const gate = await checkChallengeEligibility({
+    userId: init.userId,
+    challenge: 'path-traversal-2',
+    urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
+    requireVersionMatch: true,
+    bannerElId: 'challenge-notice-2',
+  });
+
+})();
+*/
+
+
+/*
 const tracker_2 = createTracker({
   iframeId: 'workspace-iframe',
   iframeSelector: '#workspace-iframe, #workspace_iframe',
@@ -96,5 +178,6 @@ tracker_2.checkBanner();
 // One call; it will wait for the iframe, start when it appears,
 // stop if it disappears, and start again if it returns.
 tracker_2.autoStart();
+*/
   
 </script>

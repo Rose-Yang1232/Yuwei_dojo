@@ -1,6 +1,3 @@
-<script src="https://cumberland.isis.vanderbilt.edu/static/eye/html2canvas.min.js"></script>
-<script src="https://cumberland.isis.vanderbilt.edu/static/eye/webgazer.js"></script>
-
 setInterval(() => {
 
     // pwn.college has tons of duplicates of the workspace-select
@@ -41,7 +38,7 @@ setInterval(() => {
 }, 1000);
 
 
-
+// if on the module page, remove challenges not assigned to this user
 (async () => {
   if (window.location.pathname.includes("web-security")){
     const endpoint = `https://cumberland.isis.vanderbilt.edu/skyler/check_survey.php?userId=${encodeURIComponent(init.userId)}`;
@@ -69,6 +66,29 @@ setInterval(() => {
     }
   }
 })();
+
+// load an external script. Same functionality as <script src="src"></script>
+function loadScript(src, { async = true, defer = false, crossOrigin = null } = {}) {
+  return new Promise((resolve, reject) => {
+    // if already loaded, resolve immediately
+    if (document.querySelector(`script[src="${src}"]`)) {
+      // wait a tick to ensure the existing script has executed
+      return requestAnimationFrame(() => resolve());
+    }
+
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = async;
+    if (defer) s.defer = true;
+    if (crossOrigin) s.crossOrigin = crossOrigin;
+
+    s.onload = () => resolve();
+    s.onerror = (e) => reject(new Error(`Failed to load script ${src}`));
+
+    document.head.appendChild(s);
+  });
+}
+
 
 
 
@@ -1342,21 +1362,30 @@ function createTracker({
 
 
 if(window.location.pathname.includes("workspace") || window.location.pathname.includes("sensai")){
-  const tracker = createTracker({
-    iframeId: 'workspace-iframe',
-    iframeSelector: '#workspace-iframe, #workspace_iframe',
-    challenge: window.challenge?.challenge_id,
-    bannerElId: null, // div above for checking if the user is allowed to take this challenge; no longer needed
-    // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
-    expectedContainerId: null, 
-    requireVersionMatch: true,
-    challengeTimeMinutes: 25,
-    urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
-    userId: init.userId,             // pwn.college provides this
-    tickMs: 5000,                    // batch interval
-    minAccuracy: 85,                  // calibration threshold
-    allowCalibrationSkip: true,
-  });
+  (async function loadEyeTracker() {
+    try {
+      await loadScript('https://cumberland.isis.vanderbilt.edu/static/eye/html2canvas.min.js');
+      await loadScript('https://cumberland.isis.vanderbilt.edu/static/eye/webgazer.js');
+    } catch (err) {
+      console.error('Failed to load eye libraries:', err);
+    }
 
-  tracker.autoStart();
+    const tracker = createTracker({
+      iframeId: 'workspace-iframe',
+      iframeSelector: '#workspace-iframe, #workspace_iframe',
+      challenge: window.challenge?.challenge_id,
+      bannerElId: null, // div above for checking if the user is allowed to take this challenge; no longer needed
+      // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
+      expectedContainerId: null, 
+      requireVersionMatch: true,
+      challengeTimeMinutes: 25,
+      urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
+      userId: init.userId,             // pwn.college provides this
+      tickMs: 5000,                    // batch interval
+      minAccuracy: 85,                  // calibration threshold
+      allowCalibrationSkip: true,
+    });
+
+    tracker.autoStart();
+  })();
 }

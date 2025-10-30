@@ -41,30 +41,33 @@ setInterval(() => {
 
 
 
-if (window.location.pathname.includes("web-security")){
-  fetch('https://cumberland.isis.vanderbilt.edu/skyler/check_survey.php')
-    .then(response => response.json())
-    .then(data => {
+(async () => {
+  if (window.location.pathname.includes("web-security")){
+    const endpoint = `https://cumberland.isis.vanderbilt.edu/skyler/check_survey.php?userId=${encodeURIComponent(init.userId)}`;
+    try {
+      const resp = await fetch(endpoint, { cache: 'no-store' });
+      if (!resp.ok) throw new Error('network error');
+
+      const data = await resp.json();
       const allowedChallenges = data.allowedChallenges || [];
 
-      // Get all accordion items
       const accordionItems = document.querySelectorAll('.accordion-item');
 
       accordionItems.forEach(item => {
-        // Find the h4 inside this item that defines the challenge
         const header = item.querySelector('h4[data-challenge-id]');
-        if (!header) return; // skip if malformed
+        if (!header) return; // skip malformed
 
         const challengeId = header.getAttribute('data-challenge-id');
 
-        // If this challenge is not allowed, remove the whole accordion item
         if (!allowedChallenges.includes(challengeId)) {
           item.remove();
         }
       });
-    })
-    .catch(err => console.error('Error fetching survey info:', err));
-}
+    } catch (err) {
+      console.error('Error fetching survey info:', err);
+    }
+  }
+})();
 
 
 

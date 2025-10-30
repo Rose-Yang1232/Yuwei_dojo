@@ -67,7 +67,7 @@ setInterval(() => {
   }
 })();
 
-// load an external script. Same functionality as <script src="src"></script>
+// load an external script. Same functionality as using src in script tag
 function loadScript(src, { async = true, defer = false, crossOrigin = null } = {}) {
   return new Promise((resolve, reject) => {
     // if already loaded, resolve immediately

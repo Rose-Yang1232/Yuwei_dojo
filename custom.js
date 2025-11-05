@@ -440,7 +440,7 @@ function createTracker({
     const label = document.createElement('label');
     label.innerText = 'Choose camera: ';
     Object.assign(label.style, {
-      position: 'absolute', top: '40%', left: '50%',
+      position: 'absolute', top: '45%', left: '50%',
       transform: 'translateX(-50%)', fontSize: '18px', color: 'black'
     });
     const select = document.createElement('select');
@@ -640,7 +640,7 @@ function createTracker({
 
   function finalizeCalibrationSuccess({ reason = 'measured', overall = 100 } = {}) {
       // Remove calibration UI completely so a new challenge can rebuild it
-      document.querySelector('.calibrationDiv')?.remove();          // ← changed
+      document.querySelector('.calibrationDiv')?.remove();          
       document.querySelector('.calibrationBackground')?.remove();
 
       webgazer
@@ -1375,7 +1375,7 @@ if(window.location.pathname.includes("workspace") || window.location.pathname.in
       bannerElId: null, // div above for checking if the user is allowed to take this challenge; no longer needed
       // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
       expectedContainerId: null, 
-      requireVersionMatch: true,
+      requireVersionMatch: false,
       challengeTimeMinutes: 25,
       urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
       userId: init.userId,             // pwn.college provides this

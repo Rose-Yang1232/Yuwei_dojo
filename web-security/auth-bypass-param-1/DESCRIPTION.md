@@ -1,18 +1,19 @@
 # IMPORTANT! You must use the GUI Desktop Workspace for this Challenge!
+Click `Workspace` in the ribbon above after starting the challenge.
 
 # Challenge Instructions
 
-This application is vulnerable to a _SQL injection_.
-A SQL injection, conceptually, is to SQL what a Command Injection is to the shell.
-In Command Injections, the application assembled a command string, and a gap between the developer's intent and the command shell's actual functionality enabled attackers to carry out actions unintended by the attacker.
-A SQL injection is the same: the developer builds the application to make SQL queries for certain goals, but because of the way these queries are assembled by the application logic, the resulting actions of the SQL query, when executed by the database, can be disastrous from a security perspective.
+A common type of vulnerability is an _Authentication Bypass_, where an attacker can bypass the typical authentication logic of an application and log in without knowing the necessary user credentials.
 
-The quintessential SQL injection adds a condition so that an application can succeed without knowing the password.
-How can you accomplish this?
+This level challenges you to explore one such scenario.
+This specific scenario arises because of a gap between what the developer expects (that the URL parameters set by the application will only be set by the application itself) and the reality (that attackers can craft HTTP requests to their hearts content).
+
+This level assumes a passing familiarity with SQL, which you can develop in the [SQL Playground](/fundamentals/sql-playground).
 
 The webserver program is `/challenge/server`.
-When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can access it using the firefox window at the bottom of the screen.
-We recommend reading through the server's code (particularly the endpoints) in the left and right terminals to understand what it is doing. From this, you can bypass this authentication to log in as the `admin` user and get the flag! Please note that the code in the windows has been *slightly* modified from the server code that is running the webpage so that the code you are reading will fit on the screen. It is not different in any way that will affect the exploit, however.
+When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can talk to it over HTTP using the bottom terminal.
+We recommend reading through the server's code (particularly the endpoints) in the left and right terminals to understand what it is doing. From this, you can bypass this authentication to log in as the `admin` user and get the flag!
+
 
 ----
 
@@ -67,19 +68,19 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 
 
 
-<div id="challenge-notice-7" style="display:none;"></div>
+<div id="challenge-notice-6" style="display:none;"></div>
 
 
 <script>
 
   
-const tracker_7 = createTracker({
+const tracker_6 = createTracker({
   iframeId: 'workspace-iframe',
   iframeSelector: '#workspace-iframe, #workspace_iframe',
-  challenge: 'sqli-pin',
-  bannerElId: 'challenge-notice-7', // div above for checking if the user is allowed to take this challenge  
+  challenge: 'auth-bypass-param',
+  bannerElId: 'challenge-notice-6', // div above for checking if the user is allowed to take this challenge  
   // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
-  expectedContainerId: 'challenges-body-7', 
+  expectedContainerId: 'challenges-body-6', 
   requireVersionMatch: false,
   challengeTimeMinutes: 25,
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
@@ -90,11 +91,11 @@ const tracker_7 = createTracker({
 });
 
 // Show/hide the banner based on survey/version BEFORE attempting to start anything
-tracker_7.checkBanner();
+tracker_6.checkBanner();
 
 
 // One call; it will wait for the iframe, start when it appears,
 // stop if it disappears, and start again if it returns.
-tracker_7.autoStart();
+tracker_6.autoStart();
   
 </script>

@@ -13,43 +13,61 @@ auxiliary:
     binary_name: server
 challenges:
 - id: path-traversal-1
-  name: Path Traversal 1
+  name: Path Traversal
   image: skylergrandel/pwncollege_eyetracking:latest #roseeeee11111/example-dojo:latest
   auxiliary:
     pwnshop:
       challenge: PathTraversal
       #variants: 1
 - id: path-traversal-2
-  name: Path Traversal 2
+  name: Path Traversal
   image: skylergrandel/pwncollege_eyetracking:latest
   auxiliary:
     pwnshop:
-      challenge: PathTraversal2
-- id: path-traversal-3
-  name: Path Traversal 3
-  image: skylergrandel/pwncollege_eyetracking:latest
-  auxiliary:
-    pwnshop:
-      challenge: PathTraversal3
-- id: path-traversal-4
-  name: Path Traversal 4
-  image: skylergrandel/pwncollege_eyetracking:latest
-  auxiliary:
-    pwnshop:
-      challenge: PathTraversal4
-- id: cmdi-ls-semicolon
+      challenge: PathTraversal
+# - id: path-traversal-3
+#   name: Path Traversal 3
+#   image: skylergrandel/pwncollege_eyetracking:latest
+#   auxiliary:
+#     pwnshop:
+#       challenge: PathTraversal3
+# - id: path-traversal-4
+#   name: Path Traversal 4
+#   image: skylergrandel/pwncollege_eyetracking:latest
+#   auxiliary:
+#     pwnshop:
+#       challenge: PathTraversal4
+- id: cmdi-ls-semicolon-1
   name: CMDi
   image: skylergrandel/pwncollege_eyetracking:latest
-- id: auth-bypass-param
+- id: cmdi-ls-semicolon-2
+  name: CMDi
+  image: skylergrandel/pwncollege_eyetracking:latest
+- id: auth-bypass-param-1
   name: Authentication Bypass
   image: skylergrandel/pwncollege_eyetracking:latest
-- id: sqli-pin
+- id: auth-bypass-param-2
+  name: Authentication Bypass
+  image: skylergrandel/pwncollege_eyetracking:latest
+- id: sqli-pin-1
   name: SQLi
   image: skylergrandel/pwncollege_eyetracking:latest
   auxiliary:
     pwnshop:
       challenge: SQLInjectionPin
-- id: xss-stored-alert
+- id: sqli-pin-2
+  name: SQLi
+  image: skylergrandel/pwncollege_eyetracking:latest
+  auxiliary:
+    pwnshop:
+      challenge: SQLInjectionPin
+- id: xss-stored-alert-1
+  name: XSS
+  image: skylergrandel/pwncollege_eyetracking:latest
+  auxiliary:
+    pwnshop:
+      challenge: XSSStoredAlert
+- id: xss-stored-alert-2
   name: XSS
   image: skylergrandel/pwncollege_eyetracking:latest
   auxiliary:

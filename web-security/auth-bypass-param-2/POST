@@ -1,0 +1,26 @@
+db = TemporaryDB()
+db.execute("""CREATE TABLE users AS SELECT "admin" AS username, ? as password""", [os.urandom(8)])
+db.execute("""INSERT INTO users SELECT "guest" as username, "password" as password""")
+
+
+@app.route("/", methods=["POST"])
+def challenge_post():
+
+
+
+    username = flask.request.form.get("username")
+    password = flask.request.form.get("password")
+    if not username:
+        flask.abort(400, "Missing `username` form parameter")
+    if not password:
+        flask.abort(400, "Missing `password` form parameter")
+        
+
+
+    user = db.execute("SELECT rowid, * FROM users WHERE username = ? AND password = ?", (username, password)).fetchone()
+    if not user:
+        flask.abort(403, "Invalid username or password")
+
+    
+    return flask.redirect(f"""{flask.request.path}?session_user={username}""")
+    

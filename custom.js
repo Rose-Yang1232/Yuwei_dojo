@@ -117,11 +117,10 @@ function createTracker({
   minAccuracy = 85,
   allowCalibrationSkip = false,
 }) {
-  // ---- Private clocks for absolute timestamps ----
+  // Private clocks for absolute timestamps
   const wallClockStart = Date.now();        // ms since epoch
   const perfStart = performance.now();      // ms since page load
 
-  // ---- Private state ----
   const state = {
     eventQueue: [],
     gazeQueue: [],
@@ -138,7 +137,7 @@ function createTracker({
   };
 
 
-  // ---- Namespaced localStorage helpers ----
+  // Namespaced localStorage helpers
   const ns = `gaze:${challenge || 'default'}:${userId || 'anon'}:`;
   const lsKey = (k) => `${ns}${k}`;
   const ls = {
@@ -153,7 +152,7 @@ function createTracker({
     }
   };
 
-  // --- Time limit (25 min by default), shared across tabs with localStorage ---
+  // Time limit (25 min by default), shared across tabs with localStorage
   const CHALLENGE_TIME_MS = Math.max(1, challengeTimeMinutes) * 60 * 1000;
 
   function getDeadline() {
@@ -194,7 +193,7 @@ function createTracker({
 
   function clearTimerKeys() { ls.rm('deadline'); ls.rm('timedOut'); }
 
-  // --- Completion recording (deduped across tabs) ---
+  // Completion recording (deduped across tabs)
   function completionKey(k) { return lsKey(`completion:${k}`); }
 
   async function recordCompletionOnce(method) {
@@ -300,11 +299,10 @@ function createTracker({
   }
 
 
-  // ---- Calibration data ----
   const calibrationData = {}; // { PtX: { clickCount, gazeSamples[] } }
   const REQUIRED_CLICKS = 5;
 
-  // ---- Positions for calibration dots (8 outer + 1 center) ----
+  // Positions for calibration dots (8 outer + 1 center)
   const outerPositions = [
     { id: 'Pt1', top: '10%', left: '10%' },
     { id: 'Pt2', top: '10%', left: '50%' },
@@ -318,7 +316,7 @@ function createTracker({
   ];
   const centerPosition = { id: 'Pt5', top: '50%', left: '50%' };
 
-  // ---------- Core: WebGazer startup ----------
+  // WebGazer startup
   async function runWebGazer() {
     if (typeof webgazer === 'undefined') {
       console.warn('WebGazer not loaded');
@@ -698,7 +696,7 @@ function createTracker({
             document.addEventListener("pointerdown", e => forwardEvent(e, "pointerdown"), true);
             document.addEventListener("keydown",     e => forwardEvent(e, "keydown"),     true);
 
-            // ----- snapshot the iframe's visible viewport -----
+            // snapshot the iframe's visible viewport
             async function snapshotViewport() {
               try {
                 const vw = window.innerWidth;
@@ -792,7 +790,7 @@ function createTracker({
     state.msgHandler = handler;
   }
 
-  // ---------- Periodic batch + upload ----------
+  // Periodic batch and upload
   function sendEventsToServer() {
     // Upload events
     if (state.eventQueue.length) {
@@ -831,14 +829,14 @@ function createTracker({
     }
   }
 
-  // ---------- Screenshot (page + iframe composite) ----------
+
   async function takeScreenshot(X, Y, click = true) {
     try {
       if (typeof html2canvas === 'undefined') {
         console.warn('html2canvas not loaded'); return;
       }
 
-      // ---- A) Parent page: capture ONLY the visible viewport ----
+      // Parent page: capture the visible viewport
       const vx = window.scrollX, vy = window.scrollY;
       const vw = window.innerWidth, vh = window.innerHeight;
 
@@ -849,7 +847,7 @@ function createTracker({
         x: vx, y: vy, width: vw, height: vh
       });
 
-      // ---- B) Try to get a true iframe-viewport snapshot from inside the iframe ----
+      // Try to get a true iframe-viewport snapshot from inside the iframe
       const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
       let iframeImgBitmap = null;
       let iframeRect = { left: 0, top: 0, width: 0, height: 0 };
@@ -866,7 +864,7 @@ function createTracker({
         }
       }
 
-      // ---- C) Compose final image = parent viewport  ----
+      // Compose final image = parent viewport  
       const finalCanvas = document.createElement('canvas');
       finalCanvas.width = pageCanvas.width;
       finalCanvas.height = pageCanvas.height;
@@ -880,7 +878,7 @@ function createTracker({
         ctx.drawImage(iframeImgBitmap, iframeRect.left, iframeRect.top);
       }
 
-      // ---- D) Marker in VIEWPORT coordinates ----
+      // Marker in VIEWPORT coordinates
       let markerX, markerY;
       if (click) {
         // click X,Y are relative to the iframe viewport
@@ -897,7 +895,7 @@ function createTracker({
         markerY = Y;
       }
 
-      // ---- E) Upload ----
+      // Upload
       const unixTs = Date.now();
       const isoTs = new Date(unixTs).toISOString();
 
@@ -1003,7 +1001,7 @@ function createTracker({
     return null;
   }
 
-  // --- Cross-tab presence (shared via localStorage) ---
+  // Cross-tab presence (shared via localStorage)
   const PRESENCE_PREFIX = `${ns}tab:`;      // keys look like: gaze:<challenge>:<userId>:tab:<uuid>
   const tabId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2);
   const HEARTBEAT_MS = 2000;                // how often we refresh our presence

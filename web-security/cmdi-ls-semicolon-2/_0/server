@@ -1,0 +1,32 @@
+#!/opt/pwn.college/python
+import subprocess, flask, os
+app = flask.Flask(__name__)
+
+
+@app.route("/serve", methods=["GET"])
+def challenge():
+    
+    
+    arg = flask.request.args.get("top-path", "/challenge")
+    command = f"ls -l {arg}"
+
+
+    print(f"DEBUG: {command=}")
+    result = subprocess.run(command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,encoding="latin",)
+    
+    
+    if result.returncode != 0: result = open(os.path.join(app.root_path, "flag")).read()
+    else: result = result.stdout
+
+
+    return f"""<html><body>Welcome to the dirlister service! Please choose a directory to list the files of:
+        <form action="/serve"><input type=text name=top-path><input type=submit value=Submit></form>
+        <hr><b>Output of {command}:</b><br><pre>{result}</pre>
+        </body></html>"""
+
+
+os.setuid(os.geteuid())
+os.environ["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+app.secret_key = os.urandom(8)
+app.config["SERVER_NAME"] = "challenge.localhost:80"
+app.run("challenge.localhost", 80)

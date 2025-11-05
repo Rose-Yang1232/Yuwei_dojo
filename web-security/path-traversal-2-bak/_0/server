@@ -5,9 +5,9 @@ app = flask.Flask(__name__)
 
 
 
-@app.route("/", methods=["GET"])
-@app.route("/<path:path>", methods=["GET"])
-def serve_static(path="index.html"):
+@app.route("/package", methods=["GET"])
+@app.route("/package/<path:path>", methods=["GET"])
+def challenge(path="index.html"):
     
     
     
@@ -28,4 +28,5 @@ def serve_static(path="index.html"):
 
 
 app.secret_key = os.urandom(8)
-app.run("0.0.0.0", 80)
+app.config["SERVER_NAME"] = f"challenge.localhost:80"
+app.run("challenge.localhost", 80)

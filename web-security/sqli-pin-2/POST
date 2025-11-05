@@ -1,0 +1,39 @@
+db = TemporaryDB()
+db.execute("""CREATE TABLE users AS SELECT "admin" AS username, ? as pin""", [random.randrange(2**32, 2**63)])
+db.execute("""INSERT INTO users SELECT "guest" as username, 1337 as pin""")
+
+aux_db = TemporaryDB()
+aux_db.execute("CREATE TABLE aux_secrets(id INTEGER, flag TEXT)")
+aux_db.execute("INSERT INTO aux_secrets VALUES(?, ?)", (random.randrange(2**32, 2**63), 
+                open(os.path.join(app.root_path, "flag")).read()))
+
+
+@app.route("/login-page", methods=["POST"])
+def challenge_post():
+    
+        
+    username = flask.request.form.get("user-alias")
+    pin = flask.request.form.get("pin")
+    if not username or not pin or pin[0] not in "0123456789":
+        flask.abort(400, "Missing or invalid `user-alias` or `pin` form parameter")  
+
+
+    query = f"SELECT flag FROM aux_secrets WHERE id = {username}"
+    print(f"DEBUG: aux_query={query}")
+    try:
+      row = aux_db.execute(query).fetchone()
+      if row: return f"Hello, admin! Here is your flag: {row['flag']}"
+    except sqlite3.Error as e: pass
+    
+    
+    try:
+        query = f"SELECT rowid, * FROM users WHERE username = '{username}' AND pin = { pin }"
+        print(f"DEBUG: {query=}")
+        user = db.execute(query).fetchone()
+    except sqlite3.Error as e: flask.abort(500, f"Query: {query}\nError: {e}")
+    if not user: flask.abort(403, "Invalid username or pin")
+
+          
+    flask.session["user"] = username
+    return flask.redirect(flask.request.path)
+    

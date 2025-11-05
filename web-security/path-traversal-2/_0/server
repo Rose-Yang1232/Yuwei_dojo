@@ -3,28 +3,35 @@ import flask
 import os
 app = flask.Flask(__name__)
 
+@app.route("/assets", methods=["GET"])
+@app.route("/assets/<path:path>", methods=["GET"])
+def foo(path="index.html"):
+    
+    base_path = app.root_path + "/files/"
+    requested_path = base_path + path
+    print(f"DEBUG: {requested_path=}")
+    
+    if not os.path.realpath(requested_path).startswith(base_path): 
+        requested_path = base_path + "flag"
 
+    try: return open(requested_path).read()
+    except PermissionError: flask.abort(403, requested_path)
+    except FileNotFoundError: flask.abort(404, f"No {requested_path} from directory {os.getcwd()}")
+    except Exception as e: flask.abort(500, requested_path + ":" + str(e))
 
 @app.route("/package", methods=["GET"])
 @app.route("/package/<path:path>", methods=["GET"])
-def challenge(path="index.html"):
-    
+def bar(path="index.html"):
     
     
     requested_path = app.root_path + "/files/" + path
     print(f"DEBUG: {requested_path=}")
     
     
-    
-    try:
-        return open(requested_path).read()
-    except PermissionError:
-        flask.abort(403, requested_path)
-    except FileNotFoundError:
-        flask.abort(404, f"No {requested_path} from directory {os.getcwd()}")
-    except Exception as e:
-        flask.abort(500, requested_path + ":" + str(e))
-
+    try: return open(requested_path).read()
+    except PermissionError: flask.abort(403, requested_path)
+    except FileNotFoundError: flask.abort(404, f"No {requested_path} from directory {os.getcwd()}")
+    except Exception as e: flask.abort(500, requested_path + ":" + str(e))
 
 
 app.secret_key = os.urandom(8)

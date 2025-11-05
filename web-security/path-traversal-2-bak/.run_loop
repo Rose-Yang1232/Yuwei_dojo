@@ -31,7 +31,7 @@ monitor_locked_terminals() {
         TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
         if [ -z "$TERM1_WIN" ]; then
             # Respawn Terminal 1 if it's missing.
-            xfce4-terminal --title=LockedTerminal1 --execute bash -c 'cd /challenge; cat server; exec bash'
+            xfce4-terminal --title=LockedTerminal1 --execute bash -c 'echo Server running on http://challenge.localhost:80 Use the right terminal to view the server code and use curl here!; exec bash'
             sleep 1
             TERM1_WIN=$(wmctrl -l | grep "LockedTerminal1" | head -n1 | awk '{print $1}')
         fi
@@ -42,7 +42,7 @@ monitor_locked_terminals() {
         TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
         if [ -z "$TERM2_WIN" ]; then
             # Respawn Terminal 2 if it's missing.
-            xfce4-terminal --title=LockedTerminal2 --execute bash -c 'echo Server running on http://challenge.localhost:80 Use the left terminal to view the server code and use curl here!; exec bash'
+            xfce4-terminal --title=LockedTerminal2 --execute bash -c 'cd /challenge; cat server; exec bash'
             sleep 1
             TERM2_WIN=$(wmctrl -l | grep "LockedTerminal2" | head -n1 | awk '{print $1}')
         fi

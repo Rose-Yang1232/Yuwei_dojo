@@ -3,18 +3,17 @@ Click `Workspace` in the ribbon above after starting the challenge.
 
 # Challenge Instructions
 
-This challenge will explore the intersection of Linux path resolution, when done naively, and unexpected web requests from an attacker.
-We've implemented a simple web server for you --- it will serve up files from /challenge/files over HTTP.
-Can you trick it into giving you the flag?
+This application is vulnerable to a _SQL injection_.
+A SQL injection, conceptually, is to SQL what a Command Injection is to the shell.
+In Command Injections, the application assembled a command string, and a gap between the developer's intent and the command shell's actual functionality enabled attackers to carry out actions unintended by the attacker.
+A SQL injection is the same: the developer builds the application to make SQL queries for certain goals, but because of the way these queries are assembled by the application logic, the resulting actions of the SQL query, when executed by the database, can be disastrous from a security perspective.
+
+The quintessential SQL injection adds a condition so that an application can succeed without knowing the password.
+How can you accomplish this?
 
 The webserver program is `/challenge/server`.
-When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can talk to it over HTTP (using the terminal that will appear on the right).
-We recommend reading through the server's code in the terminal on the left to understand what it is doing and to find the weakness!
-
-**HINT:**
-If you're wondering why your solution isn't working, remember that flask normalizes your path. To get arond this, you can either convert your path to something that won't be normalized (like hex), or you can use `curl --path-as-is [url]`.
-
-
+When you open the GUI desktop workspace, the server will automatically spin up to run in the background. You can access it using the firefox window at the bottom of the screen.
+We recommend reading through the server's code (particularly the endpoints) in the left and right terminals to understand what it is doing. From this, you can bypass this authentication to log in as the `admin` user and get the flag! Please note that the code in the windows has been *slightly* modified from the server code that is running the webpage so that the code you are reading will fit on the screen. It is not different in any way that will affect the exploit, however.
 
 ----
 
@@ -68,23 +67,21 @@ Thank you! Your participation helps us understand how hackers solve CTF challeng
 
 
 
-<div id="challenge-notice-1" style="display:none;"></div>
 
-
+<div id="challenge-notice-7" style="display:none;"></div>
 
 
 <script>
-// note: seems like jquery is not loaded at this point
 
   
-const tracker_1 = createTracker({
+const tracker_7 = createTracker({
   iframeId: 'workspace-iframe',
   iframeSelector: '#workspace-iframe, #workspace_iframe',
-  challenge: 'path-traversal-1',
-  bannerElId: 'challenge-notice-1', // div above for checking if the user is allowed to take this challenge  
+  challenge: 'sqli-pin',
+  bannerElId: 'challenge-notice-7', // div above for checking if the user is allowed to take this challenge  
   // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
-  expectedContainerId: 'challenges-body-1', 
-  requireVersionMatch: true,
+  expectedContainerId: 'challenges-body-7', 
+  requireVersionMatch: false,
   challengeTimeMinutes: 25,
   urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
   userId: init.userId,             // pwn.college provides this
@@ -94,11 +91,11 @@ const tracker_1 = createTracker({
 });
 
 // Show/hide the banner based on survey/version BEFORE attempting to start anything
-tracker_1.checkBanner();
+tracker_7.checkBanner();
 
 
 // One call; it will wait for the iframe, start when it appears,
 // stop if it disappears, and start again if it returns.
-tracker_1.autoStart();
+tracker_7.autoStart();
   
 </script>

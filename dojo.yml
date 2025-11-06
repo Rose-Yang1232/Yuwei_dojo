@@ -27,9 +27,9 @@ description: |
 
   An optional practice challenge is also available.
 
-  `In order to receive compensation`, you must solve the challenge or give a good faith attempt to solve the challenge. You must also complete the survey in the google form above. Completing these steps will result in a compensation of `$TODO`
+  `In order to receive compensation`, you must solve the challenge or give a good faith attempt to solve the challenge (spending 25 minutes on the attempt before giving up). You must also complete the survey in the google form above. Completing these steps will result in a compensation of `$TODO`
 
-  All entries must be submitted by August 31, 2025.
+  
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -44,6 +44,7 @@ description: |
       }
     }); 
   </script>
+# All entries must be submitted by August 31, 2025.
 type: example
 #allow_iframe: false
 award:

@@ -48,7 +48,7 @@ def challenge_post():
     if pin[0] not in "0123456789":
         flask.abort(400, "Invalid pin")
 
-    query = f"SELECT flag FROM aux_secrets WHERE id = {username}"
+    query = f"SELECT flag FROM aux_secrets WHERE id = '{username}'"
     print(f"DEBUG: aux_query={query}")
     try:
       row = aux_db.execute(query).fetchone()

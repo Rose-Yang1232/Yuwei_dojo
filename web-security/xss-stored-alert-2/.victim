@@ -25,6 +25,14 @@ while True:
     try: browser.get(URL)
     except Exception: time.sleep(.5); continue
 
+    try:
+    browser.execute_script("window.alert=function(){};window.confirm=function(){return true};window.prompt=function(){return null};")
+    except Exception:
+        try: browser.switch_to.alert.accept()
+        except Exception: pass
+
+
+
     # wait up to 1s for localStorage key to be set to '1'
     try: WebDriverWait(browser,1).until(lambda d: d.execute_script(f"return localStorage.getItem('{KEY}')==='1337'"))
     except TimeoutException: time.sleep(.5); continue

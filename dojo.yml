@@ -25,7 +25,7 @@ description: |
 
   For each challenge, carefully read the instructions in the description, then interact with the target application to discover and capture the flag. Your gaze data, keystrokes, and mouse activity will be logged to help us better understand problem-solving strategies and the impact of AI support.
 
-  An optional practice challenge is also available.
+  An optional practice challenge is also available. Challenges in this dojo are fairly resource intensive, so we recommend closing out of other windows and tabs before starting a challenge. 
 
   `In order to receive compensation`, you must solve the challenge or give a good faith attempt to solve the challenge (spending 25 minutes on the attempt before giving up). You must also complete the survey in the google form above. Completing these steps will result in a compensation of `$TODO`
 

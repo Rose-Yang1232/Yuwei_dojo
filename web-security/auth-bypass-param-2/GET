@@ -15,7 +15,7 @@ def challenge_get():
             
 
 
-        else if username == "pwn":
+        elif username == "pwn":
             page += "<br>pwnd: " + open("/flag").read()
 
 

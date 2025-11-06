@@ -53,7 +53,7 @@ def challenge_get():
         page = f"<html><body>Hello, {username}!"
         if username == "admin":
             page += "<br>Here is your flag: " + open("./flag").read()
-        else if username == "pwn":
+        elif username == "pwn":
             page += "<br>pwnd: " + open("/flag").read()
 
     return page + """

@@ -724,7 +724,7 @@ function createTracker({
                     -rect.top    // dy
                   );
 
-                  blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.7));
+                  blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.4));
                 } else if (window.html2canvas) {
                   const scale = 0.5; // smaller = faster
                   const target = document.documentElement;
@@ -739,7 +739,7 @@ function createTracker({
                     height: vh,
                   });
 
-                  const blob = await new Promise(res => cnv.toBlob(res, 'image/jpeg', 0.6));
+                  const blob = await new Promise(res => cnv.toBlob(res, 'image/jpeg', 0.4));
 
                   const buf = await blob.arrayBuffer();
                   window.parent.postMessage(
@@ -753,7 +753,7 @@ function createTracker({
                   off.width = vw; off.height = vh;
                   const ctx = off.getContext('2d');
                   ctx.fillStyle = '#fff'; ctx.fillRect(0,0,vw,vh);
-                  blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.7));
+                  blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.4));
                 }
 
                 const buf = await blob.arrayBuffer();
@@ -932,7 +932,7 @@ function createTracker({
             finalCanvas.width = finalCanvas.height = 0;
           })
           .catch(err => console.error('Error uploading screenshot:', err));
-      }, 'image/jpeg', 0.7);
+      }, 'image/jpeg', 0.4);
 
     } catch (err) {
       console.error('Screenshot capture failed:', err);

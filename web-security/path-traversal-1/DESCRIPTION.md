@@ -67,38 +67,3 @@ We’ll collect only your gaze coordinates (no video is saved), to study how hac
 Thank you! Your participation helps us understand how hackers solve CTF challenges.
 
 
-
-<div id="challenge-notice-1" style="display:none;"></div>
-
-
-
-
-<script>
-// note: seems like jquery is not loaded at this point
-
-  
-const tracker_1 = createTracker({
-  iframeId: 'workspace-iframe',
-  iframeSelector: '#workspace-iframe, #workspace_iframe',
-  challenge: 'path-traversal-1',
-  bannerElId: 'challenge-notice-1', // div above for checking if the user is allowed to take this challenge  
-  // for checking if this is the challenge that was started; if only one challenge in the module, leave it null
-  expectedContainerId: 'challenges-body-1', 
-  requireVersionMatch: true,
-  challengeTimeMinutes: 25,
-  urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
-  userId: init.userId,             // pwn.college provides this
-  tickMs: 5000,                    // batch interval
-  minAccuracy: 85,                  // calibration threshold
-  allowCalibrationSkip: true,
-});
-
-// Show/hide the banner based on survey/version BEFORE attempting to start anything
-tracker_1.checkBanner();
-
-
-// One call; it will wait for the iframe, start when it appears,
-// stop if it disappears, and start again if it returns.
-tracker_1.autoStart();
-  
-</script>

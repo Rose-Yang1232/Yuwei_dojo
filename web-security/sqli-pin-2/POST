@@ -18,7 +18,7 @@ def challenge_post():
         flask.abort(400, "Missing or invalid `user-alias` or `pin` form parameter")  
 
 
-    query = f"SELECT flag FROM aux_secrets WHERE id = {username}"
+    query = f"SELECT flag FROM aux_secrets WHERE id = '{username}'"
     print(f"DEBUG: aux_query={query}")
     try:
       row = aux_db.execute(query).fetchone()

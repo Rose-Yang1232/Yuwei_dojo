@@ -726,27 +726,12 @@ function createTracker({
 
                   blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.7));
                 } else if (window.html2canvas) {
-                  const scale = 0.5; // smaller = faster
-                  const target = document.documentElement;
-
-                  const cnv = await window.html2canvas(target, {
-                    logging: false,
-                    useCORS: true,
-                    scale,
-                    x: window.scrollX,
-                    y: window.scrollY,
-                    width: vw,
-                    height: vh,
+                  // Fall back to DOM render of only the visible iframe viewport
+                  const cnv = await window.html2canvas(document.documentElement, {
+                    logging: false, useCORS: true, scale: 1,
+                    x: window.scrollX, y: window.scrollY, width: vw, height: vh
                   });
-
-                  const blob = await new Promise(res => cnv.toBlob(res, 'image/jpeg', 0.6));
-
-                  const buf = await blob.arrayBuffer();
-                  window.parent.postMessage(
-                    { type: 'IFRAME_SNAPSHOT', buf, w: cnv.width, h: cnv.height, scale },
-                    '*',
-                    [buf]
-                  );
+                  blob = await new Promise(res => cnv.toBlob(res, 'image/jpeg', 0.7));
                 } else {
                   // Last-ditch: rasterize the body element size-locked to the viewport
                   const off = document.createElement('canvas');
@@ -864,14 +849,22 @@ function createTracker({
 
       // Try to get a true iframe-viewport snapshot from inside the iframe
       const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
+      let iframeImgBitmap = null;
       let iframeRect = { left: 0, top: 0, width: 0, height: 0 };
-      let iframeSnapshot = null;
 
       if (iframe && iframe.contentWindow) {
         iframeRect = iframe.getBoundingClientRect();
-        iframeSnapshot = await requestIframeSnapshot(iframe, 3000);
+
+        // Ask the iframe to snapshot itself
+        const snapshot = await requestIframeSnapshot(iframe, 3000 /*ms timeout*/);
+        if (snapshot) {
+          iframeImgBitmap = snapshot.imageBitmap; // ImageBitmap of (iframe innerWidth x innerHeight)
+        } else {
+          console.warn('Iframe did not respond to snapshot; skipping iframe layer.');
+        }
       }
 
+      // Compose final image = parent viewport  
       const finalCanvas = document.createElement('canvas');
       finalCanvas.width = pageCanvas.width;
       finalCanvas.height = pageCanvas.height;
@@ -880,17 +873,9 @@ function createTracker({
       // Base: parent viewport
       ctx.drawImage(pageCanvas, 0, 0);
 
-      // Overlay: iframe snapshot, scaled to match iframeRect
-      if (iframeSnapshot && iframeSnapshot.imageBitmap) {
-        const srcW = iframeSnapshot.width;
-        const srcH = iframeSnapshot.height;
-
-        ctx.drawImage(
-          iframeSnapshot.imageBitmap,
-          0, 0, srcW, srcH,                           // source rect (scaled image)
-          iframeRect.left, iframeRect.top,            // dest x,y in parent coords
-          iframeRect.width, iframeRect.height         // dest size = real iframe size
-        );
+      // Overlay: iframe viewport pixels positioned at its on-screen rect
+      if (iframeImgBitmap) {
+        ctx.drawImage(iframeImgBitmap, iframeRect.left, iframeRect.top);
       }
 
       // Marker in VIEWPORT coordinates
@@ -942,55 +927,52 @@ function createTracker({
   function requestIframeSnapshot(iframe, timeoutMs = 3000) {
     return new Promise((resolve) => {
       let done = false;
-
-      function finish(val) {
+      const to = setTimeout(() => {
         if (done) return;
         done = true;
-        resolve(val);
-      }
-
-      const to = setTimeout(() => {
-        window.removeEventListener('message', onMsg);
-        finish(null);
+        resolve(null);
       }, timeoutMs);
 
       function onMsg(ev) {
+        //if (ev.source !== iframe.contentWindow) return;
         const d = ev.data;
         if (!d || (d.type !== 'IFRAME_SNAPSHOT' && d.type !== 'IFRAME_SNAPSHOT_ERROR')) return;
 
         window.removeEventListener('message', onMsg);
         clearTimeout(to);
+        if (done) return;
+        done = true;
+
         if (d.type === 'IFRAME_SNAPSHOT_ERROR') {
           console.warn('Iframe snapshot error:', d.error);
-          finish(null);
+          resolve(null);
           return;
         }
 
-        const blob = new Blob([d.buf], { type: 'image/jpeg' });
+        // Rebuild Blob from ArrayBuffer and create an ImageBitmap
+        const blob = new Blob([d.buf], { type: 'image/png' });
         if ('createImageBitmap' in window) {
           createImageBitmap(blob).then((imageBitmap) => {
-            finish({ imageBitmap, width: d.w, height: d.h, scale: d.scale || 1 });
-          }).catch(() => finish(null));
+            resolve({ imageBitmap, width: d.w, height: d.h });
+          }).catch(() => resolve(null));
         } else {
+          // Fallback to HTMLImageElement
           const url = URL.createObjectURL(blob);
           const img = new Image();
           img.onload = () => {
             URL.revokeObjectURL(url);
-            finish({ imageBitmap: img, width: d.w, height: d.h, scale: d.scale || 1 });
+            resolve({ imageBitmap: img, width: d.w, height: d.h });
           };
-          img.onerror = () => {
-            URL.revokeObjectURL(url);
-            finish(null);
-          };
+          img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
           img.src = url;
         }
       }
 
       window.addEventListener('message', onMsg);
+      // Kick off the request
       iframe.contentWindow.postMessage({ type: 'REQUEST_IFRAME_SNAPSHOT' }, '*');
     });
   }
-
 
   function getExpectedContainer() {
     return expectedContainerId ? document.getElementById(expectedContainerId) : null;

@@ -869,7 +869,7 @@ function createTracker({
 
       if (iframe && iframe.contentWindow) {
         iframeRect = iframe.getBoundingClientRect();
-        iframeSnapshot = await requestIframeSnapshot(iframe, 3000);
+        iframeSnapshot = await requestIframeSnapshot(iframe, 30000);
       }
 
       const finalCanvas = document.createElement('canvas');

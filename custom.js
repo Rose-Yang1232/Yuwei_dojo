@@ -120,7 +120,6 @@ function createTracker({
   // Private clocks for absolute timestamps
   const wallClockStart = Date.now();        // ms since epoch
   const perfStart = performance.now();      // ms since page load
-  const SCREENSHOT_SCALE = 0.5;
 
   const state = {
     eventQueue: [],
@@ -374,7 +373,7 @@ function createTracker({
         if (!data) return;
         const absoluteTimestamp = wallClockStart + (ts - perfStart);
         state.gazeQueue.push({
-          x: data.x, y: data.y, scale: SCREENSHOT_SCALE, timestamp: ts, absoluteTimestamp
+          x: data.x, y: data.y, timestamp: ts, absoluteTimestamp
         });
       })
       .begin();
@@ -531,7 +530,7 @@ function createTracker({
           .setGazeListener((data, ts) => {
             if (!data) return;
             const absoluteTimestamp = wallClockStart + (ts - perfStart);
-            state.gazeQueue.push({ x: data.x, y: data.y, scale: SCREENSHOT_SCALE, timestamp: ts, absoluteTimestamp });
+            state.gazeQueue.push({ x: data.x, y: data.y, timestamp: ts, absoluteTimestamp });
           })
           .begin();
 
@@ -685,114 +684,76 @@ function createTracker({
         const script = doc.createElement('script');
         script.id = 'eventForwarder';
         script.textContent = `
-            if (!window._forwarderSetup) {
-              window._forwarderSetup = true;
+          if (!window._forwarderSetup) {
+            window._forwarderSetup = true;
 
-              function forwardEvent(event, type) {
-                const data = { type: "iframeClick", eventType: type, timestamp: Date.now() };
-                if (type === "keydown") data.key = event.key;
-                else { data.x = event.clientX; data.y = event.clientY; }
-                window.parent.postMessage(data, "*");
-              }
-              document.addEventListener("pointerdown", function(e){ forwardEvent(e, "pointerdown"); }, true);
-              document.addEventListener("keydown",     function(e){ forwardEvent(e, "keydown");     }, true);
-
-              // snapshot the iframe's visible viewport
-              async function snapshotViewport(scale) {
-                try {
-                  var vw = window.innerWidth;
-                  var vh = window.innerHeight;
-
-                  // Prefer the noVNC canvas if present; else fall back to html2canvas of the viewport.
-                  var canvas = document.querySelector('#noVNC_canvas, canvas.noVNC_canvas, #screen') || null;
-
-                  var blob;
-                  var outWidth;
-                  var outHeight;
-
-                  if (canvas && canvas.getContext) {
-                    // Capture the exact pixels visible on screen, downscaled.
-                    var rect = canvas.getBoundingClientRect(); // relative to iframe viewport
-
-                    if (!_snapshotCanvas) {
-                      _snapshotCanvas = document.createElement('canvas');
-                    }
-                    _snapshotCanvas.width  = Math.round(vw * scale);
-                    _snapshotCanvas.height = Math.round(vh * scale);
-
-                    var ctx = _snapshotCanvas.getContext('2d');
-                    ctx.setTransform(scale, 0, 0, scale, 0, 0); // scale drawing
-
-                    // Draw the source canvas so that the visible part lands in (0,0)-(vw*scale, vh*scale)
-                    ctx.drawImage(
-                      canvas,
-                      -rect.left,
-                      -rect.top
-                    );
-
-                    outWidth = _snapshotCanvas.width;
-                    outHeight = _snapshotCanvas.height;
-
-                    blob = await new Promise(function(res){
-                      _snapshotCanvas.toBlob(res, 'image/jpeg', 0.7);
-                    });
-                  } else if (window.html2canvas) {
-                    // Fall back to DOM render of only the visible iframe viewport, downscaled
-                    var cnv = await window.html2canvas(document.documentElement, {
-                      logging: false,
-                      useCORS: true,
-                      scale: scale,
-                      x: window.scrollX,
-                      y: window.scrollY,
-                      width: vw,
-                      height: vh
-                    });
-
-                    outWidth = cnv.width;
-                    outHeight = cnv.height;
-
-                    blob = await new Promise(function(res){
-                      cnv.toBlob(res, 'image/jpeg', 0.7);
-                    });
-                  } else {
-                    // Last-ditch: rasterize a blank view with the right size
-                    if (!_snapshotCanvas) {
-                      _snapshotCanvas = document.createElement('canvas');
-                    }
-                    _snapshotCanvas.width  = Math.round(vw * scale);
-                    _snapshotCanvas.height = Math.round(vh * scale);
-
-                    var ctx2 = _snapshotCanvas.getContext('2d');
-                    ctx2.fillStyle = '#fff';
-                    ctx2.fillRect(0, 0, _snapshotCanvas.width, _snapshotCanvas.height);
-
-                    outWidth = _snapshotCanvas.width;
-                    outHeight = _snapshotCanvas.height;
-
-                    blob = await new Promise(function(res){
-                      _snapshotCanvas.toBlob(res, 'image/jpeg', 0.7);
-                    });
-                  }
-
-                  var buf = await blob.arrayBuffer();
-                  window.parent.postMessage(
-                    { type: 'IFRAME_SNAPSHOT', buf: buf, w: outWidth, h: outHeight, scale: scale },
-                    '*',
-                    [buf]
-                  );
-                } catch (e) {
-                  window.parent.postMessage({ type: 'IFRAME_SNAPSHOT_ERROR', error: String(e) }, '*');
-                }
-              }
-
-              // Listen for snapshot requests from parent
-              window.addEventListener('message', function(e) {
-                if (e && e.data && e.data.type === 'REQUEST_IFRAME_SNAPSHOT') {
-                  snapshotViewport(e.data.scale);
-                }
-              });
+            function forwardEvent(event, type) {
+              const data = { type: "iframeClick", eventType: type, timestamp: Date.now() };
+              if (type === "keydown") data.key = event.key;
+              else { data.x = event.clientX; data.y = event.clientY; }
+              window.parent.postMessage(data, "*");
             }
-          `;
+            document.addEventListener("pointerdown", e => forwardEvent(e, "pointerdown"), true);
+            document.addEventListener("keydown",     e => forwardEvent(e, "keydown"),     true);
+
+            // snapshot the iframe's visible viewport
+            async function snapshotViewport() {
+              try {
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+
+                // Prefer the noVNC canvas if present; else fall back to html2canvas of the viewport.
+                const canvas = document.querySelector('#noVNC_canvas, canvas.noVNC_canvas, #screen, canvas') || null;
+
+                let blob;
+
+                if (canvas && canvas.getContext) {
+                  // Capture the exact pixels visible on screen.
+                  // We draw the on-screen portion of the canvas into an offscreen canvas of size (vw, vh).
+                  // Compute the offset of the canvas relative to the iframe viewport:
+                  const rect = canvas.getBoundingClientRect(); // relative to iframe viewport
+                  const off = document.createElement('canvas');
+                  off.width = vw;
+                  off.height = vh;
+                  const ctx = off.getContext('2d');
+
+                  // Draw the source canvas so that the *visible* part lands at (0,0)-(vw,vh)
+                  ctx.drawImage(
+                    canvas,
+                    -rect.left,  // dx
+                    -rect.top    // dy
+                  );
+
+                  blob = await new Promise(res => off.toBlob(res, 'image/png'));
+                } else if (window.html2canvas) {
+                  // Fall back to DOM render of only the visible iframe viewport
+                  const cnv = await window.html2canvas(document.documentElement, {
+                    logging: false, useCORS: true, scale: 1,
+                    x: window.scrollX, y: window.scrollY, width: vw, height: vh
+                  });
+                  blob = await new Promise(res => cnv.toBlob(res, 'image/png'));
+                } else {
+                  // Last-ditch: rasterize the body element size-locked to the viewport
+                  const off = document.createElement('canvas');
+                  off.width = vw; off.height = vh;
+                  const ctx = off.getContext('2d');
+                  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,vw,vh);
+                  blob = await new Promise(res => off.toBlob(res, 'image/png'));
+                }
+
+                const buf = await blob.arrayBuffer();
+                window.parent.postMessage({ type: 'IFRAME_SNAPSHOT', buf, w: vw, h: vh }, '*', [buf]);
+              } catch (e) {
+                window.parent.postMessage({ type: 'IFRAME_SNAPSHOT_ERROR', error: String(e) }, '*');
+              }
+            }
+
+            // Listen for snapshot requests from parent
+            window.addEventListener('message', (e) => {
+              if (e?.data?.type === 'REQUEST_IFRAME_SNAPSHOT') snapshotViewport();
+            });
+          }
+        `;
         doc.head.appendChild(script);
       } catch (err) {
         console.warn('Injection failed:', err);
@@ -809,11 +770,11 @@ function createTracker({
     });
     obs.observe(iframe, { attributes: true });
 
+    // save cleanup
     state.cleanupFns.push(() => iframe.removeEventListener('load', injectScript));
     state.iframeMutationObserver = obs;
-    return injectScript;
+    return injectScript; // not used externally, but handy if needed
   }
-
 
   // Parent window message handler
   function setupMessageHandler() {
@@ -849,7 +810,7 @@ function createTracker({
       if (!state.startedFlag) {
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
-        state.gazeQueue.unshift({ x: cx, y: cy, scale: SCREENSHOT_SCALE, timestamp: -1, absoluteTimestamp: -1 });
+        state.gazeQueue.unshift({ x: cx, y: cy, timestamp: -1, absoluteTimestamp: -1 });
         state.startedFlag = true;
         ls.set('started', 'true');
       }
@@ -872,133 +833,100 @@ function createTracker({
   async function takeScreenshot(X, Y, click = true) {
     try {
       if (typeof html2canvas === 'undefined') {
-        console.warn('html2canvas not loaded');
-        return;
+        console.warn('html2canvas not loaded'); return;
       }
 
-      // Parent viewport in CSS pixels
-      const vx = window.scrollX;
-      const vy = window.scrollY;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      // Parent page: capture the visible viewport
+      const vx = window.scrollX, vy = window.scrollY;
+      const vw = window.innerWidth, vh = window.innerHeight;
 
-      // Capture the visible viewport at a downscaled resolution
       const pageCanvas = await html2canvas(document.documentElement, {
         logging: false,
         useCORS: true,
-        scale: SCREENSHOT_SCALE,
-        x: vx,
-        y: vy,
-        width: vw,
-        height: vh
+        scale: 1,
+        x: vx, y: vy, width: vw, height: vh
       });
 
-      // Try to get an iframe snapshot at the same scale
-      const iframe = resolveIframe
-        ? resolveIframe()
-        : document.querySelector('#workspace_iframe, #workspace-iframe');
-
+      // Try to get a true iframe-viewport snapshot from inside the iframe
+      const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
       let iframeImgBitmap = null;
       let iframeRect = { left: 0, top: 0, width: 0, height: 0 };
 
       if (iframe && iframe.contentWindow) {
-        iframeRect = iframe.getBoundingClientRect(); // viewport coords (CSS pixels)
+        iframeRect = iframe.getBoundingClientRect();
 
-        const snapshot = await requestIframeSnapshot(
-          iframe,
-          3000,
-          SCREENSHOT_SCALE
-        );
-
+        // Ask the iframe to snapshot itself
+        const snapshot = await requestIframeSnapshot(iframe, 3000 /*ms timeout*/);
         if (snapshot) {
-          iframeImgBitmap = snapshot.imageBitmap; // already rendered at SCREENSHOT_SCALE
+          iframeImgBitmap = snapshot.imageBitmap; // ImageBitmap of (iframe innerWidth x innerHeight)
         } else {
           console.warn('Iframe did not respond to snapshot; skipping iframe layer.');
         }
       }
 
-      // Final composited canvas (same size as pageCanvas)
+      // Compose final image = parent viewport  
       const finalCanvas = document.createElement('canvas');
       finalCanvas.width = pageCanvas.width;
       finalCanvas.height = pageCanvas.height;
       const ctx = finalCanvas.getContext('2d');
 
-      // Base: scaled parent viewport
+      // Base: parent viewport
       ctx.drawImage(pageCanvas, 0, 0);
 
-      // Overlay: scaled iframe snapshot placed at scaled iframe rect
+      // Overlay: iframe viewport pixels positioned at its on-screen rect
       if (iframeImgBitmap) {
-        const iframeDrawX = iframeRect.left * SCREENSHOT_SCALE;
-        const iframeDrawY = iframeRect.top * SCREENSHOT_SCALE;
-        ctx.drawImage(iframeImgBitmap, iframeDrawX, iframeDrawY);
+        ctx.drawImage(iframeImgBitmap, iframeRect.left, iframeRect.top);
       }
 
-      // Marker:
-      // - markerXViewport / markerYViewport: original viewport coords (for logging + analysis)
-      // - markerXCanvas / markerYCanvas: scaled coords used for drawing on the screenshot
-      let markerXViewport, markerYViewport;
-
-      if (click && iframeRect) {
+      // Marker in VIEWPORT coordinates
+      let markerX, markerY;
+      if (click) {
         // click X,Y are relative to the iframe viewport
-        markerXViewport = iframeRect.left + X;
-        markerYViewport = iframeRect.top + Y;
+        markerX = iframeRect.left + X;
+        markerY = iframeRect.top + Y;
+
+        ctx.beginPath();
+        ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = 'red';
+        ctx.fill();
       } else {
         // gaze X,Y are already viewport (client) coords
-        markerXViewport = X;
-        markerYViewport = Y;
+        markerX = X;
+        markerY = Y;
       }
 
-      const markerXCanvas = markerXViewport * SCREENSHOT_SCALE;
-      const markerYCanvas = markerYViewport * SCREENSHOT_SCALE;
-
-      ctx.beginPath();
-      ctx.arc(markerXCanvas, markerYCanvas, 5 * SCREENSHOT_SCALE, 0, 2 * Math.PI);
-      ctx.fillStyle = 'red';
-      ctx.fill();
-
+      // Upload
       const unixTs = Date.now();
       const isoTs = new Date(unixTs).toISOString();
 
       finalCanvas.toBlob((blob) => {
-        if (!blob) {
-          console.error('Failed to create screenshot blob');
-          return;
-        }
-
         const formData = new FormData();
-        formData.append('screenshot', blob, 'screenshot.jpg');
-        // IMPORTANT: X/Y are still viewport coords for eye-tracking alignment
-        formData.append('X', markerXViewport);
-        formData.append('Y', markerYViewport);
-        formData.append('scale', SCREENSHOT_SCALE); // so you can reverse-map if needed
+        formData.append('screenshot', blob, 'screenshot.png');
+        formData.append('X', markerX);
+        formData.append('Y', markerY);
         formData.append('userId', userId);
         formData.append('challenge', challenge);
         formData.append('click', click);
         formData.append('screenshot_unix', unixTs);
         formData.append('screenshot_iso', isoTs);
 
-        fetch(`${urlBasePath}save_screenshot.php`, {
-          method: 'POST',
-          mode: 'cors',
-          body: formData
-        })
-          .then((r) => r.json())
-          .then((data) => {
+        fetch(`${urlBasePath}save_screenshot.php`, { method: 'POST', mode: 'cors', body: formData })
+          .then(r => r.json())
+          .then(data => {
             console.log('Viewport screenshot upload successful:', data);
+            finalCanvas.width = finalCanvas.height = 0;
           })
-          .catch((err) => console.error('Error uploading screenshot:', err));
-      }, 'image/jpeg', 0.7); // JPEG is lighter than PNG
+          .catch(err => console.error('Error uploading screenshot:', err));
+      }, 'image/png');
 
     } catch (err) {
       console.error('Screenshot capture failed:', err);
     }
   }
 
-
-  function requestIframeSnapshot(iframe, timeoutMs = 3000, scale = 1) {
+  function requestIframeSnapshot(iframe, timeoutMs = 3000) {
     return new Promise((resolve) => {
       let done = false;
-
       const to = setTimeout(() => {
         if (done) return;
         done = true;
@@ -1006,7 +934,7 @@ function createTracker({
       }, timeoutMs);
 
       function onMsg(ev) {
-        if (ev.source !== iframe.contentWindow) return;
+        //if (ev.source !== iframe.contentWindow) return;
         const d = ev.data;
         if (!d || (d.type !== 'IFRAME_SNAPSHOT' && d.type !== 'IFRAME_SNAPSHOT_ERROR')) return;
 
@@ -1021,48 +949,30 @@ function createTracker({
           return;
         }
 
-        const blob = new Blob([d.buf], { type: 'image/jpeg' }); // we’ll send JPEG now
+        // Rebuild Blob from ArrayBuffer and create an ImageBitmap
+        const blob = new Blob([d.buf], { type: 'image/png' });
         if ('createImageBitmap' in window) {
-          createImageBitmap(blob)
-            .then((imageBitmap) => {
-              resolve({
-                imageBitmap,
-                width: d.w,
-                height: d.h,
-                scale: d.scale
-              });
-            })
-            .catch(() => resolve(null));
+          createImageBitmap(blob).then((imageBitmap) => {
+            resolve({ imageBitmap, width: d.w, height: d.h });
+          }).catch(() => resolve(null));
         } else {
+          // Fallback to HTMLImageElement
           const url = URL.createObjectURL(blob);
           const img = new Image();
           img.onload = () => {
             URL.revokeObjectURL(url);
-            resolve({
-              imageBitmap: img,
-              width: d.w,
-              height: d.h,
-              scale: d.scale
-            });
+            resolve({ imageBitmap: img, width: d.w, height: d.h });
           };
-          img.onerror = () => {
-            URL.revokeObjectURL(url);
-            resolve(null);
-          };
+          img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
           img.src = url;
         }
       }
 
       window.addEventListener('message', onMsg);
-
-      // Kick off the request and tell the iframe what scale to use
-      iframe.contentWindow.postMessage(
-        { type: 'REQUEST_IFRAME_SNAPSHOT', scale: scale },
-        '*'
-      );
+      // Kick off the request
+      iframe.contentWindow.postMessage({ type: 'REQUEST_IFRAME_SNAPSHOT' }, '*');
     });
   }
-
 
   function getExpectedContainer() {
     return expectedContainerId ? document.getElementById(expectedContainerId) : null;

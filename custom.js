@@ -726,7 +726,7 @@ function createTracker({
 
                   blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.4));
                 } else if (window.html2canvas) {
-                  const scale = 0.5; // smaller = faster
+                  const scale = 1; // smaller = faster
                   const target = document.documentElement;
 
                   const cnv = await window.html2canvas(target, {

@@ -705,12 +705,12 @@ function createTracker({
                 // Prefer the noVNC canvas if present; else fall back to html2canvas of the viewport.
                 const canvas = document.querySelector('#noVNC_canvas, canvas.noVNC_canvas, #screen, canvas') || null;
 
-                let blob;
+                let blob = null;
+                let outW = vw;
+                let outH = vh;
 
                 if (canvas && canvas.getContext) {
-                  // Capture the exact pixels visible on screen.
-                  // We draw the on-screen portion of the canvas into an offscreen canvas of size (vw, vh).
-                  // Compute the offset of the canvas relative to the iframe viewport:
+                  // --- Fast path: noVNC canvas ---
                   const rect = canvas.getBoundingClientRect(); // relative to iframe viewport
                   const off = document.createElement('canvas');
                   off.width = vw;
@@ -725,43 +725,59 @@ function createTracker({
                   );
 
                   blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.4));
-                } else if (window.html2canvas) {
-                  const scale = 1; // smaller = faster
-                  const target = document.documentElement;
+                  outW = off.width;
+                  outH = off.height;
 
-                  const cnv = await window.html2canvas(target, {
-                    logging: false,
-                    useCORS: true,
-                    scale,
-                    x: window.scrollX,
-                    y: window.scrollY,
-                    width: vw,
-                    height: vh,
-                  });
-
-                  const blob = await new Promise(res => cnv.toBlob(res, 'image/jpeg', 0.4));
-
-                  const buf = await blob.arrayBuffer();
-                  window.parent.postMessage(
-                    { type: 'IFRAME_SNAPSHOT', buf, w: cnv.width, h: cnv.height, scale },
-                    '*',
-                    [buf]
-                  );
                 } else {
-                  // Last-ditch: rasterize the body element size-locked to the viewport
-                  const off = document.createElement('canvas');
-                  off.width = vw; off.height = vh;
-                  const ctx = off.getContext('2d');
-                  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,vw,vh);
-                  blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.4));
+                  // Try html2canvas either from this window or from the parent
+                  const hv = window.html2canvas || (window.top && window.top.html2canvas);
+
+                  if (hv) {
+                    const scale = 0.7; // a bit smaller & faster, but you can keep 1 if you want
+                    const target = document.documentElement;
+
+                    const cnv = await hv(target, {
+                      logging: false,
+                      useCORS: true,
+                      scale,
+                      x: window.scrollX,
+                      y: window.scrollY,
+                      width: vw,
+                      height: vh,
+                    });
+
+                    blob = await new Promise(res => cnv.toBlob(res, 'image/jpeg', 0.4));
+                    outW = cnv.width;
+                    outH = cnv.height;
+
+                  } else {
+                    // Last-ditch: plain white fallback canvas
+                    const off = document.createElement('canvas');
+                    off.width = vw;
+                    off.height = vh;
+                    const ctx = off.getContext('2d');
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, vw, vh);
+                    blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.4));
+                    outW = off.width;
+                    outH = off.height;
+                  }
                 }
 
+                if (!blob) throw new Error('snapshotViewport: no blob created');
+
                 const buf = await blob.arrayBuffer();
-                window.parent.postMessage({ type: 'IFRAME_SNAPSHOT', buf, w: vw, h: vh }, '*', [buf]);
+                window.parent.postMessage(
+                  { type: 'IFRAME_SNAPSHOT', buf, w: outW, h: outH },
+                  '*',
+                  [buf]
+                );
+
               } catch (e) {
                 window.parent.postMessage({ type: 'IFRAME_SNAPSHOT_ERROR', error: String(e) }, '*');
               }
             }
+
 
             // Listen for snapshot requests from parent
             window.addEventListener('message', (e) => {

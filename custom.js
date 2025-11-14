@@ -34,7 +34,7 @@ setInterval(() => {
     }
   }
 
-  console.log("Custom JS in web-security" + curselected + "\n");
+  //console.log("Custom JS in web-security" + curselected + "\n");
 }, 1000);
 
 
@@ -668,7 +668,7 @@ function createTracker({
 
   // ---------- Iframe listeners ----------
   function attachIframeListeners() {
-    const iframe = document.getElementById(iframeId);
+    const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
     if (!iframe) {
       console.warn('Iframe not found:', iframeId);
       return () => {};
@@ -814,7 +814,8 @@ function createTracker({
       form.append('userId', userId);
       form.append('events', JSON.stringify(state.eventQueue));
       fetch(`${urlBasePath}save_events.php`, { method: 'POST', body: form })
-        .then(r => r.json()).then(d => console.log('Events upload OK:', d))
+        .then(r => r.json())
+        //.then(d => console.log('Events upload OK:', d))
         .catch(e => console.error('Events upload error:', e));
       state.eventQueue.length = 0;
     }
@@ -835,7 +836,8 @@ function createTracker({
       form.append('userId', userId);
       form.append('gazeData', JSON.stringify(state.gazeQueue));
       fetch(`${urlBasePath}save_gaze.php`, { method: 'POST', body: form })
-        .then(r => r.json()).then(d => console.log('Gaze upload OK:', d))
+        .then(r => r.json())
+        //.then(d => console.log('Gaze upload OK:', d))
         .catch(e => console.error('Gaze upload error:', e));
 
       const cur = state.gazeQueue[state.gazeQueue.length - 1];
@@ -928,7 +930,7 @@ function createTracker({
         fetch(`${urlBasePath}save_screenshot.php`, { method: 'POST', mode: 'cors', body: formData })
           .then(r => r.json())
           .then(data => {
-            console.log('Viewport screenshot upload successful:', data);
+            //console.log('Viewport screenshot upload successful:', data);
             finalCanvas.width = finalCanvas.height = 0;
           })
           .catch(err => console.error('Error uploading screenshot:', err));

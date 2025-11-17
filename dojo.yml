@@ -15,7 +15,7 @@ name: Eye Tracking Dojo
 description: |
   Welcome to the dojo for studying CTF challenges using eye tracking! Your help in advancing cybersecurity and human factors research is greatly appreciated! Please follow the steps below:
 
-  -`Step 1`: Complete the Initial Survey at <a 
+  -`Step 1`: Complete the Pre-Survey at <a 
   id="survey-link" 
   target="_blank" 
   rel="noopener noreferrer" 
@@ -23,12 +23,19 @@ description: |
 
   -`Step 2`: Begin the Eye Tracking CTF Challenges. These challenges are instrumented to collect eye gaze data while you attempt to solve cybersecurity puzzles. You may also choose to use SENSAI assistance during the challenges by clicking `Help`.
 
+  -`Step 3`: Complete the Post-Survey at <a 
+  id="post-survey-link" 
+  target="_blank" 
+  rel="noopener noreferrer" 
+  href="https://cumberland.isis.vanderbilt.edu/skyler/post_survey.php">THIS LINK</a>._You must complete this form in order to be compensated for your participation_.
+
   For each challenge, carefully read the instructions in the description, then interact with the target application to discover and capture the flag. Your gaze data, keystrokes, and mouse activity will be logged to help us better understand problem-solving strategies and the impact of AI support.
 
   An optional practice challenge is also available. Challenges in this dojo are fairly resource intensive, so we recommend closing out of other windows and tabs before starting a challenge. 
 
-  `In order to receive compensation`, you must solve the challenge or give a good faith attempt to solve the challenge (spending 25 minutes on the attempt before giving up). You must also complete the survey in the google form above. Completing these steps will result in a compensation of `$40`.
+  `In order to receive compensation`, you must solve the challenge or give a good faith attempt to solve the challenge (spending 25 minutes on the attempt before giving up). You must also complete all questions in the pre- and post-survey in the links above. Completing these steps will result in a compensation of `$40`.
 
+  This study is authorized under Vanderbilt IRB  STUDY00000191.
   
 
   <script>
@@ -36,8 +43,15 @@ description: |
       // Grab the ID that CTFd made available in init.userId
       const uid = (window.init && init.userId) || '';
 
-      // Update the survey link to include ?userId=<id>
+      // Update the pre survey link to include ?userId=<id>
       const link = document.getElementById('survey-link');
+      if (link && uid) {
+        const base = link.href.split('?')[0];
+        link.href = base + '?userId=' + encodeURIComponent(uid);
+      }
+
+      // Update the post survey link to include ?userId=<id>
+      const link = document.getElementById('post-survey-link');
       if (link && uid) {
         const base = link.href.split('?')[0];
         link.href = base + '?userId=' + encodeURIComponent(uid);

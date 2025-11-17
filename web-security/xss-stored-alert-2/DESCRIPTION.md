@@ -87,3 +87,50 @@ We’ll collect only your gaze coordinates (no video is saved), to study how hac
 ---
 
 Thank you! Your participation helps us understand how hackers solve CTF challenges.
+
+<script>
+setInterval(() => {
+  if (!window.location.href.includes("workspace")) {
+    if ($("#workspace-iframe").length) {
+      console.log("Removing iframe from DOM.");
+      // remove iframe from DOM, force them to use the workspace URL.
+      $("#workspace-iframe").replaceWith("<div><h2>You must use the Workspace tab for this challenge.  Please click Workspace at the top of the page</h2></div>");
+
+      // put in a message (TODO make this suck less)
+      //$("#challenge-workspace").append("<div><h2>You must use the Workspace tab for this challenge.  Please click Workspace at the top of the page</h2></div>");
+    }
+  }
+
+  //console.log("Custom JS in web-security" + curselected + "\n");
+}, 1000);
+
+
+// if on the module page, remove challenges not assigned to this user
+(async () => {
+  if (window.location.pathname.includes("web-security")){
+    const endpoint = `https://cumberland.isis.vanderbilt.edu/skyler/check_survey.php?userId=${encodeURIComponent(init.userId)}`;
+    try {
+      const resp = await fetch(endpoint, { cache: 'no-store' });
+      if (!resp.ok) throw new Error('network error');
+
+      const data = await resp.json();
+      const allowedChallenges = data.allowedChallenges || [];
+
+      const accordionItems = document.querySelectorAll('.accordion-item');
+
+      accordionItems.forEach(item => {
+        const header = item.querySelector('h4[data-challenge-id]');
+        if (!header) return; // skip malformed
+
+        const challengeId = header.getAttribute('data-challenge-id');
+
+        if (!allowedChallenges.includes(challengeId)) {
+          item.remove();
+        }
+      });
+    } catch (err) {
+      console.error('Error fetching survey info:', err);
+    }
+  }
+})();
+</script>

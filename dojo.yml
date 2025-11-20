@@ -53,10 +53,10 @@ description: |
       }
 
       // Update the post survey link to include ?userId=<id>
-      const link = document.getElementById('post-survey-link');
-      if (link && uid) {
-        const base = link.href.split('?')[0];
-        link.href = base + '?userId=' + encodeURIComponent(uid);
+      const link2 = document.getElementById('post-survey-link');
+      if (link2 && uid) {
+        const base = link2.href.split('?')[0];
+        link2.href = base + '?userId=' + encodeURIComponent(uid);
       }
     }); 
   </script>

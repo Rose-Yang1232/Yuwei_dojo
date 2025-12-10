@@ -186,8 +186,8 @@ function createTracker({
       if (isTimedOut()) return;           // another tab may have fired already
       markTimedOut();                      // broadcast to other tabs
       recordCompletionOnce('timed out');
-      showIframeBlockingMessage(timeoutMessageText(), { showRetry: false });
-      stop();                              // stop uploads/listeners
+      //showIframeBlockingMessage(timeoutMessageText(), { showRetry: false });
+      //stop();                              // stop uploads/listeners
     }, delay);
   }
 
@@ -1084,6 +1084,7 @@ function createTracker({
   function onStorage(e) {
     if (!e || !e.key) return;
 
+    /*
     // Another tab marked timeout -> enforce here too
     if (e.key === lsKey('timedOut') && e.newValue === 'true') {
       recordCompletionOnce('timed out');
@@ -1097,6 +1098,7 @@ function createTracker({
       scheduleExpiryAlarm();
       return;
     }
+      */
 
     // Presence keys: keep existing no-op behavior
     if (!e.key.startsWith(PRESENCE_PREFIX)) return;

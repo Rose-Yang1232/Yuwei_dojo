@@ -41,7 +41,7 @@ setInterval(() => {
 // if on the module page, remove challenges not assigned to this user
 (async () => {
   if (window.location.pathname.includes("web-security")){
-    const endpoint = `https://cumberland.isis.vanderbilt.edu/skyler/check_survey.php?userId=${encodeURIComponent(init.userId)}`;
+    const endpoint = `https://huang.isis.vanderbilt.edu/skyler/check_survey.php?userId=${encodeURIComponent(init.userId)}`;
     try {
       const resp = await fetch(endpoint, { cache: 'no-store' });
       if (!resp.ok) throw new Error('network error');
@@ -96,7 +96,7 @@ function loadScript(src, { async = true, defer = false, crossOrigin = null } = {
 /**
  * createTracker: fully encapsulated eye + interaction tracker
  * Usage:
- *   const tracker = createTracker({ iframeId:'workspace-iframe', challenge:'example', urlBasePath:'https://cumberland.isis.vanderbilt.edu/skyler/', userId: init.userId });
+ *   const tracker = createTracker({ iframeId:'workspace-iframe', challenge:'example', urlBasePath:'https://huang.isis.vanderbilt.edu/skyler/', userId: init.userId });
  *   tracker.start();
  *   // tracker.stop(); // later, if you want
  *   // tracker.destroy(); // full cleanup (UI + listeners + stop + end webgazer)
@@ -1400,8 +1400,8 @@ function createTracker({
 if(window.location.pathname.includes("workspace") || window.location.pathname.includes("sensai")){
   (async function loadEyeTracker() {
     try {
-      await loadScript('https://cumberland.isis.vanderbilt.edu/static/eye/html2canvas.min.js');
-      await loadScript('https://cumberland.isis.vanderbilt.edu/static/eye/webgazer.js');
+      await loadScript('https://huang.isis.vanderbilt.edu/static/eye/html2canvas.min.js');
+      await loadScript('https://huang.isis.vanderbilt.edu/static/eye/webgazer.js');
     } catch (err) {
       console.error('Failed to load eye libraries:', err);
     }
@@ -1415,7 +1415,7 @@ if(window.location.pathname.includes("workspace") || window.location.pathname.in
       expectedContainerId: null, 
       requireVersionMatch: false,
       challengeTimeMinutes: 25,
-      urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
+      urlBasePath: 'https://huang.isis.vanderbilt.edu/skyler/',
       userId: init.userId,             // pwn.college provides this
       tickMs: 5000,                    // batch interval
       minAccuracy: 85,                  // calibration threshold

@@ -19,7 +19,7 @@ description: |
   id="survey-link" 
   target="_blank" 
   rel="noopener noreferrer" 
-  href="https://cumberland.isis.vanderbilt.edu/skyler/eye_survey.php">THIS LINK</a>._You must complete this form in order to be compensated for your participation_.
+  href="https://huang.isis.vanderbilt.edu/skyler/eye_survey.php">THIS LINK</a>._You must complete this form in order to be compensated for your participation_.
 
   -`Step 2`: Begin the Eye Tracking CTF Challenges. These challenges are instrumented to collect eye gaze data while you attempt to solve cybersecurity puzzles. You may also choose to use SENSAI assistance during the challenges by clicking `Help`.
 
@@ -27,7 +27,7 @@ description: |
   id="post-survey-link" 
   target="_blank" 
   rel="noopener noreferrer" 
-  href="https://cumberland.isis.vanderbilt.edu/skyler/post_survey.php">THIS LINK</a>._You must complete this form in order to be compensated for your participation_.
+  href="https://huang.isis.vanderbilt.edu/skyler/post_survey.php">THIS LINK</a>._You must complete this form in order to be compensated for your participation_.
 
   For each challenge, carefully read the instructions in the description, then interact with the target application to discover and capture the flag. Your gaze data, keystrokes, and mouse activity will be logged to help us better understand problem-solving strategies and the impact of AI support.
 

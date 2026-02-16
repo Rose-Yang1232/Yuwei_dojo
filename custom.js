@@ -887,7 +887,7 @@ function createTracker({
 
       if (iframe && iframe.contentWindow) {
         iframeRect = iframe.getBoundingClientRect();
-        iframeSnapshot = await requestIframeSnapshot(iframe, 30000);
+        iframeSnapshot = await requestIframeSnapshot(iframe, 45000);
       }
 
       const finalCanvas = document.createElement('canvas');
@@ -957,7 +957,7 @@ function createTracker({
     }
   }
 
-  function requestIframeSnapshot(iframe, timeoutMs = 3000) {
+  function requestIframeSnapshot(iframe, timeoutMs = 30000) {
     return new Promise((resolve) => {
       let done = false;
 

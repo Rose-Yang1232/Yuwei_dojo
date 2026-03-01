@@ -109,7 +109,7 @@ setInterval(() => {
 // if on the module page, remove challenges not assigned to this user
 (async () => {
   if (window.location.pathname.includes("web-security")){
-    const endpoint = `https://cumberland.isis.vanderbilt.edu/skyler/check_survey.php?userId=${encodeURIComponent(init.userId)}`;
+    const endpoint = `https://huang.isis.vanderbilt.edu/skyler/check_survey.php?userId=${encodeURIComponent(init.userId)}`;
     try {
       const resp = await fetch(endpoint, { cache: 'no-store' });
       if (!resp.ok) throw new Error('network error');

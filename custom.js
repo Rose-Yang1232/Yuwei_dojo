@@ -675,26 +675,6 @@ function createTracker({
     }
 
     const injectScript = () => {
-      const canvases = Array.from(document.querySelectorAll('canvas'));
-      console.log('iframe canvases found:', canvases.length);
-      canvases.forEach((c, i) => {
-        const r = c.getBoundingClientRect();
-        console.log('canvas', i, {
-          id: c.id,
-          className: c.className,
-          width: c.width,
-          height: c.height,
-          rect: {
-            left: r.left,
-            top: r.top,
-            width: r.width,
-            height: r.height
-          },
-          display: getComputedStyle(c).display,
-          visibility: getComputedStyle(c).visibility,
-          opacity: getComputedStyle(c).opacity
-        });
-      });
       try {
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
         if (!doc) return;
@@ -718,6 +698,28 @@ function createTracker({
 
             // snapshot the iframe's visible viewport
             async function snapshotViewport() {
+              const canvases = Array.from(document.querySelectorAll('canvas'));
+              console.log('iframe canvases found:', canvases.length);
+
+              canvases.forEach((c, i) => {
+                const r = c.getBoundingClientRect();
+                console.log('canvas', i, {
+                  id: c.id,
+                  className: c.className,
+                  width: c.width,
+                  height: c.height,
+                  rect: {
+                    left: r.left,
+                    top: r.top,
+                    width: r.width,
+                    height: r.height
+                  },
+                  display: getComputedStyle(c).display,
+                  visibility: getComputedStyle(c).visibility,
+                  opacity: getComputedStyle(c).opacity
+                });
+              });
+            
               try {
                 const vw = window.innerWidth;
                 const vh = window.innerHeight;

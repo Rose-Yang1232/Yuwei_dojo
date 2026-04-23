@@ -34,14 +34,14 @@ setInterval(() => {
     }
   }
 
-  console.log("Custom JS in web-security" + curselected + "\n");
+  //console.log("Custom JS in web-security" + curselected + "\n");
 }, 1000);
 
 
 // if on the module page, remove challenges not assigned to this user
 (async () => {
   if (window.location.pathname.includes("web-security")){
-    const endpoint = `https://cumberland.isis.vanderbilt.edu/skyler/check_survey.php?userId=${encodeURIComponent(init.userId)}`;
+    const endpoint = `https://huang.isis.vanderbilt.edu/skyler/check_survey.php?userId=${encodeURIComponent(init.userId)}`;
     try {
       const resp = await fetch(endpoint, { cache: 'no-store' });
       if (!resp.ok) throw new Error('network error');
@@ -96,7 +96,7 @@ function loadScript(src, { async = true, defer = false, crossOrigin = null } = {
 /**
  * createTracker: fully encapsulated eye + interaction tracker
  * Usage:
- *   const tracker = createTracker({ iframeId:'workspace-iframe', challenge:'example', urlBasePath:'https://cumberland.isis.vanderbilt.edu/skyler/', userId: init.userId });
+ *   const tracker = createTracker({ iframeId:'workspace-iframe', challenge:'example', urlBasePath:'https://huang.isis.vanderbilt.edu/skyler/', userId: init.userId });
  *   tracker.start();
  *   // tracker.stop(); // later, if you want
  *   // tracker.destroy(); // full cleanup (UI + listeners + stop + end webgazer)
@@ -186,8 +186,8 @@ function createTracker({
       if (isTimedOut()) return;           // another tab may have fired already
       markTimedOut();                      // broadcast to other tabs
       recordCompletionOnce('timed out');
-      showIframeBlockingMessage(timeoutMessageText(), { showRetry: false });
-      stop();                              // stop uploads/listeners
+      //showIframeBlockingMessage(timeoutMessageText(), { showRetry: false });
+      //stop();                              // stop uploads/listeners
     }, delay);
   }
 
@@ -668,7 +668,7 @@ function createTracker({
 
   // ---------- Iframe listeners ----------
   function attachIframeListeners() {
-    const iframe = document.getElementById(iframeId);
+    const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
     if (!iframe) {
       console.warn('Iframe not found:', iframeId);
       return () => {};
@@ -705,12 +705,12 @@ function createTracker({
                 // Prefer the noVNC canvas if present; else fall back to html2canvas of the viewport.
                 const canvas = document.querySelector('#noVNC_canvas, canvas.noVNC_canvas, #screen, canvas') || null;
 
-                let blob;
+                let blob = null;
+                let outW = vw;
+                let outH = vh;
 
                 if (canvas && canvas.getContext) {
-                  // Capture the exact pixels visible on screen.
-                  // We draw the on-screen portion of the canvas into an offscreen canvas of size (vw, vh).
-                  // Compute the offset of the canvas relative to the iframe viewport:
+                  // --- Fast path: noVNC canvas ---
                   const rect = canvas.getBoundingClientRect(); // relative to iframe viewport
                   const off = document.createElement('canvas');
                   off.width = vw;
@@ -724,29 +724,60 @@ function createTracker({
                     -rect.top    // dy
                   );
 
-                  blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.7));
-                } else if (window.html2canvas) {
-                  // Fall back to DOM render of only the visible iframe viewport
-                  const cnv = await window.html2canvas(document.documentElement, {
-                    logging: false, useCORS: true, scale: 1,
-                    x: window.scrollX, y: window.scrollY, width: vw, height: vh
-                  });
-                  blob = await new Promise(res => cnv.toBlob(res, 'image/jpeg', 0.7));
+                  blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.4));
+                  outW = off.width;
+                  outH = off.height;
+
                 } else {
-                  // Last-ditch: rasterize the body element size-locked to the viewport
-                  const off = document.createElement('canvas');
-                  off.width = vw; off.height = vh;
-                  const ctx = off.getContext('2d');
-                  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,vw,vh);
-                  blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.7));
+                  // Try html2canvas either from this window or from the parent
+                  const hv = window.html2canvas || (window.top && window.top.html2canvas);
+
+                  if (hv) {
+                    const scale = 0.7; // a bit smaller & faster, but you can keep 1 if you want
+                    const target = document.documentElement;
+
+                    const cnv = await hv(target, {
+                      logging: false,
+                      useCORS: true,
+                      scale,
+                      x: window.scrollX,
+                      y: window.scrollY,
+                      width: vw,
+                      height: vh,
+                    });
+
+                    blob = await new Promise(res => cnv.toBlob(res, 'image/jpeg', 0.4));
+                    outW = cnv.width;
+                    outH = cnv.height;
+
+                  } else {
+                    // Last-ditch: plain white fallback canvas
+                    const off = document.createElement('canvas');
+                    off.width = vw;
+                    off.height = vh;
+                    const ctx = off.getContext('2d');
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, vw, vh);
+                    blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.4));
+                    outW = off.width;
+                    outH = off.height;
+                  }
                 }
 
+                if (!blob) throw new Error('snapshotViewport: no blob created');
+
                 const buf = await blob.arrayBuffer();
-                window.parent.postMessage({ type: 'IFRAME_SNAPSHOT', buf, w: vw, h: vh }, '*', [buf]);
+                window.parent.postMessage(
+                  { type: 'IFRAME_SNAPSHOT', buf, w: outW, h: outH },
+                  '*',
+                  [buf]
+                );
+
               } catch (e) {
                 window.parent.postMessage({ type: 'IFRAME_SNAPSHOT_ERROR', error: String(e) }, '*');
               }
             }
+
 
             // Listen for snapshot requests from parent
             window.addEventListener('message', (e) => {
@@ -799,7 +830,8 @@ function createTracker({
       form.append('userId', userId);
       form.append('events', JSON.stringify(state.eventQueue));
       fetch(`${urlBasePath}save_events.php`, { method: 'POST', body: form })
-        .then(r => r.json()).then(d => console.log('Events upload OK:', d))
+        .then(r => r.json())
+        //.then(d => console.log('Events upload OK:', d))
         .catch(e => console.error('Events upload error:', e));
       state.eventQueue.length = 0;
     }
@@ -820,7 +852,8 @@ function createTracker({
       form.append('userId', userId);
       form.append('gazeData', JSON.stringify(state.gazeQueue));
       fetch(`${urlBasePath}save_gaze.php`, { method: 'POST', body: form })
-        .then(r => r.json()).then(d => console.log('Gaze upload OK:', d))
+        .then(r => r.json())
+        //.then(d => console.log('Gaze upload OK:', d))
         .catch(e => console.error('Gaze upload error:', e));
 
       const cur = state.gazeQueue[state.gazeQueue.length - 1];
@@ -849,22 +882,14 @@ function createTracker({
 
       // Try to get a true iframe-viewport snapshot from inside the iframe
       const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
-      let iframeImgBitmap = null;
       let iframeRect = { left: 0, top: 0, width: 0, height: 0 };
+      let iframeSnapshot = null;
 
       if (iframe && iframe.contentWindow) {
         iframeRect = iframe.getBoundingClientRect();
-
-        // Ask the iframe to snapshot itself
-        const snapshot = await requestIframeSnapshot(iframe, 3000 /*ms timeout*/);
-        if (snapshot) {
-          iframeImgBitmap = snapshot.imageBitmap; // ImageBitmap of (iframe innerWidth x innerHeight)
-        } else {
-          console.warn('Iframe did not respond to snapshot; skipping iframe layer.');
-        }
+        iframeSnapshot = await requestIframeSnapshot(iframe, 45000);
       }
 
-      // Compose final image = parent viewport  
       const finalCanvas = document.createElement('canvas');
       finalCanvas.width = pageCanvas.width;
       finalCanvas.height = pageCanvas.height;
@@ -873,9 +898,17 @@ function createTracker({
       // Base: parent viewport
       ctx.drawImage(pageCanvas, 0, 0);
 
-      // Overlay: iframe viewport pixels positioned at its on-screen rect
-      if (iframeImgBitmap) {
-        ctx.drawImage(iframeImgBitmap, iframeRect.left, iframeRect.top);
+      // Overlay: iframe snapshot, scaled to match iframeRect
+      if (iframeSnapshot && iframeSnapshot.imageBitmap) {
+        const srcW = iframeSnapshot.width;
+        const srcH = iframeSnapshot.height;
+
+        ctx.drawImage(
+          iframeSnapshot.imageBitmap,
+          0, 0, srcW, srcH,                           // source rect (scaled image)
+          iframeRect.left, iframeRect.top,            // dest x,y in parent coords
+          iframeRect.width, iframeRect.height         // dest size = real iframe size
+        );
       }
 
       // Marker in VIEWPORT coordinates
@@ -913,66 +946,69 @@ function createTracker({
         fetch(`${urlBasePath}save_screenshot.php`, { method: 'POST', mode: 'cors', body: formData })
           .then(r => r.json())
           .then(data => {
-            console.log('Viewport screenshot upload successful:', data);
+            //console.log('Viewport screenshot upload successful:', data);
             finalCanvas.width = finalCanvas.height = 0;
           })
           .catch(err => console.error('Error uploading screenshot:', err));
-      }, 'image/jpeg', 0.7);
+      }, 'image/jpeg', 0.4);
 
     } catch (err) {
       console.error('Screenshot capture failed:', err);
     }
   }
 
-  function requestIframeSnapshot(iframe, timeoutMs = 3000) {
+  function requestIframeSnapshot(iframe, timeoutMs = 30000) {
     return new Promise((resolve) => {
       let done = false;
-      const to = setTimeout(() => {
+
+      function finish(val) {
         if (done) return;
         done = true;
-        resolve(null);
+        resolve(val);
+      }
+
+      const to = setTimeout(() => {
+        window.removeEventListener('message', onMsg);
+        finish(null);
       }, timeoutMs);
 
       function onMsg(ev) {
-        //if (ev.source !== iframe.contentWindow) return;
         const d = ev.data;
         if (!d || (d.type !== 'IFRAME_SNAPSHOT' && d.type !== 'IFRAME_SNAPSHOT_ERROR')) return;
 
         window.removeEventListener('message', onMsg);
         clearTimeout(to);
-        if (done) return;
-        done = true;
-
         if (d.type === 'IFRAME_SNAPSHOT_ERROR') {
           console.warn('Iframe snapshot error:', d.error);
-          resolve(null);
+          finish(null);
           return;
         }
 
-        // Rebuild Blob from ArrayBuffer and create an ImageBitmap
-        const blob = new Blob([d.buf], { type: 'image/png' });
+        const blob = new Blob([d.buf], { type: 'image/jpeg' });
         if ('createImageBitmap' in window) {
           createImageBitmap(blob).then((imageBitmap) => {
-            resolve({ imageBitmap, width: d.w, height: d.h });
-          }).catch(() => resolve(null));
+            finish({ imageBitmap, width: d.w, height: d.h, scale: d.scale || 1 });
+          }).catch(() => finish(null));
         } else {
-          // Fallback to HTMLImageElement
           const url = URL.createObjectURL(blob);
           const img = new Image();
           img.onload = () => {
             URL.revokeObjectURL(url);
-            resolve({ imageBitmap: img, width: d.w, height: d.h });
+            finish({ imageBitmap: img, width: d.w, height: d.h, scale: d.scale || 1 });
           };
-          img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            finish(null);
+          };
           img.src = url;
         }
       }
 
       window.addEventListener('message', onMsg);
-      // Kick off the request
       iframe.contentWindow.postMessage({ type: 'REQUEST_IFRAME_SNAPSHOT' }, '*');
     });
   }
+
 
   function getExpectedContainer() {
     return expectedContainerId ? document.getElementById(expectedContainerId) : null;
@@ -1048,6 +1084,7 @@ function createTracker({
   function onStorage(e) {
     if (!e || !e.key) return;
 
+    /*
     // Another tab marked timeout -> enforce here too
     if (e.key === lsKey('timedOut') && e.newValue === 'true') {
       recordCompletionOnce('timed out');
@@ -1061,6 +1098,7 @@ function createTracker({
       scheduleExpiryAlarm();
       return;
     }
+      */
 
     // Presence keys: keep existing no-op behavior
     if (!e.key.startsWith(PRESENCE_PREFIX)) return;
@@ -1362,8 +1400,8 @@ function createTracker({
 if(window.location.pathname.includes("workspace") || window.location.pathname.includes("sensai")){
   (async function loadEyeTracker() {
     try {
-      await loadScript('https://cumberland.isis.vanderbilt.edu/static/eye/html2canvas.min.js');
-      await loadScript('https://cumberland.isis.vanderbilt.edu/static/eye/webgazer.js');
+      await loadScript('https://huang.isis.vanderbilt.edu/static/eye/html2canvas.min.js');
+      await loadScript('https://huang.isis.vanderbilt.edu/static/eye/webgazer.js');
     } catch (err) {
       console.error('Failed to load eye libraries:', err);
     }
@@ -1377,7 +1415,7 @@ if(window.location.pathname.includes("workspace") || window.location.pathname.in
       expectedContainerId: null, 
       requireVersionMatch: false,
       challengeTimeMinutes: 25,
-      urlBasePath: 'https://cumberland.isis.vanderbilt.edu/skyler/',
+      urlBasePath: 'https://huang.isis.vanderbilt.edu/skyler/',
       userId: init.userId,             // pwn.college provides this
       tickMs: 5000,                    // batch interval
       minAccuracy: 85,                  // calibration threshold

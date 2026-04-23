@@ -177,41 +177,6 @@ function createTracker({
     return 'Time is up for this challenge. Please move on to the next challenge, or finish the experiment if you have completed all challenges. This challenge is now finished. Failing to finish this challenge will NOT affect your compensation.';
   }
 
-  function getCaptureChannel() {
-    const path = window.location.pathname.toLowerCase();
-    if (path.includes('sensai')) return 'sensai';
-    if (path.includes('workspace')) return 'challenge';
-    return 'unknown';
-  }
-
-  function shouldCaptureFromThisTab() {
-    return document.visibilityState === 'visible' && !document.hidden;
-  }
-
-  function logVisibilityState() {
-    console.log(
-      `[capture ${getCaptureChannel()}] visibility=${document.visibilityState}, hidden=${document.hidden}`
-    );
-  }
-  function onVisibilityChange() {
-    logVisibilityState();
-
-    const calibrated = ls.get('webgazerCalibrated') === 'true';
-
-    // If this tab is no longer visible, stop its capture so we do not keep
-    // multiple active tab-sharing sessions alive at once.
-    if (document.visibilityState !== 'visible') {
-      if (calibrated && hasLiveCapture()) {
-        console.log(`[capture ${state.captureChannel}] tab hidden; stopping capture to avoid dual sharing.`);
-        stopTabCapture();
-      }
-      return;
-    }
-
-    // When this tab becomes visible again, enforce sharing if calibration is done.
-    enforceCaptureRequirement();
-  }
-
   function hasLiveCapture() {
     const track = state.captureTrack;
     return !!(
@@ -260,13 +225,13 @@ function createTracker({
 
     const text = document.createElement('p');
     text.textContent =
-      'This part of the experiment requires tab sharing to remain active. ' +
-      'If sharing stops, the challenge is paused until you resume sharing for this tab.';
+      'This part of the experiment requires the currently active tab to be shared. ' +
+      'If you switch tabs, you must start sharing the new active tab before continuing.';
     panel.appendChild(text);
 
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.textContent = 'Resume sharing';
+    btn.textContent = 'Share this tab';
     Object.assign(btn.style, {
       padding: '12px 18px',
       fontSize: '16px',
@@ -290,7 +255,7 @@ function createTracker({
         status.textContent = '';
       } else {
         btn.disabled = false;
-        status.textContent = 'Could not resume sharing. Please try again.';
+        status.textContent = 'Could not start tab capture. Please try again.';
       }
     });
 
@@ -314,13 +279,18 @@ function createTracker({
   function enforceCaptureRequirement() {
     const calibrated = ls.get('webgazerCalibrated') === 'true';
 
-    // During calibration, screen capture is not required.
+    // No capture requirement during calibration.
     if (!calibrated) {
       hideCaptureRequiredOverlay();
       return true;
     }
 
-    // After calibration, require live capture.
+    // Only enforce on the active/visible tab.
+    if (!shouldCaptureFromThisTab()) {
+      hideCaptureRequiredOverlay();
+      return true;
+    }
+
     if (hasLiveCapture()) {
       hideCaptureRequiredOverlay();
       return true;
@@ -328,6 +298,28 @@ function createTracker({
 
     showCaptureRequiredOverlay();
     return false;
+  }
+
+  function onVisibilityChange() {
+    logVisibilityState();
+    enforceCaptureRequirement();
+  }
+
+  function getCaptureChannel() {
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes('sensai')) return 'sensai';
+    if (path.includes('workspace')) return 'challenge';
+    return 'unknown';
+  }
+
+  function shouldCaptureFromThisTab() {
+    return document.visibilityState === 'visible' && !document.hidden;
+  }
+
+  function logVisibilityState() {
+    console.log(
+      `[capture ${getCaptureChannel()}] visibility=${document.visibilityState}, hidden=${document.hidden}`
+    );
   }
 
   function clearExpiryAlarm() {
@@ -862,7 +854,6 @@ function createTracker({
 
       const ok = await startTabCapture();
       if (!ok) {
-        hideCaptureRequiredOverlay();
         btn.disabled = false;
         status.textContent = 'Could not start tab capture. Please try again.';
         return;
@@ -958,19 +949,17 @@ function createTracker({
   }
 
   // Periodic batch and upload
-    function sendEventsToServer() {
+  function sendEventsToServer() {
     // Upload events
     if (state.eventQueue.length) {
       const form = new URLSearchParams();
       form.append('challenge', challenge);
       form.append('userId', userId);
       form.append('events', JSON.stringify(state.eventQueue));
-      form.append('capture_channel', state.captureChannel);
-
       fetch(`${urlBasePath}save_events.php`, { method: 'POST', body: form })
         .then(r => r.json())
+        //.then(d => console.log('Events upload OK:', d))
         .catch(e => console.error('Events upload error:', e));
-
       state.eventQueue.length = 0;
     }
 
@@ -989,25 +978,18 @@ function createTracker({
       form.append('challenge', challenge);
       form.append('userId', userId);
       form.append('gazeData', JSON.stringify(state.gazeQueue));
-      form.append('capture_channel', state.captureChannel);
-      form.append('visibility_state', document.visibilityState);
-      form.append('is_active_tab', shouldCaptureFromThisTab() ? 'true' : 'false');
-
       fetch(`${urlBasePath}save_gaze.php`, { method: 'POST', body: form })
         .then(r => r.json())
+        //.then(d => console.log('Gaze upload OK:', d))
         .catch(e => console.error('Gaze upload error:', e));
 
-      // Only upload screenshots from the currently visible tab.
-      if (shouldCaptureFromThisTab()) {
-        const cur = state.gazeQueue[state.gazeQueue.length - 1];
-        takeScreenshot(cur.x, cur.y, false);
-      }
-
+      const cur = state.gazeQueue[state.gazeQueue.length - 1];
+      takeScreenshot(cur.x, cur.y, /*click*/ false);
       state.gazeQueue.length = 0;
     }
   }
 
-    async function startTabCapture() {
+  async function startTabCapture() {
     if (state.captureStream && state.captureReady) return true;
 
     if (!navigator.mediaDevices?.getDisplayMedia) {
@@ -1018,12 +1000,10 @@ function createTracker({
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          frameRate: { ideal: 5, max: 8 },
-          displaySurface: "browser"
+          frameRate: { ideal: 5, max: 8 }
         },
         audio: false,
-        preferCurrentTab: true,
-        surfaceSwitching: "include"
+        preferCurrentTab: true
       });
 
       const track = stream.getVideoTracks()[0];
@@ -1033,7 +1013,7 @@ function createTracker({
       }
 
       const settings = track.getSettings ? track.getSettings() : {};
-      console.log(`[capture ${state.captureChannel}] track settings:`, settings);
+      console.log('Capture track settings:', settings);
 
       const video = document.createElement('video');
       video.playsInline = true;
@@ -1049,7 +1029,7 @@ function createTracker({
       state.captureReady = true;
 
       track.addEventListener('ended', () => {
-        console.warn(`[capture ${state.captureChannel}] capture track ended.`);
+        console.warn('User stopped tab capture.');
         state.captureReady = false;
         state.captureTrack = null;
         state.captureStream = null;
@@ -1062,24 +1042,17 @@ function createTracker({
         }
         state.captureVideo = null;
 
-        const calibrated = ls.get('webgazerCalibrated') === 'true';
-        if (calibrated) {
-          showCaptureRequiredOverlay();
-        } else {
-          hideCaptureRequiredOverlay();
-        }
+        enforceCaptureRequirement();
       });
 
       track.addEventListener('mute', () => {
-        console.warn(`[capture ${state.captureChannel}] capture track muted.`);
-        const calibrated = ls.get('webgazerCalibrated') === 'true';
-        if (calibrated) enforceCaptureRequirement();
+        console.warn('Capture track muted.');
+        enforceCaptureRequirement();
       });
 
       track.addEventListener('unmute', () => {
-        console.log(`[capture ${state.captureChannel}] capture track unmuted.`);
-        const calibrated = ls.get('webgazerCalibrated') === 'true';
-        if (calibrated) enforceCaptureRequirement();
+        console.log('Capture track unmuted.');
+        enforceCaptureRequirement();
       });
 
       const surface = settings.displaySurface || 'unknown';
@@ -1087,9 +1060,10 @@ function createTracker({
         alert('Please choose "This Tab" when prompted. Screen or window sharing can break gaze-to-screenshot alignment.');
       }
 
+      enforceCaptureRequirement();
       return true;
     } catch (err) {
-      console.error(`[capture ${state.captureChannel}] failed to start tab capture:`, err);
+      console.error('Failed to start tab capture:', err);
       alert('We could not start tab capture. Please click "Start Experiment" again and choose "This Tab".');
       return false;
     }
@@ -1123,6 +1097,8 @@ function createTracker({
     state.captureVideo = null;
     state.captureCanvas = null;
     state.captureReady = false;
+
+    enforceCaptureRequirement();
   }
 
   function getCaptureScale() {
@@ -1138,25 +1114,23 @@ function createTracker({
   }
 
 
-    async function takeScreenshot(X, Y, click = true) {
+  async function takeScreenshot(X, Y, click = true) {
     try {
       if (!shouldCaptureFromThisTab()) {
-        // Keep the stream alive, but do not upload from background tabs.
         return;
       }
-
       if (!state.captureReady || !state.captureVideo || !state.captureCanvas) {
-        console.warn(`[capture ${state.captureChannel}] tab capture is not ready; screenshot skipped.`);
+        console.warn('Tab capture is not ready; screenshot skipped.');
         return;
       }
 
       const video = state.captureVideo;
       if (!video.videoWidth || !video.videoHeight) {
-        console.warn(`[capture ${state.captureChannel}] capture video has no dimensions yet; screenshot skipped.`);
+        console.warn('Capture video has no dimensions yet; screenshot skipped.');
         return;
       }
 
-      // Saved screenshot uses viewport coordinates.
+      // Make the saved screenshot use VIEWPORT coordinates, not video coordinates.
       const vw = window.innerWidth;
       const vh = window.innerHeight;
 
@@ -1166,6 +1140,8 @@ function createTracker({
 
       const ctx = canvas.getContext('2d', { alpha: false });
       ctx.clearRect(0, 0, vw, vh);
+
+      // Scale the captured tab frame into viewport-sized output.
       ctx.drawImage(video, 0, 0, vw, vh);
 
       let markerX;
@@ -1199,7 +1175,7 @@ function createTracker({
 
       canvas.toBlob((blob) => {
         if (!blob) {
-          console.error(`[capture ${state.captureChannel}] screenshot blob creation failed`);
+          console.error('Screenshot blob creation failed');
           return;
         }
 
@@ -1213,6 +1189,7 @@ function createTracker({
         formData.append('screenshot_unix', unixTs);
         formData.append('screenshot_iso', isoTs);
 
+        // Save these for debugging / later validation
         formData.append('screenshot_width', vw);
         formData.append('screenshot_height', vh);
         formData.append('video_width', video.videoWidth);
@@ -1220,21 +1197,17 @@ function createTracker({
         formData.append('viewport_width', vw);
         formData.append('viewport_height', vh);
 
-        formData.append('capture_channel', state.captureChannel);
-        formData.append('visibility_state', document.visibilityState);
-        formData.append('is_active_tab', shouldCaptureFromThisTab() ? 'true' : 'false');
-
         fetch(`${urlBasePath}save_screenshot.php`, {
           method: 'POST',
           mode: 'cors',
           body: formData
         })
           .then(r => r.json())
-          .catch(err => console.error(`[capture ${state.captureChannel}] error uploading screenshot:`, err));
+          .catch(err => console.error('Error uploading screenshot:', err));
       }, 'image/jpeg', 0.35);
 
     } catch (err) {
-      console.error(`[capture ${state.captureChannel}] screenshot capture failed:`, err);
+      console.error('Screenshot capture failed:', err);
     }
   }
 

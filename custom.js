@@ -675,6 +675,26 @@ function createTracker({
     }
 
     const injectScript = () => {
+      const canvases = Array.from(document.querySelectorAll('canvas'));
+      console.log('iframe canvases found:', canvases.length);
+      canvases.forEach((c, i) => {
+        const r = c.getBoundingClientRect();
+        console.log('canvas', i, {
+          id: c.id,
+          className: c.className,
+          width: c.width,
+          height: c.height,
+          rect: {
+            left: r.left,
+            top: r.top,
+            width: r.width,
+            height: r.height
+          },
+          display: getComputedStyle(c).display,
+          visibility: getComputedStyle(c).visibility,
+          opacity: getComputedStyle(c).opacity
+        });
+      });
       try {
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
         if (!doc) return;
@@ -781,7 +801,11 @@ function createTracker({
 
             // Listen for snapshot requests from parent
             window.addEventListener('message', (e) => {
-              if (e?.data?.type === 'REQUEST_IFRAME_SNAPSHOT') snapshotViewport();
+              console.log('iframe got message:', e?.data);
+              if (e?.data?.type === 'REQUEST_IFRAME_SNAPSHOT') {
+                console.log('iframe starting snapshotViewport()');
+                snapshotViewport();
+              }
             });
           }
         `;
@@ -1057,6 +1081,7 @@ function createTracker({
   }
 
   function requestIframeSnapshot(iframe, timeoutMs = 12000) {
+    console.log('parent requesting iframe snapshot');
     return new Promise((resolve) => {
       let done = false;
 
@@ -1073,6 +1098,7 @@ function createTracker({
 
       function onMsg(ev) {
         const d = ev.data;
+        console.log('parent received iframe response:', d?.type, d);
         if (!d || (d.type !== 'IFRAME_SNAPSHOT' && d.type !== 'IFRAME_SNAPSHOT_ERROR')) {
           return;
         }

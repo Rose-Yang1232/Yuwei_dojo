@@ -194,6 +194,115 @@ function createTracker({
     );
   }
 
+  function hasLiveCapture() {
+    const track = state.captureTrack;
+    return !!(
+      state.captureReady &&
+      state.captureStream &&
+      track &&
+      track.readyState === 'live' &&
+      !track.muted
+    );
+  }
+
+  function ensureCaptureRequiredOverlay() {
+    let overlay = document.getElementById('capture-required-overlay');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'capture-required-overlay';
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      inset: '0',
+      background: 'rgba(255,255,255,0.96)',
+      zIndex: '100000',
+      display: 'none',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px',
+      boxSizing: 'border-box'
+    });
+
+    const panel = document.createElement('div');
+    Object.assign(panel.style, {
+      maxWidth: '700px',
+      background: '#fff',
+      color: '#000',
+      border: '2px solid #c00000',
+      borderRadius: '12px',
+      padding: '24px',
+      textAlign: 'center',
+      fontFamily: 'sans-serif',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.18)'
+    });
+
+    const title = document.createElement('h2');
+    title.textContent = 'Screen sharing is required';
+    panel.appendChild(title);
+
+    const text = document.createElement('p');
+    text.textContent =
+      'This part of the experiment requires tab sharing to remain active. ' +
+      'If sharing stops, the challenge is paused until you resume sharing for this tab.';
+    panel.appendChild(text);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Resume sharing';
+    Object.assign(btn.style, {
+      padding: '12px 18px',
+      fontSize: '16px',
+      borderRadius: '8px',
+      border: '1px solid #666',
+      cursor: 'pointer',
+      background: '#fff'
+    });
+
+    const status = document.createElement('div');
+    status.style.marginTop = '12px';
+    status.style.minHeight = '24px';
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      status.textContent = 'Requesting tab capture permission...';
+
+      const ok = await startTabCapture();
+      if (ok) {
+        hideCaptureRequiredOverlay();
+        status.textContent = '';
+      } else {
+        btn.disabled = false;
+        status.textContent = 'Could not resume sharing. Please try again.';
+      }
+    });
+
+    panel.appendChild(btn);
+    panel.appendChild(status);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function showCaptureRequiredOverlay() {
+    const overlay = ensureCaptureRequiredOverlay();
+    overlay.style.display = 'flex';
+  }
+
+  function hideCaptureRequiredOverlay() {
+    const overlay = document.getElementById('capture-required-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function enforceCaptureRequirement() {
+    if (hasLiveCapture()) {
+      hideCaptureRequiredOverlay();
+      return true;
+    }
+
+    showCaptureRequiredOverlay();
+    return false;
+  }
+
   function clearExpiryAlarm() {
     if (state.expireTimerId) {
       clearTimeout(state.expireTimerId);
@@ -726,6 +835,7 @@ function createTracker({
 
       const ok = await startTabCapture();
       if (!ok) {
+        hideCaptureRequiredOverlay();
         btn.disabled = false;
         status.textContent = 'Could not start tab capture. Please try again.';
         return;
@@ -910,7 +1020,7 @@ function createTracker({
       state.captureReady = true;
 
       track.addEventListener('ended', () => {
-        console.warn(`[capture ${state.captureChannel}] user stopped tab capture.`);
+        console.warn(`[capture ${state.captureChannel}] capture track ended.`);
         state.captureReady = false;
         state.captureTrack = null;
         state.captureStream = null;
@@ -922,6 +1032,18 @@ function createTracker({
           } catch (_) {}
         }
         state.captureVideo = null;
+
+        showCaptureRequiredOverlay();
+      });
+
+      track.addEventListener('mute', () => {
+        console.warn(`[capture ${state.captureChannel}] capture track muted.`);
+        enforceCaptureRequirement();
+      });
+
+      track.addEventListener('unmute', () => {
+        console.log(`[capture ${state.captureChannel}] capture track unmuted.`);
+        enforceCaptureRequirement();
       });
 
       const surface = settings.displaySurface || 'unknown';
@@ -1311,7 +1433,10 @@ function createTracker({
     sweepStalePeers();
     state.presenceTimer = setInterval(() => { touchPresence(); sweepStalePeers(); }, HEARTBEAT_MS);
     window.addEventListener('storage', onStorage);
-    document.addEventListener('visibilitychange', logVisibilityState);
+    document.addEventListener('visibilitychange', () => {
+      logVisibilityState();
+      enforceCaptureRequirement();
+    });
 
     runWebGazer();
     attachIframeListeners();

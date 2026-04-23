@@ -195,6 +195,20 @@ function createTracker({
   }
   function onVisibilityChange() {
     logVisibilityState();
+
+    const calibrated = ls.get('webgazerCalibrated') === 'true';
+
+    // If this tab is no longer visible, stop its capture so we do not keep
+    // multiple active tab-sharing sessions alive at once.
+    if (document.visibilityState !== 'visible') {
+      if (calibrated && hasLiveCapture()) {
+        console.log(`[capture ${state.captureChannel}] tab hidden; stopping capture to avoid dual sharing.`);
+        stopTabCapture();
+      }
+      return;
+    }
+
+    // When this tab becomes visible again, enforce sharing if calibration is done.
     enforceCaptureRequirement();
   }
 
@@ -306,7 +320,7 @@ function createTracker({
       return true;
     }
 
-    // After calibration, require active capture.
+    // After calibration, require live capture.
     if (hasLiveCapture()) {
       hideCaptureRequiredOverlay();
       return true;
@@ -1009,7 +1023,7 @@ function createTracker({
         },
         audio: false,
         preferCurrentTab: true,
-        surfaceSwitching: "exclude"
+        surfaceSwitching: "include"
       });
 
       const track = stream.getVideoTracks()[0];

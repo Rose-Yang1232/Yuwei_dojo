@@ -177,6 +177,47 @@ function createTracker({
     return 'Time is up for this challenge. Please move on to the next challenge, or finish the experiment if you have completed all challenges. This challenge is now finished. Failing to finish this challenge will NOT affect your compensation.';
   }
 
+    const ownCaptureHandle = `${userId}:${getCaptureChannel()}`;
+  const sharedHandleKey = `sharedCaptureHandle:${userId}`;
+
+  function initCaptureHandle() {
+    try {
+      if ('setCaptureHandleConfig' in navigator.mediaDevices) {
+        navigator.mediaDevices.setCaptureHandleConfig({
+          handle: ownCaptureHandle,
+          exposeOrigin: true,
+          permittedOrigins: ['*']
+        });
+      }
+    } catch (err) {
+      console.warn('setCaptureHandleConfig failed:', err);
+    }
+  }
+
+  function getSharedHandle() {
+    return localStorage.getItem(sharedHandleKey);
+  }
+
+  function setSharedHandle(value) {
+    if (value) localStorage.setItem(sharedHandleKey, value);
+    else localStorage.removeItem(sharedHandleKey);
+  }
+
+    function publishCapturedHandleFromTrack() {
+    const track = state.captureTrack;
+    if (!track || !('getCaptureHandle' in track)) {
+      setSharedHandle(null);
+      return;
+    }
+
+    const info = track.getCaptureHandle();
+    setSharedHandle(info?.handle || null);
+  }
+
+  function isCurrentTabShared() {
+    return getSharedHandle() === ownCaptureHandle;
+  }
+
   function hasLiveCapture() {
     const track = state.captureTrack;
     return !!(
@@ -188,7 +229,7 @@ function createTracker({
     );
   }
 
-  function ensureCaptureRequiredOverlay() {
+    function ensureCaptureRequiredOverlay() {
     let overlay = document.getElementById('capture-required-overlay');
     if (overlay) return overlay;
 
@@ -208,7 +249,7 @@ function createTracker({
 
     const panel = document.createElement('div');
     Object.assign(panel.style, {
-      maxWidth: '700px',
+      maxWidth: '720px',
       background: '#fff',
       color: '#000',
       border: '2px solid #c00000',
@@ -220,28 +261,29 @@ function createTracker({
     });
 
     const title = document.createElement('h2');
-    title.textContent = 'Screen sharing is required';
+    title.textContent = 'This tab is not currently being shared';
     panel.appendChild(title);
 
     const text = document.createElement('p');
-    text.textContent =
-      'This part of the experiment requires the currently active tab to be shared. ' +
-      'If you switch tabs, you must start sharing the new active tab before continuing.';
+    text.id = 'capture-required-text';
     panel.appendChild(text);
 
     const btn = document.createElement('button');
+    btn.id = 'capture-required-start-btn';
     btn.type = 'button';
-    btn.textContent = 'Share this tab';
+    btn.textContent = 'Start sharing';
     Object.assign(btn.style, {
       padding: '12px 18px',
       fontSize: '16px',
       borderRadius: '8px',
       border: '1px solid #666',
       cursor: 'pointer',
-      background: '#fff'
+      background: '#fff',
+      display: 'none'
     });
 
     const status = document.createElement('div');
+    status.id = 'capture-required-status';
     status.style.marginTop = '12px';
     status.style.minHeight = '24px';
 
@@ -266,8 +308,24 @@ function createTracker({
     return overlay;
   }
 
-  function showCaptureRequiredOverlay() {
+  function showCaptureRequiredOverlay({ canStartNewCapture = false } = {}) {
     const overlay = ensureCaptureRequiredOverlay();
+    const text = overlay.querySelector('#capture-required-text');
+    const btn = overlay.querySelector('#capture-required-start-btn');
+    const status = overlay.querySelector('#capture-required-status');
+
+    if (canStartNewCapture) {
+      text.textContent =
+        'Screen sharing is not active. Click "Start sharing" and choose "This Tab" in the browser prompt.';
+      btn.style.display = '';
+      btn.disabled = false;
+    } else {
+      text.textContent =
+        'You are currently viewing a tab that is not the one being shared. Use the browser sharing bar at the top and click "Share this tab instead". Once the shared tab switches to this tab, this message will disappear.';
+      btn.style.display = 'none';
+    }
+
+    status.textContent = '';
     overlay.style.display = 'flex';
   }
 
@@ -276,27 +334,33 @@ function createTracker({
     if (overlay) overlay.style.display = 'none';
   }
 
-  function enforceCaptureRequirement() {
+    function enforceCaptureRequirement() {
     const calibrated = ls.get('webgazerCalibrated') === 'true';
 
-    // No capture requirement during calibration.
     if (!calibrated) {
       hideCaptureRequiredOverlay();
       return true;
     }
 
-    // Only enforce on the active/visible tab.
     if (!shouldCaptureFromThisTab()) {
       hideCaptureRequiredOverlay();
       return true;
     }
 
-    if (hasLiveCapture()) {
+    // If this tab is the one currently being shared, we're good.
+    if (isCurrentTabShared()) {
       hideCaptureRequiredOverlay();
       return true;
     }
 
-    showCaptureRequiredOverlay();
+    // If no stream is active at all, allow starting a new one.
+    if (!getSharedHandle()) {
+      showCaptureRequiredOverlay({ canStartNewCapture: true });
+      return false;
+    }
+
+    // Otherwise, a stream exists, but it is sharing some other tab.
+    showCaptureRequiredOverlay({ canStartNewCapture: false });
     return false;
   }
 
@@ -989,7 +1053,7 @@ function createTracker({
     }
   }
 
-  async function startTabCapture() {
+    async function startTabCapture() {
     if (state.captureStream && state.captureReady) return true;
 
     if (!navigator.mediaDevices?.getDisplayMedia) {
@@ -1003,7 +1067,8 @@ function createTracker({
           frameRate: { ideal: 5, max: 8 }
         },
         audio: false,
-        preferCurrentTab: true
+        preferCurrentTab: true,
+        surfaceSwitching: 'include'
       });
 
       const track = stream.getVideoTracks()[0];
@@ -1028,6 +1093,15 @@ function createTracker({
       state.captureCanvas = document.createElement('canvas');
       state.captureReady = true;
 
+      publishCapturedHandleFromTrack();
+
+      if ('addEventListener' in track) {
+        track.addEventListener('capturehandlechange', () => {
+          publishCapturedHandleFromTrack();
+          enforceCaptureRequirement();
+        });
+      }
+
       track.addEventListener('ended', () => {
         console.warn('User stopped tab capture.');
         state.captureReady = false;
@@ -1042,16 +1116,7 @@ function createTracker({
         }
         state.captureVideo = null;
 
-        enforceCaptureRequirement();
-      });
-
-      track.addEventListener('mute', () => {
-        console.warn('Capture track muted.');
-        enforceCaptureRequirement();
-      });
-
-      track.addEventListener('unmute', () => {
-        console.log('Capture track unmuted.');
+        setSharedHandle(null);
         enforceCaptureRequirement();
       });
 
@@ -1069,7 +1134,7 @@ function createTracker({
     }
   }
 
-  function stopTabCapture() {
+    function stopTabCapture() {
     if (state.captureTrack) {
       try { state.captureTrack.stop(); } catch (_) {}
     }
@@ -1098,6 +1163,7 @@ function createTracker({
     state.captureCanvas = null;
     state.captureReady = false;
 
+    setSharedHandle(null);
     enforceCaptureRequirement();
   }
 
@@ -1337,6 +1403,11 @@ function createTracker({
   // storage event helps react quickly when peers go away
   function onStorage(e) {
     if (!e || !e.key) return;
+
+    if (e.key === sharedHandleKey) {
+      enforceCaptureRequirement();
+      return;
+    }
 
     /*
     // Another tab marked timeout -> enforce here too

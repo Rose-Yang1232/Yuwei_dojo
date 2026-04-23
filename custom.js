@@ -193,6 +193,10 @@ function createTracker({
       `[capture ${getCaptureChannel()}] visibility=${document.visibilityState}, hidden=${document.hidden}`
     );
   }
+  function onVisibilityChange() {
+    logVisibilityState();
+    enforceCaptureRequirement();
+  }
 
   function hasLiveCapture() {
     const track = state.captureTrack;
@@ -294,6 +298,15 @@ function createTracker({
   }
 
   function enforceCaptureRequirement() {
+    const calibrated = ls.get('webgazerCalibrated') === 'true';
+
+    // During calibration, screen capture is not required.
+    if (!calibrated) {
+      hideCaptureRequiredOverlay();
+      return true;
+    }
+
+    // After calibration, require active capture.
     if (hasLiveCapture()) {
       hideCaptureRequiredOverlay();
       return true;
@@ -991,10 +1004,12 @@ function createTracker({
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          frameRate: { ideal: 5, max: 8 }
+          frameRate: { ideal: 5, max: 8 },
+          displaySurface: "browser"
         },
         audio: false,
-        preferCurrentTab: true
+        preferCurrentTab: true,
+        surfaceSwitching: "exclude"
       });
 
       const track = stream.getVideoTracks()[0];
@@ -1033,17 +1048,24 @@ function createTracker({
         }
         state.captureVideo = null;
 
-        showCaptureRequiredOverlay();
+        const calibrated = ls.get('webgazerCalibrated') === 'true';
+        if (calibrated) {
+          showCaptureRequiredOverlay();
+        } else {
+          hideCaptureRequiredOverlay();
+        }
       });
 
       track.addEventListener('mute', () => {
         console.warn(`[capture ${state.captureChannel}] capture track muted.`);
-        enforceCaptureRequirement();
+        const calibrated = ls.get('webgazerCalibrated') === 'true';
+        if (calibrated) enforceCaptureRequirement();
       });
 
       track.addEventListener('unmute', () => {
         console.log(`[capture ${state.captureChannel}] capture track unmuted.`);
-        enforceCaptureRequirement();
+        const calibrated = ls.get('webgazerCalibrated') === 'true';
+        if (calibrated) enforceCaptureRequirement();
       });
 
       const surface = settings.displaySurface || 'unknown';
@@ -1433,10 +1455,7 @@ function createTracker({
     sweepStalePeers();
     state.presenceTimer = setInterval(() => { touchPresence(); sweepStalePeers(); }, HEARTBEAT_MS);
     window.addEventListener('storage', onStorage);
-    document.addEventListener('visibilitychange', () => {
-      logVisibilityState();
-      enforceCaptureRequirement();
-    });
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     runWebGazer();
     attachIframeListeners();
@@ -1463,7 +1482,7 @@ function createTracker({
 
     if (state.presenceTimer) { clearInterval(state.presenceTimer); state.presenceTimer = null; }
     window.removeEventListener('storage', onStorage);
-    document.removeEventListener('visibilitychange', logVisibilityState);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
     localStorage.removeItem(presenceKey());
 
     stopTabCapture();

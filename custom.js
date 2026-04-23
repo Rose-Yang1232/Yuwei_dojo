@@ -104,7 +104,7 @@ function loadScript(src, { async = true, defer = false, crossOrigin = null } = {
 
 function createTracker({
   iframeId,
-  iframeSelector,  
+  iframeSelector,
   challenge,
   bannerElId,
   expectedContainerId = null,
@@ -117,9 +117,25 @@ function createTracker({
   minAccuracy = 85,
   allowCalibrationSkip = false,
 }) {
-  // Private clocks for absolute timestamps
-  const wallClockStart = Date.now();        // ms since epoch
-  const perfStart = performance.now();      // ms since page load
+  const wallClockStart = Date.now();
+  const perfStart = performance.now();
+
+  function getCaptureChannel() {
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes('sensai')) return 'sensai';
+    if (path.includes('workspace')) return 'challenge';
+    return 'unknown';
+  }
+
+  function shouldCaptureFromThisTab() {
+    return document.visibilityState === 'visible' && !document.hidden;
+  }
+
+  function logVisibilityState() {
+    console.log(
+      `[capture ${state.captureChannel}] visibility=${document.visibilityState}, hidden=${document.hidden}`
+    );
+  }
 
   const state = {
     eventQueue: [],
@@ -134,16 +150,16 @@ function createTracker({
     bannerObserver: null,
     bannerReadyObserver: null,
     domObserver: null,
+    presenceTimer: null,
 
     captureStream: null,
     captureVideo: null,
     captureReady: false,
     captureCanvas: null,
-    captureTrack: null
+    captureTrack: null,
+    captureChannel: getCaptureChannel()
   };
 
-
-  // Namespaced localStorage helpers
   const ns = `gaze:${challenge || 'default'}:${userId || 'anon'}:`;
   const lsKey = (k) => `${ns}${k}`;
   const ls = {
@@ -158,19 +174,25 @@ function createTracker({
     }
   };
 
-  // Time limit (25 min by default), shared across tabs with localStorage
   const CHALLENGE_TIME_MS = Math.max(1, challengeTimeMinutes) * 60 * 1000;
 
   function getDeadline() {
     const v = Number(ls.get('deadline'));
     return Number.isFinite(v) ? v : 0;
   }
-  function setDeadline(ts) { ls.set('deadline', String(ts)); }
+
+  function setDeadline(ts) {
+    ls.set('deadline', String(ts));
+  }
+
   function isTimedOut() {
     const d = getDeadline();
     return ls.get('timedOut') === 'true' || (d && Date.now() >= d);
   }
-  function markTimedOut() { ls.set('timedOut', 'true'); }
+
+  function markTimedOut() {
+    ls.set('timedOut', 'true');
+  }
 
   function timeoutMessageText() {
     return 'Time is up for this challenge. Please move on to the next challenge, or finish the experiment if you have completed all challenges. This challenge is now finished. Failing to finish this challenge will NOT affect your compensation.';
@@ -189,30 +211,32 @@ function createTracker({
     if (!d) return;
     const delay = Math.max(0, d - Date.now());
     state.expireTimerId = setTimeout(() => {
-      if (isTimedOut()) return;           // another tab may have fired already
-      markTimedOut();                      // broadcast to other tabs
+      if (isTimedOut()) return;
+      markTimedOut();
       recordCompletionOnce('timed out');
-      //showIframeBlockingMessage(timeoutMessageText(), { showRetry: false });
-      //stop();                              // stop uploads/listeners
     }, delay);
   }
 
-  function clearTimerKeys() { ls.rm('deadline'); ls.rm('timedOut'); }
+  function clearTimerKeys() {
+    ls.rm('deadline');
+    ls.rm('timedOut');
+  }
 
-  // Completion recording (deduped across tabs)
-  function completionKey(k) { return lsKey(`completion:${k}`); }
+  function completionKey(k) {
+    return lsKey(`completion:${k}`);
+  }
 
   async function recordCompletionOnce(method) {
-    // method is "timed out" or "found flag"
-    if (localStorage.getItem(completionKey('completed')) === 'true') return;      // already done
-    if (localStorage.getItem(completionKey('queued')) === 'true') return;         // in-flight / already attempted
+    if (localStorage.getItem(completionKey('completed')) === 'true') return;
+    if (localStorage.getItem(completionKey('queued')) === 'true') return;
+
     try {
       localStorage.setItem(completionKey('queued'), 'true');
 
       const form = new URLSearchParams();
       form.append('userId', userId);
       form.append('challenge', challenge);
-      form.append('method', method); // "timed out" | "found flag"
+      form.append('method', method);
 
       const resp = await fetch(`${urlBasePath}record_completion.php`, {
         method: 'POST',
@@ -221,25 +245,37 @@ function createTracker({
       });
 
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
       const ok = await resp.json().catch(() => ({}));
       if (ok && ok.status === 'ok') {
         localStorage.setItem(completionKey('completed'), 'true');
         localStorage.setItem(completionKey('method'), method);
       } else {
-        // allow retry on next trigger
         localStorage.removeItem(completionKey('queued'));
       }
     } catch (e) {
-      // allow retry later (e.g., user reload / another tab fires)
       localStorage.removeItem(completionKey('queued'));
       console.warn('recordCompletionOnce failed:', e);
     }
   }
 
+  function getExpectedContainer() {
+    return expectedContainerId ? document.getElementById(expectedContainerId) : null;
+  }
+
+  function resolveIframe() {
+    const container = getExpectedContainer();
+    const selector = iframeSelector || (iframeId ? `#${iframeId}` : null);
+
+    if (container && selector) return container.querySelector(selector);
+    if (container && iframeId && !selector) return container.querySelector(`#${iframeId}`);
+    if (selector) return document.querySelector(selector);
+    if (iframeId) return document.getElementById(iframeId);
+    return null;
+  }
+
   function getBannerEl() {
     const container = getExpectedContainer();
-    // IMPORTANT: if multiple challenges share the same id in the DOM,
-    // querying inside the expected container avoids false positives.
     return container
       ? container.querySelector('#workspace-notification-banner')
       : document.getElementById('workspace-notification-banner');
@@ -248,26 +284,24 @@ function createTracker({
   function bannerShowsSolved(el) {
     if (!el) return false;
     const txt = (el.textContent || '').toLowerCase();
-    if (txt.includes('solved')) return true; 
+    if (txt.includes('solved')) return true;
 
-    // Optional extra heuristics (kept lenient): green success styling
     try {
       const clsOk = el.classList?.contains('animate-banner');
       const inline = (el.getAttribute('style') || '').toLowerCase();
       const computed = (getComputedStyle(el).borderColor || '').toLowerCase();
       if (clsOk && (inline.includes('brand-green') || computed.includes('green'))) return true;
     } catch (_) {}
+
     return false;
   }
 
-
   function ensureBannerWatcher() {
-    if (state.bannerObserver) return; // already watching
+    if (state.bannerObserver) return;
 
     const installOn = (el) => {
       if (!el) return false;
 
-      // Immediate check (covers "Solved" already present)
       if (bannerShowsSolved(el)) {
         recordCompletionOnce('found flag');
       }
@@ -277,6 +311,7 @@ function createTracker({
           recordCompletionOnce('found flag');
         }
       });
+
       ob.observe(el, {
         childList: true,
         subtree: true,
@@ -284,14 +319,13 @@ function createTracker({
         attributes: true,
         attributeFilter: ['class', 'style']
       });
+
       state.bannerObserver = ob;
       return true;
     };
 
-    // Try right now
     if (installOn(getBannerEl())) return;
 
-    // If banner not in DOM yet, watch for it under the expected container (or whole doc if none)
     const root = getExpectedContainer() || document.documentElement;
     const ready = new MutationObserver(() => {
       const el = getBannerEl();
@@ -300,29 +334,27 @@ function createTracker({
         state.bannerReadyObserver = null;
       }
     });
+
     ready.observe(root, { childList: true, subtree: true });
     state.bannerReadyObserver = ready;
   }
 
-
-  const calibrationData = {}; // { PtX: { clickCount, gazeSamples[] } }
+  const calibrationData = {};
   const REQUIRED_CLICKS = 5;
 
-  // Positions for calibration dots (8 outer + 1 center)
   const outerPositions = [
     { id: 'Pt1', top: '10%', left: '10%' },
     { id: 'Pt2', top: '10%', left: '50%' },
     { id: 'Pt3', top: '10%', left: '90%' },
     { id: 'Pt4', top: '50%', left: '10%' },
-    /* skip center here */
     { id: 'Pt6', top: '50%', left: '90%' },
     { id: 'Pt7', top: '90%', left: '10%' },
     { id: 'Pt8', top: '90%', left: '50%' },
     { id: 'Pt9', top: '90%', left: '90%' },
   ];
+
   const centerPosition = { id: 'Pt5', top: '50%', left: '50%' };
 
-  // WebGazer startup
   async function runWebGazer() {
     if (typeof webgazer === 'undefined') {
       console.warn('WebGazer not loaded');
@@ -330,14 +362,12 @@ function createTracker({
     }
 
     const calibrated = ls.get('webgazerCalibrated') === 'true';
-    let cam = ls.get('cam'); // deviceId
+    let cam = ls.get('cam');
 
     if (!calibrated) {
       try { webgazer.clearData(); } catch {}
-
     }
 
-    // Configure camera constraints
     const applyCam = (deviceId) => {
       try {
         webgazer.setCameraConstraints({
@@ -371,7 +401,6 @@ function createTracker({
       applyCam(cam);
     }
 
-    // Set up WebGazer model + listener
     webgazer
       .saveDataAcrossSessions(true)
       .setRegression('ridge')
@@ -379,7 +408,10 @@ function createTracker({
         if (!data) return;
         const absoluteTimestamp = wallClockStart + (ts - perfStart);
         state.gazeQueue.push({
-          x: data.x, y: data.y, timestamp: ts, absoluteTimestamp
+          x: data.x,
+          y: data.y,
+          timestamp: ts,
+          absoluteTimestamp
         });
       })
       .begin();
@@ -398,12 +430,12 @@ function createTracker({
       console.log('WebGazer resumed with saved calibration – skipping UI.');
     }
 
-    // Ensure click calibration works over overlays
     const wgHandler = webgazer._clickListener || webgazer.params?.clickListener;
     if (wgHandler) {
       document.removeEventListener('click', wgHandler);
       document.addEventListener('click', wgHandler, true);
     }
+
     document.addEventListener('mousedown', (e) => {
       if (typeof webgazer.recordScreenPosition === 'function') {
         webgazer.recordScreenPosition(e.clientX, e.clientY);
@@ -411,44 +443,56 @@ function createTracker({
     }, true);
   }
 
-  // ---------- Calibration UI ----------
   function createCalibrationPoints() {
     if (document.querySelector('.calibrationDiv')) return;
 
     const bg = document.createElement('div');
     bg.className = 'calibrationBackground';
     Object.assign(bg.style, {
-      position: 'fixed', inset: '0', backgroundColor: 'white'
+      position: 'fixed',
+      inset: '0',
+      backgroundColor: 'white'
     });
     document.body.appendChild(bg);
 
     const overlay = document.createElement('div');
     overlay.className = 'calibrationDiv';
     Object.assign(overlay.style, {
-      position: 'fixed', inset: '0',
-      pointerEvents: 'none', zIndex: 9999
+      position: 'fixed',
+      inset: '0',
+      pointerEvents: 'none',
+      zIndex: 9999
     });
 
     const instructionText = document.createElement('div');
     instructionText.className = 'calibrationInstruction';
     instructionText.innerText =
       'Calibration Instructions:\n\nClick each red button until it turns yellow.\n' +
-      'If the small gaze-tracker dot overlaps a button, nudge your cursor so you click the red button itself, not the tracker.\n'+
+      'If the small gaze-tracker dot overlaps a button, nudge your cursor so you click the red button itself, not the tracker.\n' +
       'Ensure you are in a well-lit room and your face is clearly visible in the video in the top left';
     Object.assign(instructionText.style, {
-      position: 'absolute', top: '10%', left: '50%',
-      transform: 'translateX(-50%)', fontSize: '24px',
-      fontWeight: 'bold', color: 'black', whiteSpace: 'pre-wrap'
+      position: 'absolute',
+      top: '10%',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      fontSize: '24px',
+      fontWeight: 'bold',
+      color: 'black',
+      whiteSpace: 'pre-wrap'
     });
     overlay.appendChild(instructionText);
 
-    // Camera selector
     const label = document.createElement('label');
     label.innerText = 'Choose camera: ';
     Object.assign(label.style, {
-      position: 'absolute', top: '45%', left: '50%',
-      transform: 'translateX(-50%)', fontSize: '18px', color: 'black'
+      position: 'absolute',
+      top: '45%',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      fontSize: '18px',
+      color: 'black'
     });
+
     const select = document.createElement('select');
     select.id = 'cameraSelect';
     select.style.marginLeft = '8px';
@@ -462,7 +506,7 @@ function createTracker({
           cams.forEach((c, i) => {
             const opt = document.createElement('option');
             opt.value = c.deviceId;
-            opt.text  = c.label || `Camera ${i + 1}`;
+            opt.text = c.label || `Camera ${i + 1}`;
             if (ls.get('cam') === c.deviceId) opt.selected = true;
             select.appendChild(opt);
           });
@@ -470,15 +514,20 @@ function createTracker({
         .catch(err => console.error('Could not list cameras:', err));
     }
 
-    // Create 8 outer dots
     outerPositions.forEach(pos => {
       const btn = document.createElement('button');
       btn.className = 'Calibration';
       btn.id = pos.id;
       Object.assign(btn.style, {
-        position: 'absolute', top: pos.top, left: pos.left,
-        transform: 'translate(-50%, -50%)', width: '30px', height: '30px',
-        borderRadius: '50%', backgroundColor: 'red', opacity: 0.6,
+        position: 'absolute',
+        top: pos.top,
+        left: pos.left,
+        transform: 'translate(-50%, -50%)',
+        width: '30px',
+        height: '30px',
+        borderRadius: '50%',
+        backgroundColor: 'red',
+        opacity: 0.6,
         pointerEvents: 'auto'
       });
       overlay.appendChild(btn);
@@ -503,7 +552,6 @@ function createTracker({
         zIndex: 10000
       });
       skip.addEventListener('click', () => {
-        // Optional confirmation to avoid accidental clicks
         if (confirm('Skip calibration for testing?')) {
           finalizeCalibrationSuccess({ reason: 'dev-skip', overall: 100 });
         }
@@ -513,12 +561,9 @@ function createTracker({
 
     document.body.appendChild(overlay);
 
-    // Camera change handler — FIXED to use selected deviceId
     select.addEventListener('change', async (e) => {
       const deviceId = e.target.value;
-      try {
-        await webgazer.end();
-      } catch {}
+      try { await webgazer.end(); } catch {}
       try { webgazer.clearData(); } catch {}
 
       try {
@@ -529,7 +574,9 @@ function createTracker({
             facingMode: 'user'
           }
         });
+
         ls.set('cam', deviceId);
+
         await webgazer
           .saveDataAcrossSessions(true)
           .setRegression('ridge')
@@ -549,14 +596,23 @@ function createTracker({
 
   function createCenterButton() {
     if (document.getElementById(centerPosition.id)) return;
+
     const btn = document.createElement('button');
     btn.className = 'Calibration';
     btn.id = centerPosition.id;
     Object.assign(btn.style, {
-      position: 'absolute', top: centerPosition.top, left: centerPosition.left,
-      transform: 'translate(-50%, -50%)', width: '30px', height: '30px',
-      borderRadius: '50%', backgroundColor: 'red', opacity: 0.6, pointerEvents: 'auto'
+      position: 'absolute',
+      top: centerPosition.top,
+      left: centerPosition.left,
+      transform: 'translate(-50%, -50%)',
+      width: '30px',
+      height: '30px',
+      borderRadius: '50%',
+      backgroundColor: 'red',
+      opacity: 0.6,
+      pointerEvents: 'auto'
     });
+
     document.querySelector('.calibrationDiv').appendChild(btn);
     btn.addEventListener('click', calibrationClickHandler);
   }
@@ -565,6 +621,7 @@ function createTracker({
     const id = e.target.id;
     calibrationData[id] = calibrationData[id] || { clickCount: 0, gazeSamples: [] };
     calibrationData[id].clickCount++;
+
     const gaze = webgazer.getCurrentPrediction?.();
     if (gaze) calibrationData[id].gazeSamples.push({ x: gaze.x, y: gaze.y });
 
@@ -582,9 +639,10 @@ function createTracker({
     }
   }
 
-  function ClearCalibration() {
+  function clearCalibration() {
     Object.keys(calibrationData).forEach(k => delete calibrationData[k]);
     try { webgazer.clearData(); } catch {}
+
     document.querySelectorAll('.Calibration').forEach(btn => {
       btn.disabled = false;
       btn.style.backgroundColor = 'red';
@@ -602,12 +660,17 @@ function createTracker({
   }
 
   function measureCenterAccuracy() {
-    // Blue center dot
     const centerDot = document.createElement('div');
     centerDot.id = 'centerDot';
     Object.assign(centerDot.style, {
-      position: 'fixed', width: '20px', height: '20px', backgroundColor: 'blue',
-      borderRadius: '50%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+      position: 'fixed',
+      width: '20px',
+      height: '20px',
+      backgroundColor: 'blue',
+      borderRadius: '50%',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
       zIndex: 10000
     });
     document.body.appendChild(centerDot);
@@ -617,13 +680,14 @@ function createTracker({
     setTimeout(() => {
       centerDot.remove();
 
-      const snapshot = state.gazeQueue.slice(-15); // last 15 points
+      const snapshot = state.gazeQueue.slice(-15);
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
       const threshold = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2) / 2;
 
       const precisions = snapshot.map(s => {
-        const dx = centerX - s.x, dy = centerY - s.y;
+        const dx = centerX - s.x;
+        const dy = centerY - s.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         return dist <= threshold ? 100 - (dist / threshold * 100) : 0;
       });
@@ -634,213 +698,20 @@ function createTracker({
 
       if (overall < minAccuracy) {
         alert(`Calibration complete!\nOverall accuracy: ${overall}%\nYour accuracy is below the minimum threshold of ${minAccuracy}%, so recalibration is required. Please ensure the room is well-lit to aid accuracy.`);
-        ClearCalibration(); setupCalibration(); return;
-      }
-
-      const proceed = confirm(`Calibration complete!\nOverall accuracy: ${overall}%\nDo you want to move on? Press Cancel to calibrate again.`);
-      if (!proceed) { ClearCalibration(); setupCalibration(); return; }
-
-      finalizeCalibrationSuccess({ reason: 'measured', overall });
-    }, 5000);
-  }
-
-  function finalizeCalibrationSuccess({ reason = 'measured', overall = 100 } = {}) {
-    const overlay = document.querySelector('.calibrationDiv');
-    const bg = document.querySelector('.calibrationBackground');
-    if (!overlay) return;
-
-    // Remove old calibration buttons/instructions but keep overlay alive
-    overlay.innerHTML = '';
-
-    const panel = document.createElement('div');
-    Object.assign(panel.style, {
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      background: '#fff',
-      color: '#000',
-      padding: '24px',
-      borderRadius: '12px',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-      maxWidth: '650px',
-      textAlign: 'center',
-      pointerEvents: 'auto',
-      fontFamily: 'sans-serif'
-    });
-
-    const title = document.createElement('h2');
-    title.textContent = 'Calibration complete';
-    panel.appendChild(title);
-
-    const text = document.createElement('p');
-    text.textContent =
-      `Overall accuracy: ${overall}%. ` +
-      `Before the challenge begins, click "Start Experiment" and choose "This Tab" in the browser prompt. ` +
-      `This lets us capture screenshots that match your gaze coordinates, including the workspace iframe.`;
-    panel.appendChild(text);
-
-    const note = document.createElement('p');
-    note.textContent =
-      'Important: choose "This Tab" rather than an entire screen or window.';
-    note.style.fontWeight = 'bold';
-    panel.appendChild(note);
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = 'Start Experiment';
-    Object.assign(btn.style, {
-      padding: '12px 18px',
-      fontSize: '16px',
-      borderRadius: '8px',
-      border: '1px solid #666',
-      cursor: 'pointer',
-      background: '#fff'
-    });
-
-    const status = document.createElement('div');
-    status.style.marginTop = '12px';
-    status.style.minHeight = '24px';
-
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      status.textContent = 'Requesting tab capture permission...';
-
-      const ok = await startTabCapture();
-      if (!ok) {
-        btn.disabled = false;
-        status.textContent = 'Could not start tab capture. Please try again.';
+        clearCalibration();
+        setupCalibration();
         return;
       }
 
-      // Now actually finalize and start the timed session.
-      overlay.remove();
-      bg?.remove();
-
-      webgazer
-        .showVideoPreview(false)
-        .showPredictionPoints(false)
-        .showFaceOverlay(false)
-        .showFaceFeedbackBox(false)
-        .saveDataAcrossSessions(true);
-
-      const videoEl = document.getElementById('webgazerVideoContainer');
-      if (videoEl?.parentNode) videoEl.parentNode.removeChild(videoEl);
-
-      ls.set('webgazerCalibrated', 'true');
-      state.gazeQueue.length = 0;
-
-      if (!getDeadline()) {
-        setDeadline(Date.now() + CHALLENGE_TIME_MS);
-      }
-      scheduleExpiryAlarm();
-
-      console.log(`Calibration finalized (${reason}); overall=${overall}%`);
-    });
-
-    panel.appendChild(btn);
-    panel.appendChild(status);
-    overlay.appendChild(panel);
-  }
-
-
-  // ---------- Iframe listeners ----------
-  function attachIframeListeners() {
-    const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
-    if (!iframe) {
-      console.warn('Iframe not found:', iframeId);
-      return () => {};
-    }
-
-    const injectScript = () => {
-      try {
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (!doc) return;
-
-        const old = doc.getElementById('eventForwarder');
-        if (old) old.remove();
-
-        const script = doc.createElement('script');
-        script.id = 'eventForwarder';
-        script.textContent = `
-          if (!window._forwarderSetup) {
-            window._forwarderSetup = true;
-
-            function forwardEvent(event, type) {
-              const data = { type: "iframeClick", eventType: type, timestamp: Date.now() };
-              if (type === "keydown") data.key = event.key;
-              else { data.x = event.clientX; data.y = event.clientY; }
-              window.parent.postMessage(data, "*");
-            }
-
-            document.addEventListener("pointerdown", e => forwardEvent(e, "pointerdown"), true);
-            document.addEventListener("keydown", e => forwardEvent(e, "keydown"), true);
-          }
-        `;
-        doc.head.appendChild(script);
-      } catch (err) {
-        console.warn('Iframe is cross-origin; event injection disabled:', err);
-      }
-    };
-
-    iframe.addEventListener('load', injectScript);
-    state.cleanupFns.push(() => iframe.removeEventListener('load', injectScript));
-    return injectScript;
-  }
-
-  // Parent window message handler
-  function setupMessageHandler() {
-    const handler = (event) => {
-      if (event?.data?.type !== 'iframeClick') return;
-      const { eventType, timestamp, x, y, key } = event.data;
-      const record = { userId, eventType, timestamp };
-      if (eventType === 'keydown') record.key = key;
-      else { record.x = x; record.y = y; }
-      state.eventQueue.push(record);
-    };
-    window.addEventListener('message', handler);
-    state.msgHandler = handler;
-  }
-
-  // Periodic batch and upload
-  function sendEventsToServer() {
-    // Upload events
-    if (state.eventQueue.length) {
-      const form = new URLSearchParams();
-      form.append('challenge', challenge);
-      form.append('userId', userId);
-      form.append('events', JSON.stringify(state.eventQueue));
-      fetch(`${urlBasePath}save_events.php`, { method: 'POST', body: form })
-        .then(r => r.json())
-        //.then(d => console.log('Events upload OK:', d))
-        .catch(e => console.error('Events upload error:', e));
-      state.eventQueue.length = 0;
-    }
-
-    // Upload gaze
-    const calibrated = ls.get('webgazerCalibrated') === 'true';
-    if (calibrated && state.gazeQueue.length) {
-      if (!state.startedFlag) {
-        const cx = window.innerWidth / 2;
-        const cy = window.innerHeight / 2;
-        state.gazeQueue.unshift({ x: cx, y: cy, timestamp: -1, absoluteTimestamp: -1 });
-        state.startedFlag = true;
-        ls.set('started', 'true');
+      const proceed = confirm(`Calibration complete!\nOverall accuracy: ${overall}%\nDo you want to move on? Press Cancel to calibrate again.`);
+      if (!proceed) {
+        clearCalibration();
+        setupCalibration();
+        return;
       }
 
-      const form = new URLSearchParams();
-      form.append('challenge', challenge);
-      form.append('userId', userId);
-      form.append('gazeData', JSON.stringify(state.gazeQueue));
-      fetch(`${urlBasePath}save_gaze.php`, { method: 'POST', body: form })
-        .then(r => r.json())
-        //.then(d => console.log('Gaze upload OK:', d))
-        .catch(e => console.error('Gaze upload error:', e));
-
-      const cur = state.gazeQueue[state.gazeQueue.length - 1];
-      takeScreenshot(cur.x, cur.y, /*click*/ false);
-      state.gazeQueue.length = 0;
-    }
+      finalizeCalibrationSuccess({ reason: 'measured', overall });
+    }, 5000);
   }
 
   async function startTabCapture() {
@@ -867,13 +738,12 @@ function createTracker({
       }
 
       const settings = track.getSettings ? track.getSettings() : {};
-      console.log('Capture track settings:', settings);
+      console.log(`[capture ${state.captureChannel}] track settings:`, settings);
 
       const video = document.createElement('video');
       video.playsInline = true;
       video.muted = true;
       video.srcObject = stream;
-
       await video.play();
 
       state.captureStream = stream;
@@ -883,7 +753,7 @@ function createTracker({
       state.captureReady = true;
 
       track.addEventListener('ended', () => {
-        console.warn('User stopped tab capture.');
+        console.warn(`[capture ${state.captureChannel}] user stopped tab capture.`);
         state.captureReady = false;
         state.captureTrack = null;
         state.captureStream = null;
@@ -894,6 +764,7 @@ function createTracker({
             state.captureVideo.srcObject = null;
           } catch (_) {}
         }
+
         state.captureVideo = null;
       });
 
@@ -904,7 +775,7 @@ function createTracker({
 
       return true;
     } catch (err) {
-      console.error('Failed to start tab capture:', err);
+      console.error(`[capture ${state.captureChannel}] failed to start tab capture:`, err);
       alert('We could not start tab capture. Please click "Start Experiment" again and choose "This Tab".');
       return false;
     }
@@ -940,45 +811,290 @@ function createTracker({
     state.captureReady = false;
   }
 
-  function getCaptureScale() {
-    const video = state.captureVideo;
-    if (!video || !video.videoWidth || !video.videoHeight) {
-      return { scaleX: 1, scaleY: 1 };
-    }
+  function finalizeCalibrationSuccess({ reason = 'measured', overall = 100 } = {}) {
+    const overlay = document.querySelector('.calibrationDiv');
+    const bg = document.querySelector('.calibrationBackground');
+    if (!overlay) return;
 
-    return {
-      scaleX: video.videoWidth / window.innerWidth,
-      scaleY: video.videoHeight / window.innerHeight
-    };
+    overlay.innerHTML = '';
+
+    const panel = document.createElement('div');
+    Object.assign(panel.style, {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      background: '#fff',
+      color: '#000',
+      padding: '24px',
+      borderRadius: '12px',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+      maxWidth: '650px',
+      textAlign: 'center',
+      pointerEvents: 'auto',
+      fontFamily: 'sans-serif'
+    });
+
+    const title = document.createElement('h2');
+    title.textContent = 'Calibration complete';
+    panel.appendChild(title);
+
+    const text = document.createElement('p');
+    text.textContent =
+      `Overall accuracy: ${overall}%. ` +
+      `Before the challenge begins, click "Start Experiment" and choose "This Tab" in the browser prompt. ` +
+      `This tab will maintain its own capture stream and only upload screenshots while it is the active tab.`;
+    panel.appendChild(text);
+
+    const note = document.createElement('p');
+    note.textContent =
+      'Important: if you use both the challenge and sensai tabs, you must approve tab capture once in each tab.';
+    note.style.fontWeight = 'bold';
+    panel.appendChild(note);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Start Experiment';
+    Object.assign(btn.style, {
+      padding: '12px 18px',
+      fontSize: '16px',
+      borderRadius: '8px',
+      border: '1px solid #666',
+      cursor: 'pointer',
+      background: '#fff'
+    });
+
+    const status = document.createElement('div');
+    status.style.marginTop = '12px';
+    status.style.minHeight = '24px';
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      status.textContent = 'Requesting tab capture permission...';
+
+      const ok = await startTabCapture();
+      if (!ok) {
+        btn.disabled = false;
+        status.textContent = 'Could not start tab capture. Please try again.';
+        return;
+      }
+
+      overlay.remove();
+      bg?.remove();
+
+      webgazer
+        .showVideoPreview(false)
+        .showPredictionPoints(false)
+        .showFaceOverlay(false)
+        .showFaceFeedbackBox(false)
+        .saveDataAcrossSessions(true);
+
+      const videoEl = document.getElementById('webgazerVideoContainer');
+      if (videoEl?.parentNode) videoEl.parentNode.removeChild(videoEl);
+
+      ls.set('webgazerCalibrated', 'true');
+      state.gazeQueue.length = 0;
+
+      if (!getDeadline()) {
+        setDeadline(Date.now() + CHALLENGE_TIME_MS);
+      }
+      scheduleExpiryAlarm();
+
+      console.log(`Calibration finalized (${reason}); overall=${overall}%`);
+    });
+
+    panel.appendChild(btn);
+    panel.appendChild(status);
+    overlay.appendChild(panel);
   }
 
+  // ---------- Iframe listeners ----------
+  function attachIframeListeners() {
+    const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
+    if (!iframe) {
+      console.warn('Iframe not found:', iframeId);
+      return () => {};
+    }
+
+    const injectScript = () => {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (!doc) return;
+
+        const old = doc.getElementById('eventForwarder');
+        if (old) old.remove();
+
+        const script = doc.createElement('script');
+        script.id = 'eventForwarder';
+        script.textContent = `
+          if (!window.forwarderSetup) {
+            window.forwarderSetup = true;
+
+            function forwardEvent(event, type) {
+              const data = { type: "iframeClick", eventType: type, timestamp: Date.now() };
+              if (type === "keydown") data.key = event.key;
+              else { data.x = event.clientX; data.y = event.clientY; }
+              window.parent.postMessage(data, "*");
+            }
+
+            document.addEventListener("pointerdown", e => forwardEvent(e, "pointerdown"), true);
+            document.addEventListener("keydown", e => forwardEvent(e, "keydown"), true);
+          }
+        `;
+        doc.head.appendChild(script);
+      } catch (err) {
+        console.warn('Iframe is cross-origin; event injection disabled:', err);
+      }
+    };
+
+    iframe.addEventListener('load', injectScript);
+    state.cleanupFns.push(() => iframe.removeEventListener('load', injectScript));
+    return injectScript;
+  }
+
+  // Parent window message handler
+  function setupMessageHandler() {
+    const handler = (event) => {
+      if (event?.data?.type !== 'iframeClick') return;
+      const { eventType, timestamp, x, y, key } = event.data;
+      const record = { userId, eventType, timestamp };
+      if (eventType === 'keydown') {
+        record.key = key;
+      } else {
+        record.x = x;
+        record.y = y;
+      }
+      state.eventQueue.push(record);
+    };
+
+    window.addEventListener('message', handler);
+    state.msgHandler = handler;
+  }
+
+  async function startTabCapture() {
+    if (state.captureStream && state.captureReady) return true;
+
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      alert('This browser does not support tab capture. Please use a recent Chromium-based browser.');
+      return false;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          frameRate: { ideal: 5, max: 8 }
+        },
+        audio: false,
+        preferCurrentTab: true
+      });
+
+      const track = stream.getVideoTracks()[0];
+      if (!track) {
+        alert('No video track was returned from screen capture.');
+        return false;
+      }
+
+      const settings = track.getSettings ? track.getSettings() : {};
+      console.log(`[capture ${state.captureChannel}] track settings:`, settings);
+
+      const video = document.createElement('video');
+      video.playsInline = true;
+      video.muted = true;
+      video.srcObject = stream;
+
+      await video.play();
+
+      state.captureStream = stream;
+      state.captureVideo = video;
+      state.captureTrack = track;
+      state.captureCanvas = document.createElement('canvas');
+      state.captureReady = true;
+
+      track.addEventListener('ended', () => {
+        console.warn(`[capture ${state.captureChannel}] user stopped tab capture.`);
+        state.captureReady = false;
+        state.captureTrack = null;
+        state.captureStream = null;
+
+        if (state.captureVideo) {
+          try {
+            state.captureVideo.pause();
+            state.captureVideo.srcObject = null;
+          } catch (_) {}
+        }
+        state.captureVideo = null;
+      });
+
+      const surface = settings.displaySurface || 'unknown';
+      if (surface !== 'browser') {
+        alert('Please choose "This Tab" when prompted. Screen or window sharing can break gaze-to-screenshot alignment.');
+      }
+
+      return true;
+    } catch (err) {
+      console.error(`[capture ${state.captureChannel}] failed to start tab capture:`, err);
+      alert('We could not start tab capture. Please click "Start Experiment" again and choose "This Tab".');
+      return false;
+    }
+  }
+
+  function stopTabCapture() {
+    if (state.captureTrack) {
+      try { state.captureTrack.stop(); } catch (_) {}
+    }
+
+    if (state.captureStream) {
+      try {
+        state.captureStream.getTracks().forEach(track => track.stop());
+      } catch (_) {}
+    }
+
+    if (state.captureVideo) {
+      try {
+        state.captureVideo.pause();
+        state.captureVideo.srcObject = null;
+      } catch (_) {}
+    }
+
+    if (state.captureCanvas) {
+      state.captureCanvas.width = 0;
+      state.captureCanvas.height = 0;
+    }
+
+    state.captureTrack = null;
+    state.captureStream = null;
+    state.captureVideo = null;
+    state.captureCanvas = null;
+    state.captureReady = false;
+  }
 
   async function takeScreenshot(X, Y, click = true) {
     try {
+      if (!shouldCaptureFromThisTab()) {
+        return;
+      }
+
       if (!state.captureReady || !state.captureVideo || !state.captureCanvas) {
-        console.warn('Tab capture is not ready; screenshot skipped.');
+        console.warn(`[capture ${state.captureChannel}] tab capture is not ready; screenshot skipped.`);
         return;
       }
 
       const video = state.captureVideo;
       if (!video.videoWidth || !video.videoHeight) {
-        console.warn('Capture video has no dimensions yet; screenshot skipped.');
+        console.warn(`[capture ${state.captureChannel}] capture video has no dimensions yet; screenshot skipped.`);
         return;
       }
 
-      // Make the saved screenshot use VIEWPORT coordinates, not video coordinates.
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
 
       const canvas = state.captureCanvas;
-      canvas.width = vw;
-      canvas.height = vh;
+      canvas.width = viewportWidth;
+      canvas.height = viewportHeight;
 
       const ctx = canvas.getContext('2d', { alpha: false });
-      ctx.clearRect(0, 0, vw, vh);
-
-      // Scale the captured tab frame into viewport-sized output.
-      ctx.drawImage(video, 0, 0, vw, vh);
+      ctx.clearRect(0, 0, viewportWidth, viewportHeight);
+      ctx.drawImage(video, 0, 0, viewportWidth, viewportHeight);
 
       let markerX;
       let markerY;
@@ -992,11 +1108,9 @@ function createTracker({
           ? iframe.getBoundingClientRect()
           : { left: 0, top: 0 };
 
-        // click X/Y are relative to iframe viewport
         markerX = Math.round(iframeRect.left + X);
         markerY = Math.round(iframeRect.top + Y);
       } else {
-        // gaze X/Y are already viewport-relative
         markerX = Math.round(X);
         markerY = Math.round(Y);
       }
@@ -1011,7 +1125,7 @@ function createTracker({
 
       canvas.toBlob((blob) => {
         if (!blob) {
-          console.error('Screenshot blob creation failed');
+          console.error(`[capture ${state.captureChannel}] screenshot blob creation failed`);
           return;
         }
 
@@ -1020,18 +1134,21 @@ function createTracker({
         formData.append('X', markerX);
         formData.append('Y', markerY);
         formData.append('userId', userId);
-        formData.append('challenge', challenge);
-        formData.append('click', click);
+        formData.append('challenge', challenge || '');
+        formData.append('click', click ? 'true' : 'false');
         formData.append('screenshot_unix', unixTs);
         formData.append('screenshot_iso', isoTs);
 
-        // Save these for debugging / later validation
-        formData.append('screenshot_width', vw);
-        formData.append('screenshot_height', vh);
+        formData.append('screenshot_width', viewportWidth);
+        formData.append('screenshot_height', viewportHeight);
         formData.append('video_width', video.videoWidth);
         formData.append('video_height', video.videoHeight);
-        formData.append('viewport_width', vw);
-        formData.append('viewport_height', vh);
+        formData.append('viewport_width', viewportWidth);
+        formData.append('viewport_height', viewportHeight);
+
+        formData.append('capture_channel', state.captureChannel || 'unknown');
+        formData.append('visibility_state', document.visibilityState);
+        formData.append('is_active_tab', shouldCaptureFromThisTab() ? 'true' : 'false');
 
         fetch(`${urlBasePath}save_screenshot.php`, {
           method: 'POST',
@@ -1039,220 +1156,68 @@ function createTracker({
           body: formData
         })
           .then(r => r.json())
-          .catch(err => console.error('Error uploading screenshot:', err));
+          .catch(err => console.error(`[capture ${state.captureChannel}] error uploading screenshot:`, err));
       }, 'image/jpeg', 0.35);
-
     } catch (err) {
-      console.error('Screenshot capture failed:', err);
+      console.error(`[capture ${state.captureChannel}] screenshot capture failed:`, err);
     }
   }
 
-  function requestIframeSnapshot(iframe, timeoutMs = 30000) {
-    return new Promise((resolve) => {
-      let done = false;
+  // Periodic batch and upload
+  function sendEventsToServer() {
+    if (state.eventQueue.length) {
+      const form = new URLSearchParams();
+      form.append('challenge', challenge || '');
+      form.append('userId', userId);
+      form.append('events', JSON.stringify(state.eventQueue));
+      form.append('capture_channel', state.captureChannel || 'unknown');
 
-      function finish(val) {
-        if (done) return;
-        done = true;
-        resolve(val);
+      fetch(`${urlBasePath}save_events.php`, { method: 'POST', body: form })
+        .then(r => r.json())
+        .catch(e => console.error('Events upload error:', e));
+
+      state.eventQueue.length = 0;
+    }
+
+    const calibrated = ls.get('webgazerCalibrated') === 'true';
+    if (calibrated && state.gazeQueue.length) {
+      if (!state.startedFlag) {
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        state.gazeQueue.unshift({
+          x: centerX,
+          y: centerY,
+          timestamp: -1,
+          absoluteTimestamp: -1
+        });
+        state.startedFlag = true;
+        ls.set('started', 'true');
       }
 
-      const to = setTimeout(() => {
-        window.removeEventListener('message', onMsg);
-        finish(null);
-      }, timeoutMs);
+      const gazePayload = state.gazeQueue.slice();
 
-      function onMsg(ev) {
-        const d = ev.data;
-        if (!d || (d.type !== 'IFRAME_SNAPSHOT' && d.type !== 'IFRAME_SNAPSHOT_ERROR')) return;
+      const form = new URLSearchParams();
+      form.append('challenge', challenge || '');
+      form.append('userId', userId);
+      form.append('gazeData', JSON.stringify(gazePayload));
+      form.append('capture_channel', state.captureChannel || 'unknown');
+      form.append('visibility_state', document.visibilityState);
+      form.append('is_active_tab', shouldCaptureFromThisTab() ? 'true' : 'false');
 
-        window.removeEventListener('message', onMsg);
-        clearTimeout(to);
-        if (d.type === 'IFRAME_SNAPSHOT_ERROR') {
-          console.warn('Iframe snapshot error:', d.error);
-          finish(null);
-          return;
+      fetch(`${urlBasePath}save_gaze.php`, { method: 'POST', body: form })
+        .then(r => r.json())
+        .catch(e => console.error('Gaze upload error:', e));
+
+      if (shouldCaptureFromThisTab()) {
+        const currentPoint = gazePayload[gazePayload.length - 1];
+        if (currentPoint && currentPoint.absoluteTimestamp !== -1) {
+          takeScreenshot(currentPoint.x, currentPoint.y, false);
         }
-
-        const blob = new Blob([d.buf], { type: 'image/jpeg' });
-        if ('createImageBitmap' in window) {
-          createImageBitmap(blob).then((imageBitmap) => {
-            finish({ imageBitmap, width: d.w, height: d.h, scale: d.scale || 1 });
-          }).catch(() => finish(null));
-        } else {
-          const url = URL.createObjectURL(blob);
-          const img = new Image();
-          img.onload = () => {
-            URL.revokeObjectURL(url);
-            finish({ imageBitmap: img, width: d.w, height: d.h, scale: d.scale || 1 });
-          };
-          img.onerror = () => {
-            URL.revokeObjectURL(url);
-            finish(null);
-          };
-          img.src = url;
-        }
       }
 
-      window.addEventListener('message', onMsg);
-      iframe.contentWindow.postMessage({ type: 'REQUEST_IFRAME_SNAPSHOT' }, '*');
-    });
-  }
-
-
-  function getExpectedContainer() {
-    return expectedContainerId ? document.getElementById(expectedContainerId) : null;
-  }
-
-
-  function resolveIframe() {
-    const container = getExpectedContainer();
-
-    // Prefer the selector if provided; else fall back to id
-    const selector = iframeSelector || (iframeId ? `#${iframeId}` : null);
-
-    if (container && selector) {
-      // Only look inside the expected container
-      return container.querySelector(selector);
-    }
-
-    if (container && iframeId && !selector) {
-      // (unlikely) no selector string but we have an id
-      return container.querySelector(`#${iframeId}`);
-    }
-
-    // No expected container specified: original behavior
-    if (selector) return document.querySelector(selector);
-    if (iframeId)  return document.getElementById(iframeId);
-    return null;
-  }
-
-  // Cross-tab presence (shared via localStorage)
-  const PRESENCE_PREFIX = `${ns}tab:`;      // keys look like: gaze:<challenge>:<userId>:tab:<uuid>
-  const tabId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2);
-  const HEARTBEAT_MS = 2000;                // how often we refresh our presence
-  const STALE_MS = HEARTBEAT_MS * 3;        // when a tab is considered gone (no recent heartbeat)
-
-  function presenceKey(id = tabId) { return `${PRESENCE_PREFIX}${id}`; }
-
-  function touchPresence() {
-    // Set/update our lastSeen timestamp
-    localStorage.setItem(presenceKey(), String(Date.now()));
-  }
-
-  function sweepStalePeers(now = Date.now()) {
-    // Remove dead/stale tab entries
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
-      if (!key || !key.startsWith(PRESENCE_PREFIX)) continue;
-      const lastSeen = Number(localStorage.getItem(key) || 0);
-      if (!lastSeen || now - lastSeen > STALE_MS) {
-        localStorage.removeItem(key);
-      }
+      state.gazeQueue.length = 0;
     }
   }
-
-  function countLivePeers(now = Date.now()) {
-    let count = 0;
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key || !key.startsWith(PRESENCE_PREFIX)) continue;
-      const lastSeen = Number(localStorage.getItem(key) || 0);
-      if (lastSeen && now - lastSeen <= STALE_MS) count++;
-    }
-    return count;
-  }
-
-  function clearCalibrationKeys() {
-    // Only the last tab should call this
-    localStorage.removeItem(`${ns}webgazerCalibrated`);
-    localStorage.removeItem(`${ns}started`);
-    // localStorage.removeItem(`${ns}cam`); // also forget camera so user picks again next time
-  }
-
-  // storage event helps react quickly when peers go away
-  function onStorage(e) {
-    if (!e || !e.key) return;
-
-    /*
-    // Another tab marked timeout -> enforce here too
-    if (e.key === lsKey('timedOut') && e.newValue === 'true') {
-      recordCompletionOnce('timed out');
-      showIframeBlockingMessage(timeoutMessageText(), { showRetry: false });
-      stop();
-      return;
-    }
-
-    // If someone set/changed the shared deadline, reschedule our local alarm
-    if (e.key === lsKey('deadline')) {
-      scheduleExpiryAlarm();
-      return;
-    }
-      */
-
-    // Presence keys: keep existing no-op behavior
-    if (!e.key.startsWith(PRESENCE_PREFIX)) return;
-  }
-
-
-
-  function showIframeBlockingMessage(msg, { showRetry = true } = {}) {
-    const iframe = resolveIframe();
-    if (!iframe || !iframe.contentWindow) return;
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    if (!doc || !doc.body) return;
-
-    let modal = doc.getElementById('survey-check-modal');
-    if (!modal) {
-      modal = doc.createElement('div');
-      modal.id = 'survey-check-modal';
-      Object.assign(modal.style, {
-        position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.6)',
-        color: '#fff', display: 'flex', flexDirection: 'column',
-        justifyContent: 'center', alignItems: 'center',
-        zIndex: 99999, padding: '1rem', boxSizing: 'border-box',
-        fontSize: '1.1rem'
-      });
-
-      const text = doc.createElement('div');
-      text.id = 'survey-check-text';
-      text.style.marginBottom = '1rem';
-      modal.appendChild(text);
-
-      const btn = doc.createElement('button');
-      btn.id = 'survey-check-retry';
-      btn.type = 'button';
-      btn.textContent = 'Retry check';
-      Object.assign(btn.style, {
-        padding: '0.6rem 1.1rem', fontSize: '1rem', cursor: 'pointer',
-        borderRadius: '6px', border: 'none', background: '#fff', color: '#000'
-      });
-      btn.addEventListener('click', () => {
-        gateAndMaybeStart(true); // manual retry
-      });
-      modal.appendChild(btn);
-
-      doc.body.appendChild(modal);
-    }
-
-    const label = doc.getElementById('survey-check-text');
-    if (label) label.textContent = msg;
-    const retryBtn = doc.getElementById('survey-check-retry');
-    if (retryBtn) retryBtn.style.display = showRetry ? '' : 'none';
-
-    modal.style.display = 'flex';
-  }
-
-
-  function hideIframeBlockingMessage() {
-    const iframe = resolveIframe();
-    if (!iframe || !iframe.contentWindow) return;
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    const modal = doc?.getElementById('survey-check-modal');
-    if (modal) modal.style.display = 'none';
-  }
-
-
 
   // ---------- Lifecycle ----------
   function start() {
@@ -1263,7 +1228,6 @@ function createTracker({
       return;
     }
 
-
     const iframe = resolveIframe();
     const container = getExpectedContainer();
     const ok = iframe && (!container || container.contains(iframe));
@@ -1273,37 +1237,70 @@ function createTracker({
       return;
     }
 
-    // presence/heartbeat…
     touchPresence();
     sweepStalePeers();
-    state.presenceTimer = setInterval(() => { touchPresence(); sweepStalePeers(); }, HEARTBEAT_MS);
+    state.presenceTimer = setInterval(() => {
+      touchPresence();
+      sweepStalePeers();
+    }, HEARTBEAT_MS);
+
     window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', logVisibilityState);
 
     runWebGazer();
     attachIframeListeners();
     setupMessageHandler();
 
-    if (!state.intervalId) state.intervalId = setInterval(sendEventsToServer, tickMs);
+    if (!state.intervalId) {
+      state.intervalId = setInterval(sendEventsToServer, tickMs);
+    }
+
     state.running = true;
     scheduleExpiryAlarm();
 
     window.addEventListener('beforeunload', onPageHide, { once: true });
   }
 
-
-
   function stop() {
-    if (state.intervalId) { clearInterval(state.intervalId); state.intervalId = null; }
-    if (state.msgHandler) { window.removeEventListener('message', state.msgHandler); state.msgHandler = null; }
-    if (state.iframeMutationObserver) { state.iframeMutationObserver.disconnect(); state.iframeMutationObserver = null; }
-    if (state.bannerObserver) { state.bannerObserver.disconnect(); state.bannerObserver = null; }
-    if (state.bannerReadyObserver) { state.bannerReadyObserver.disconnect(); state.bannerReadyObserver = null; }
-    state.cleanupFns.splice(0).forEach(fn => { try { fn(); } catch {} });
+    if (state.intervalId) {
+      clearInterval(state.intervalId);
+      state.intervalId = null;
+    }
+
+    if (state.msgHandler) {
+      window.removeEventListener('message', state.msgHandler);
+      state.msgHandler = null;
+    }
+
+    if (state.iframeMutationObserver) {
+      state.iframeMutationObserver.disconnect();
+      state.iframeMutationObserver = null;
+    }
+
+    if (state.bannerObserver) {
+      state.bannerObserver.disconnect();
+      state.bannerObserver = null;
+    }
+
+    if (state.bannerReadyObserver) {
+      state.bannerReadyObserver.disconnect();
+      state.bannerReadyObserver = null;
+    }
+
+    state.cleanupFns.splice(0).forEach(fn => {
+      try { fn(); } catch {}
+    });
+
     state.running = false;
     clearExpiryAlarm();
 
-    if (state.presenceTimer) { clearInterval(state.presenceTimer); state.presenceTimer = null; }
+    if (state.presenceTimer) {
+      clearInterval(state.presenceTimer);
+      state.presenceTimer = null;
+    }
+
     window.removeEventListener('storage', onStorage);
+    document.removeEventListener('visibilitychange', logVisibilityState);
     localStorage.removeItem(presenceKey());
 
     stopTabCapture();
@@ -1317,29 +1314,36 @@ function createTracker({
 
   function destroy() {
     stop();
-    if (state.domObserver) { state.domObserver.disconnect(); state.domObserver = null; }
-    try { webgazer?.end?.(); } catch {}
+
+    if (state.domObserver) {
+      state.domObserver.disconnect();
+      state.domObserver = null;
+    }
+
+    try {
+      webgazer?.end?.();
+    } catch {}
+
     document.querySelector('.calibrationDiv')?.remove();
     document.querySelector('.calibrationBackground')?.remove();
   }
 
-
   function onPageHide() {
-    // When the tab goes away, stop (will also do the last-tab check)
-    try { stop(); } catch {}
+    try {
+      stop();
+    } catch {}
   }
 
   async function fetchSurveyStatus(userId) {
     const endpoint = `${urlBasePath}check_survey.php?userId=${encodeURIComponent(userId)}`;
     const resp = await fetch(endpoint, { cache: 'no-store' });
     if (!resp.ok) throw new Error('network error');
-    return resp.json(); // => { filled: boolean, version: number }
+    return resp.json();
   }
 
   let surveyPollTimer = null;
 
   async function gateAndMaybeStart(manual = false) {
-    // If we’re already running, do nothing
     if (state.running) return;
 
     if (isTimedOut()) {
@@ -1349,8 +1353,10 @@ function createTracker({
       return;
     }
 
-    // Clear any prior poll
-    if (surveyPollTimer) { clearTimeout(surveyPollTimer); surveyPollTimer = null; }
+    if (surveyPollTimer) {
+      clearTimeout(surveyPollTimer);
+      surveyPollTimer = null;
+    }
 
     try {
       const data = await fetchSurveyStatus(userId);
@@ -1359,12 +1365,11 @@ function createTracker({
           'We could not find your survey submission. ' +
           'Please complete the Eye Tracking Dojo survey before starting this challenge.'
         );
-        // light polling unless the user clicks Retry
         surveyPollTimer = setTimeout(() => gateAndMaybeStart(false), 2000);
         return;
       }
 
-      const assignedVersion = data.version; // 1..n
+      const assignedVersion = data.version;
 
       if (requireVersionMatch) {
         const assignedChallenge = versionToChallenge(assignedVersion);
@@ -1380,16 +1385,12 @@ function createTracker({
         }
       }
 
-      // All good — hide modal and start the tracker
       hideIframeBlockingMessage();
       start();
       scheduleExpiryAlarm();
-
-
     } catch (err) {
       console.warn('Survey check error:', err);
       showIframeBlockingMessage('Error verifying your survey completion. Click "Retry check" to try again.');
-      // No auto-poll on network errors unless user presses Retry
     }
   }
 
@@ -1406,14 +1407,14 @@ function createTracker({
 
   async function checkBanner() {
     const el = document.getElementById(bannerElId);
-    if (!el) return; // silently skip if the page doesn't have it
+    if (!el) return;
 
     try {
       const endpoint = `${urlBasePath}check_survey.php?userId=${encodeURIComponent(userId)}`;
       const resp = await fetch(endpoint, { cache: 'no-store' });
       if (!resp.ok) throw new Error('network error');
 
-      const { filled, version } = await resp.json(); // { filled: bool, version: number }
+      const { filled, version } = await resp.json();
       if (!filled) {
         showNotice(el, 'We could not find your survey submission. Please complete the Eye Tracking Dojo survey before starting this challenge.');
         return null;
@@ -1422,16 +1423,17 @@ function createTracker({
       const assigned = versionToChallenge(version);
 
       if (requireVersionMatch && assigned !== challenge) {
-        showNotice(el, `This page isn’t your assigned version. Assigned: ${assigned}. `
-          + `You are currently on: ${challenge}. Please open ${assigned} instead.`);
+        showNotice(
+          el,
+          `This page isn’t your assigned version. Assigned: ${assigned}. ` +
+          `You are currently on: ${challenge}. Please open ${assigned} instead.`
+        );
         return null;
       }
 
-      // All good — hide banner
       el.textContent = '';
       el.style.display = 'none';
       return version;
-
     } catch (err) {
       console.warn('Survey check error:', err);
       const el2 = document.getElementById(bannerElId);
@@ -1441,8 +1443,6 @@ function createTracker({
       return null;
     }
   }
-
-
 
   function autoStart() {
     if (state.domObserver) return;
@@ -1455,33 +1455,24 @@ function createTracker({
       const ok = iframe && (!container || container.contains(iframe));
 
       if (ok && !state.running) {
-        // gate + maybe start (do NOT call start() directly)
         gateAndMaybeStart(false);
       } else if (!ok && state.running) {
-        stop(); // cleanly stop if iframe removed/moved
+        stop();
       } else if (!ok) {
-        // If an iframe exists elsewhere (wrong challenge), ensure we’re not showing old modal in our area
         hideIframeBlockingMessage();
       }
     };
 
-    // Try immediately
     reconcile();
 
     const mo = new MutationObserver(reconcile);
     const container = expectedContainerId ? document.getElementById(expectedContainerId) : null;
-    (container || document.documentElement)
-      .ownerDocument // same doc
     mo.observe(container || document.documentElement, { childList: true, subtree: true });
     state.domObserver = mo;
   }
 
-
-  // Expose a tiny controller
   return { start, stop, destroy, autoStart, checkBanner };
 }
-
-
 
 
 if(window.location.pathname.includes("workspace") || window.location.pathname.includes("sensai")){

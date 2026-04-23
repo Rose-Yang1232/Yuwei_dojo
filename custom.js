@@ -1432,47 +1432,57 @@ function createTracker({
 
 
   function showIframeBlockingMessage(msg, { showRetry = true } = {}) {
-    const iframe = resolveIframe();
-    if (!iframe || !iframe.contentWindow) return;
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    if (!doc || !doc.body) return;
-
-    let modal = doc.getElementById('survey-check-modal');
+    let modal = document.getElementById('survey-check-modal');
     if (!modal) {
-      modal = doc.createElement('div');
+      modal = document.createElement('div');
       modal.id = 'survey-check-modal';
       Object.assign(modal.style, {
-        position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.6)',
-        color: '#fff', display: 'flex', flexDirection: 'column',
-        justifyContent: 'center', alignItems: 'center',
-        zIndex: 99999, padding: '1rem', boxSizing: 'border-box',
+        position: 'fixed',
+        inset: '0',
+        background: 'rgba(0,0,0,0.6)',
+        color: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 99999,
+        padding: '1rem',
+        boxSizing: 'border-box',
         fontSize: '1.1rem'
       });
 
-      const text = doc.createElement('div');
+      const text = document.createElement('div');
       text.id = 'survey-check-text';
       text.style.marginBottom = '1rem';
+      text.style.maxWidth = '800px';
+      text.style.textAlign = 'center';
       modal.appendChild(text);
 
-      const btn = doc.createElement('button');
+      const btn = document.createElement('button');
       btn.id = 'survey-check-retry';
       btn.type = 'button';
       btn.textContent = 'Retry check';
       Object.assign(btn.style, {
-        padding: '0.6rem 1.1rem', fontSize: '1rem', cursor: 'pointer',
-        borderRadius: '6px', border: 'none', background: '#fff', color: '#000'
+        padding: '0.6rem 1.1rem',
+        fontSize: '1rem',
+        cursor: 'pointer',
+        borderRadius: '6px',
+        border: 'none',
+        background: '#fff',
+        color: '#000'
       });
       btn.addEventListener('click', () => {
-        gateAndMaybeStart(true); // manual retry
+        gateAndMaybeStart(true);
       });
       modal.appendChild(btn);
 
-      doc.body.appendChild(modal);
+      document.body.appendChild(modal);
     }
 
-    const label = doc.getElementById('survey-check-text');
+    const label = document.getElementById('survey-check-text');
     if (label) label.textContent = msg;
-    const retryBtn = doc.getElementById('survey-check-retry');
+
+    const retryBtn = document.getElementById('survey-check-retry');
     if (retryBtn) retryBtn.style.display = showRetry ? '' : 'none';
 
     modal.style.display = 'flex';
@@ -1480,10 +1490,7 @@ function createTracker({
 
 
   function hideIframeBlockingMessage() {
-    const iframe = resolveIframe();
-    if (!iframe || !iframe.contentWindow) return;
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    const modal = doc?.getElementById('survey-check-modal');
+    const modal = document.getElementById('survey-check-modal');
     if (modal) modal.style.display = 'none';
   }
 

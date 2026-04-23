@@ -203,6 +203,8 @@ function createTracker({
     else localStorage.removeItem(sharedHandleKey);
   }
 
+  initCaptureHandle();
+
     function publishCapturedHandleFromTrack() {
     const track = state.captureTrack;
     if (!track || !('getCaptureHandle' in track)) {
@@ -229,7 +231,7 @@ function createTracker({
     );
   }
 
-    function ensureCaptureRequiredOverlay() {
+  function ensureCaptureRequiredOverlay() {
     let overlay = document.getElementById('capture-required-overlay');
     if (overlay) return overlay;
 
@@ -266,66 +268,26 @@ function createTracker({
 
     const text = document.createElement('p');
     text.id = 'capture-required-text';
+    text.textContent =
+      'Use the browser sharing bar at the top of the screen and click "Share this tab instead". ' +
+      'Once the shared tab switches to this tab, this message will disappear automatically.';
     panel.appendChild(text);
-
-    const btn = document.createElement('button');
-    btn.id = 'capture-required-start-btn';
-    btn.type = 'button';
-    btn.textContent = 'Start sharing';
-    Object.assign(btn.style, {
-      padding: '12px 18px',
-      fontSize: '16px',
-      borderRadius: '8px',
-      border: '1px solid #666',
-      cursor: 'pointer',
-      background: '#fff',
-      display: 'none'
-    });
 
     const status = document.createElement('div');
     status.id = 'capture-required-status';
     status.style.marginTop = '12px';
     status.style.minHeight = '24px';
-
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      status.textContent = 'Requesting tab capture permission...';
-
-      const ok = await startTabCapture();
-      if (ok) {
-        hideCaptureRequiredOverlay();
-        status.textContent = '';
-      } else {
-        btn.disabled = false;
-        status.textContent = 'Could not start tab capture. Please try again.';
-      }
-    });
-
-    panel.appendChild(btn);
     panel.appendChild(status);
+
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
     return overlay;
   }
 
-  function showCaptureRequiredOverlay({ canStartNewCapture = false } = {}) {
+  function showCaptureRequiredOverlay() {
     const overlay = ensureCaptureRequiredOverlay();
-    const text = overlay.querySelector('#capture-required-text');
-    const btn = overlay.querySelector('#capture-required-start-btn');
     const status = overlay.querySelector('#capture-required-status');
-
-    if (canStartNewCapture) {
-      text.textContent =
-        'Screen sharing is not active. Click "Start sharing" and choose "This Tab" in the browser prompt.';
-      btn.style.display = '';
-      btn.disabled = false;
-    } else {
-      text.textContent =
-        'You are currently viewing a tab that is not the one being shared. Use the browser sharing bar at the top and click "Share this tab instead". Once the shared tab switches to this tab, this message will disappear.';
-      btn.style.display = 'none';
-    }
-
-    status.textContent = '';
+    if (status) status.textContent = '';
     overlay.style.display = 'flex';
   }
 
@@ -334,33 +296,29 @@ function createTracker({
     if (overlay) overlay.style.display = 'none';
   }
 
-    function enforceCaptureRequirement() {
+  function enforceCaptureRequirement() {
     const calibrated = ls.get('webgazerCalibrated') === 'true';
 
+    // During calibration, do not enforce sharing.
     if (!calibrated) {
       hideCaptureRequiredOverlay();
       return true;
     }
 
+    // Only enforce on the visible tab.
     if (!shouldCaptureFromThisTab()) {
       hideCaptureRequiredOverlay();
       return true;
     }
 
-    // If this tab is the one currently being shared, we're good.
+    // If this visible tab is the one currently being shared, allow progress.
     if (isCurrentTabShared()) {
       hideCaptureRequiredOverlay();
       return true;
     }
 
-    // If no stream is active at all, allow starting a new one.
-    if (!getSharedHandle()) {
-      showCaptureRequiredOverlay({ canStartNewCapture: true });
-      return false;
-    }
-
-    // Otherwise, a stream exists, but it is sharing some other tab.
-    showCaptureRequiredOverlay({ canStartNewCapture: false });
+    // Otherwise block and instruct the user to use "Share this tab instead".
+    showCaptureRequiredOverlay();
     return false;
   }
 

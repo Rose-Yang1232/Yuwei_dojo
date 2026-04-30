@@ -171,12 +171,17 @@ function createTracker({
   }
 
   function getPageContext() {
-    const path = window.location.pathname.toLowerCase();
+    try {
+      const path = String(window.location?.pathname || '').toLowerCase();
 
-    if (path.includes('sensai')) return 'sensai';
-    if (path.includes('workspace')) return 'workspace';
+      if (path.includes('sensai')) return 'sensai';
+      if (path.includes('workspace')) return 'workspace';
 
-    return 'other';
+      return 'other';
+    } catch (_) {
+      console.warn('getPageContext failed');
+      return 'unknown';
+    }
   }
 
   function clearExpiryAlarm() {
@@ -382,7 +387,7 @@ function createTracker({
         if (!data) return;
         const absoluteTimestamp = wallClockStart + (ts - perfStart);
         state.gazeQueue.push({
-          x: data.x, y: data.y, timestamp: ts, absoluteTimestamp
+          x: data.x, y: data.y, timestamp: ts, absoluteTimestamp, context: getPageContext()
         });
       })
       .begin();
@@ -539,7 +544,7 @@ function createTracker({
           .setGazeListener((data, ts) => {
             if (!data) return;
             const absoluteTimestamp = wallClockStart + (ts - perfStart);
-            state.gazeQueue.push({ x: data.x, y: data.y, timestamp: ts, absoluteTimestamp });
+            state.gazeQueue.push({ x: data.x, y: data.y, timestamp: ts, absoluteTimestamp, context: getPageContext() });
           })
           .begin();
 
@@ -851,7 +856,7 @@ function createTracker({
       if (!state.startedFlag) {
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
-        state.gazeQueue.unshift({ x: cx, y: cy, timestamp: -1, absoluteTimestamp: -1 });
+        state.gazeQueue.unshift({ x: cx, y: cy, timestamp: -1, absoluteTimestamp: -1, context: getPageContext() });
         state.startedFlag = true;
         ls.set('started', 'true');
       }

@@ -209,6 +209,7 @@ function createTracker({
     localStorage.setItem(sharedCaptureStateKey, JSON.stringify({
       active: false,
       handle: null,
+      owner: null,
       updatedAt: Date.now(),
       ...next
     }));
@@ -1681,6 +1682,7 @@ function createTracker({
     sweepStalePeers();
     state.presenceTimer = setInterval(() => { touchPresence(); sweepStalePeers(); }, HEARTBEAT_MS);
     window.addEventListener('storage', onStorage);
+    window.addEventListener('capturestatechange', enforceCaptureRequirement);
     document.addEventListener('visibilitychange', onVisibilityChange);
     state.captureHeartbeatId = setInterval(enforceCaptureRequirement, 500);
 
@@ -1692,7 +1694,6 @@ function createTracker({
     state.running = true;
     scheduleExpiryAlarm();
 
-    window.addEventListener('capturestatechange', enforceCaptureRequirement);
     window.addEventListener('beforeunload', onPageHide, { once: true });
   }
 

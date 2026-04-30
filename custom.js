@@ -140,7 +140,7 @@ function createTracker({
     captureReady: false,
     captureCanvas: null,
     captureTrack: null,
-    captureChannel: getCaptureChannel()
+    captureChannel: getCaptureChannel(),
 
     captureHandlePollId: null,
     captureHeartbeatId: null,

@@ -310,13 +310,26 @@ function createTracker({
 
   function publishCapturedHandleFromTrack() {
     const track = state.captureTrack;
-    if (!track || !('getCaptureHandle' in track)) {
-      setSharedHandle(null);
+    if (!track) {return;}
+
+    if (track.readyState !== 'live') {
+      clearSharedCaptureState();
       return;
     }
 
-    const info = track.getCaptureHandle();
-    setSharedHandle(info?.handle || null);
+    let handle = null;
+
+    if ('getCaptureHandle' in track) {
+      const info = track.getCaptureHandle();
+      handle = info?.handle || null;
+    }
+
+    setSharedCaptureState({
+      active: true,
+      handle,
+      owner: ownCaptureHandle,
+      updatedAt: Date.now()
+    });
   }
 
   function isCurrentTabShared() {
@@ -447,6 +460,12 @@ function createTracker({
       btn.type = 'button';
 
       btn.addEventListener('click', async () => {
+        if (isCaptureActive()) {
+          hideStartCaptureOverlay();
+          showCaptureRequiredOverlay();
+          return;
+        }
+
         btn.disabled = true;
         const ok = await startTabCapture();
         btn.disabled = false;

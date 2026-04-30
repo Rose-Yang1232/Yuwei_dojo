@@ -170,6 +170,15 @@ function createTracker({
     return 'Time is up for this challenge. Please move on to the next challenge, or finish the experiment if you have completed all challenges. This challenge is now finished. Failing to finish this challenge will NOT affect your compensation.';
   }
 
+  function getPageContext() {
+    const path = window.location.pathname.toLowerCase();
+
+    if (path.includes('sensai')) return 'sensai';
+    if (path.includes('workspace')) return 'workspace';
+
+    return 'other';
+  }
+
   function clearExpiryAlarm() {
     if (state.expireTimerId) {
       clearTimeout(state.expireTimerId);
@@ -373,7 +382,7 @@ function createTracker({
         if (!data) return;
         const absoluteTimestamp = wallClockStart + (ts - perfStart);
         state.gazeQueue.push({
-          x: data.x, y: data.y, timestamp: ts, absoluteTimestamp
+          x: data.x, y: data.y, context: getPageContext(), timestamp: ts, absoluteTimestamp
         });
       })
       .begin();
@@ -530,7 +539,7 @@ function createTracker({
           .setGazeListener((data, ts) => {
             if (!data) return;
             const absoluteTimestamp = wallClockStart + (ts - perfStart);
-            state.gazeQueue.push({ x: data.x, y: data.y, timestamp: ts, absoluteTimestamp });
+            state.gazeQueue.push({ x: data.x, y: data.y, context: getPageContext(), timestamp: ts, absoluteTimestamp });
           })
           .begin();
 
@@ -842,7 +851,7 @@ function createTracker({
       if (!state.startedFlag) {
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
-        state.gazeQueue.unshift({ x: cx, y: cy, timestamp: -1, absoluteTimestamp: -1 });
+        state.gazeQueue.unshift({ x: cx, y: cy, context: getPageContext(), timestamp: -1, absoluteTimestamp: -1 });
         state.startedFlag = true;
         ls.set('started', 'true');
       }

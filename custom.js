@@ -184,6 +184,8 @@ function createTracker({
     }
   }
 
+  const pageContext = getPageContext();
+
   function clearExpiryAlarm() {
     if (state.expireTimerId) {
       clearTimeout(state.expireTimerId);
@@ -387,7 +389,7 @@ function createTracker({
         if (!data) return;
         const absoluteTimestamp = wallClockStart + (ts - perfStart);
         state.gazeQueue.push({
-          x: data.x, y: data.y, timestamp: ts, absoluteTimestamp, context: getPageContext()
+          x: data.x, y: data.y, timestamp: ts, absoluteTimestamp, pageContext
         });
       })
       .begin();
@@ -544,7 +546,7 @@ function createTracker({
           .setGazeListener((data, ts) => {
             if (!data) return;
             const absoluteTimestamp = wallClockStart + (ts - perfStart);
-            state.gazeQueue.push({ x: data.x, y: data.y, timestamp: ts, absoluteTimestamp, context: getPageContext() });
+            state.gazeQueue.push({ x: data.x, y: data.y, timestamp: ts, absoluteTimestamp, pageContext });
           })
           .begin();
 
@@ -856,7 +858,7 @@ function createTracker({
       if (!state.startedFlag) {
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
-        state.gazeQueue.unshift({ x: cx, y: cy, timestamp: -1, absoluteTimestamp: -1, context: getPageContext() });
+        state.gazeQueue.unshift({ x: cx, y: cy, timestamp: -1, absoluteTimestamp: -1, pageContext });
         state.startedFlag = true;
         ls.set('started', 'true');
       }

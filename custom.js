@@ -170,15 +170,6 @@ function createTracker({
     return 'Time is up for this challenge. Please move on to the next challenge, or finish the experiment if you have completed all challenges. This challenge is now finished. Failing to finish this challenge will NOT affect your compensation.';
   }
 
-  function getPageContext() {
-    const path = window.location.pathname.toLowerCase();
-
-    if (path.includes('sensai')) return 'sensai';
-    if (path.includes('workspace')) return 'workspace';
-
-    return 'other';
-  }
-
   function clearExpiryAlarm() {
     if (state.expireTimerId) {
       clearTimeout(state.expireTimerId);
@@ -382,7 +373,7 @@ function createTracker({
         if (!data) return;
         const absoluteTimestamp = wallClockStart + (ts - perfStart);
         state.gazeQueue.push({
-          x: data.x, y: data.y, timestamp: ts, absoluteTimestamp, context: getPageContext()
+          x: data.x, y: data.y, timestamp: ts, absoluteTimestamp
         });
       })
       .begin();
@@ -539,7 +530,7 @@ function createTracker({
           .setGazeListener((data, ts) => {
             if (!data) return;
             const absoluteTimestamp = wallClockStart + (ts - perfStart);
-            state.gazeQueue.push({ x: data.x, y: data.y, timestamp: ts, absoluteTimestamp, context: getPageContext() });
+            state.gazeQueue.push({ x: data.x, y: data.y, timestamp: ts, absoluteTimestamp });
           })
           .begin();
 

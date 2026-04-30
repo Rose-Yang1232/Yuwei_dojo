@@ -213,7 +213,7 @@ function createTracker({
       ...next
     }));
 
-    enforceCaptureRequirement();
+    window.dispatchEvent(new Event('capturestatechange'));
   }
 
   function clearSharedCaptureState() {
@@ -237,6 +237,15 @@ function createTracker({
     if ('getCaptureHandle' in track) {
       const info = track.getCaptureHandle();
       handle = info?.handle || null;
+    }
+
+    if (!handle) {
+      setSharedCaptureState({
+        active: false,
+        handle: null,
+        updatedAt: Date.now()
+      });
+      return;
     }
 
     setSharedCaptureState({
@@ -467,24 +476,29 @@ function createTracker({
 
     if (!calibrated) {
       hideCaptureRequiredOverlay();
+      hideStartCaptureOverlay();
       return true;
     }
 
     if (!shouldCaptureFromThisTab()) {
       hideCaptureRequiredOverlay();
+      hideStartCaptureOverlay();
       return true;
     }
 
     if (isCurrentTabShared()) {
       hideCaptureRequiredOverlay();
+      hideStartCaptureOverlay();
       return true;
     }
 
     if (!isCaptureActive()) {
+      hideCaptureRequiredOverlay();
       showStartCaptureOverlay();
       return false;
     }
 
+    hideStartCaptureOverlay();
     showCaptureRequiredOverlay();
     return false;
   }
@@ -1659,6 +1673,7 @@ function createTracker({
     state.running = true;
     scheduleExpiryAlarm();
 
+    window.addEventListener('capturestatechange', enforceCaptureRequirement);
     window.addEventListener('beforeunload', onPageHide, { once: true });
   }
 
@@ -1680,6 +1695,7 @@ function createTracker({
 
     if (state.presenceTimer) { clearInterval(state.presenceTimer); state.presenceTimer = null; }
     window.removeEventListener('storage', onStorage);
+    window.removeEventListener('capturestatechange', enforceCaptureRequirement);
     document.removeEventListener('visibilitychange', onVisibilityChange);
     localStorage.removeItem(presenceKey());
 

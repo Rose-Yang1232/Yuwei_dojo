@@ -266,19 +266,19 @@ function createTracker({
   }
 
   function getSharedHandle() {
-    return localStorage.getItem(sharedHandleKey);
+    return localStorage.getItem(sharedCaptureStateKey);
   }
 
   function setSharedHandle(value) {
     if (value) {
-      localStorage.setItem(sharedHandleKey, value);
+      localStorage.setItem(sharedCaptureStateKey, value);
     } else {
-      localStorage.removeItem(sharedHandleKey);
+      localStorage.removeItem(sharedCaptureStateKey);
     }
 
     try {
       window.dispatchEvent(new StorageEvent('storage', {
-        key: sharedHandleKey,
+        key: sharedCaptureStateKey,
         newValue: value
       }));
     } catch (_) {}

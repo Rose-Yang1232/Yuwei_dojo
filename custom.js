@@ -181,7 +181,7 @@ function createTracker({
   }
 
     const ownCaptureHandle = `${userId}:${getCaptureChannel()}`;
-  const sharedHandleKey = `sharedCaptureHandle:${userId}`;
+  const sharedCaptureStateKey = `sharedCaptureState:${userId}`;
 
   function initCaptureHandle() {
     try {
@@ -195,6 +195,65 @@ function createTracker({
     } catch (err) {
       console.warn('setCaptureHandleConfig failed:', err);
     }
+  }
+
+  function getSharedCaptureState() {
+    try {
+      return JSON.parse(localStorage.getItem(sharedCaptureStateKey) || '{}');
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function setSharedCaptureState(next) {
+    localStorage.setItem(sharedCaptureStateKey, JSON.stringify({
+      active: false,
+      handle: null,
+      updatedAt: Date.now(),
+      ...next
+    }));
+
+    enforceCaptureRequirement();
+  }
+
+  function clearSharedCaptureState() {
+    setSharedCaptureState({
+      active: false,
+      handle: null,
+      updatedAt: Date.now()
+    });
+  }
+
+  function publishCapturedHandleFromTrack() {
+    const track = state.captureTrack;
+
+    if (!track || track.readyState !== 'live') {
+      clearSharedCaptureState();
+      return;
+    }
+
+    let handle = null;
+
+    if ('getCaptureHandle' in track) {
+      const info = track.getCaptureHandle();
+      handle = info?.handle || null;
+    }
+
+    setSharedCaptureState({
+      active: true,
+      handle,
+      updatedAt: Date.now()
+    });
+  }
+
+  function isCaptureActive() {
+    const s = getSharedCaptureState();
+    return s.active === true;
+  }
+
+  function isCurrentTabShared() {
+    const s = getSharedCaptureState();
+    return s.active === true && s.handle === ownCaptureHandle;
   }
 
   function getSharedHandle() {
@@ -320,6 +379,8 @@ function createTracker({
   }
 
   function showCaptureRequiredOverlay() {
+    hideStartCaptureOverlay();
+
     const overlay = ensureCaptureRequiredOverlay();
     const status = overlay.querySelector('#capture-required-status');
     if (status) status.textContent = '';
@@ -331,28 +392,99 @@ function createTracker({
     if (overlay) overlay.style.display = 'none';
   }
 
+  function showStartCaptureOverlay() {
+    let overlay = document.getElementById('start-capture-overlay');
+
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'start-capture-overlay';
+
+      Object.assign(overlay.style, {
+        position: 'fixed',
+        inset: '0',
+        background: 'rgba(255,255,255,0.96)',
+        zIndex: '100001',
+        display: 'none',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+        boxSizing: 'border-box'
+      });
+
+      const panel = document.createElement('div');
+      Object.assign(panel.style, {
+        maxWidth: '720px',
+        background: '#fff',
+        color: '#000',
+        border: '2px solid #c00000',
+        borderRadius: '12px',
+        padding: '24px',
+        textAlign: 'center',
+        fontFamily: 'sans-serif',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.18)'
+      });
+
+      const title = document.createElement('h2');
+      title.textContent = 'Screen sharing has stopped';
+      panel.appendChild(title);
+
+      const text = document.createElement('p');
+      text.textContent =
+        'To continue the experiment, click below and choose "This Tab" in the browser sharing prompt.';
+      panel.appendChild(text);
+
+      const btn = document.createElement('button');
+      btn.textContent = 'Start sharing this tab';
+      btn.type = 'button';
+
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const ok = await startTabCapture();
+        btn.disabled = false;
+
+        if (ok) {
+          hideStartCaptureOverlay();
+          enforceCaptureRequirement();
+        }
+      });
+
+      panel.appendChild(btn);
+      overlay.appendChild(panel);
+      document.body.appendChild(overlay);
+    }
+
+    hideCaptureRequiredOverlay();
+    overlay.style.display = 'flex';
+  }
+
+  function hideStartCaptureOverlay() {
+    const overlay = document.getElementById('start-capture-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
   function enforceCaptureRequirement() {
     const calibrated = ls.get('webgazerCalibrated') === 'true';
 
-    // During calibration, do not enforce sharing.
     if (!calibrated) {
       hideCaptureRequiredOverlay();
       return true;
     }
 
-    // Only enforce on the visible tab.
     if (!shouldCaptureFromThisTab()) {
       hideCaptureRequiredOverlay();
       return true;
     }
 
-    // If this visible tab is the one currently being shared, allow progress.
     if (isCurrentTabShared()) {
       hideCaptureRequiredOverlay();
       return true;
     }
 
-    // Otherwise block and instruct the user to use "Share this tab instead".
+    if (!isCaptureActive()) {
+      showStartCaptureOverlay();
+      return false;
+    }
+
     showCaptureRequiredOverlay();
     return false;
   }
@@ -1111,7 +1243,7 @@ function createTracker({
         }
         state.captureVideo = null;
 
-        setSharedHandle(null);
+        clearSharedCaptureState();
         enforceCaptureRequirement();
       });
 
@@ -1400,7 +1532,7 @@ function createTracker({
   function onStorage(e) {
     if (!e || !e.key) return;
 
-    if (e.key === sharedHandleKey) {
+    if (e.key === sharedCaptureStateKey) {
       enforceCaptureRequirement();
       return;
     }

@@ -133,17 +133,7 @@ function createTracker({
     expireTimerId: null,
     bannerObserver: null,
     bannerReadyObserver: null,
-    domObserver: null,
-
-    captureStream: null,
-    captureVideo: null,
-    captureReady: false,
-    captureCanvas: null,
-    captureTrack: null,
-    captureChannel: getCaptureChannel(),
-
-    captureHandlePollId: null,
-    captureHeartbeatId: null,
+    domObserver: null
   };
 
 
@@ -178,315 +168,6 @@ function createTracker({
 
   function timeoutMessageText() {
     return 'Time is up for this challenge. Please move on to the next challenge, or finish the experiment if you have completed all challenges. This challenge is now finished. Failing to finish this challenge will NOT affect your compensation.';
-  }
-
-    const ownCaptureHandle = `${userId}:${getCaptureChannel()}`;
-  const sharedCaptureStateKey = `sharedCaptureState:${userId}`;
-
-  function initCaptureHandle() {
-    try {
-      if ('setCaptureHandleConfig' in navigator.mediaDevices) {
-        navigator.mediaDevices.setCaptureHandleConfig({
-          handle: ownCaptureHandle,
-          exposeOrigin: true,
-          permittedOrigins: ['*']
-        });
-      }
-    } catch (err) {
-      console.warn('setCaptureHandleConfig failed:', err);
-    }
-  }
-
-  function getSharedCaptureState() {
-    try {
-      return JSON.parse(localStorage.getItem(sharedCaptureStateKey) || '{}');
-    } catch (_) {
-      return {};
-    }
-  }
-
-  function setSharedCaptureState(next) {
-    localStorage.setItem(sharedCaptureStateKey, JSON.stringify({
-      active: false,
-      handle: null,
-      owner: null,
-      updatedAt: Date.now(),
-      ...next
-    }));
-
-    window.dispatchEvent(new Event('capturestatechange'));
-  }
-
-  function clearSharedCaptureState() {
-    setSharedCaptureState({
-      active: false,
-      handle: null,
-      updatedAt: Date.now()
-    });
-  }
-
-  function isCaptureActive() {
-    const s = getSharedCaptureState();
-    return s.active === true;
-  }
-
-  function isCurrentTabShared() {
-    const s = getSharedCaptureState();
-    return s.active === true && s.handle === ownCaptureHandle;
-  }
-
-  function startCaptureHandlePolling() {
-    stopCaptureHandlePolling();
-
-    const publish = () => {
-      publishCapturedHandleFromTrack();
-      enforceCaptureRequirement();
-    };
-
-    publish();
-
-    state.captureHandlePollId = setInterval(publish, 250);
-  }
-
-  function stopCaptureHandlePolling() {
-    if (state.captureHandlePollId) {
-      clearInterval(state.captureHandlePollId);
-      state.captureHandlePollId = null;
-    }
-  }
-
-  initCaptureHandle();
-
-  function publishCapturedHandleFromTrack() {
-    const track = state.captureTrack;
-    if (!track) {return;}
-
-    if (track.readyState !== 'live') {
-      clearSharedCaptureState();
-      return;
-    }
-
-    let handle = null;
-
-    if ('getCaptureHandle' in track) {
-      const info = track.getCaptureHandle();
-      handle = info?.handle || null;
-    }
-
-    setSharedCaptureState({
-      active: true,
-      handle,
-      owner: ownCaptureHandle,
-      updatedAt: Date.now()
-    });
-  }
-
-  function hasLiveCapture() {
-    const track = state.captureTrack;
-    return !!(
-      state.captureReady &&
-      state.captureStream &&
-      track &&
-      track.readyState === 'live' &&
-      !track.muted
-    );
-  }
-
-  function ensureCaptureRequiredOverlay() {
-    let overlay = document.getElementById('capture-required-overlay');
-    if (overlay) return overlay;
-
-    overlay = document.createElement('div');
-    overlay.id = 'capture-required-overlay';
-    Object.assign(overlay.style, {
-      position: 'fixed',
-      inset: '0',
-      background: 'rgba(255,255,255,0.96)',
-      zIndex: '100000',
-      display: 'none',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px',
-      boxSizing: 'border-box'
-    });
-
-    const panel = document.createElement('div');
-    Object.assign(panel.style, {
-      maxWidth: '720px',
-      background: '#fff',
-      color: '#000',
-      border: '2px solid #c00000',
-      borderRadius: '12px',
-      padding: '24px',
-      textAlign: 'center',
-      fontFamily: 'sans-serif',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.18)'
-    });
-
-    const title = document.createElement('h2');
-    title.textContent = 'This tab is not currently being shared';
-    panel.appendChild(title);
-
-    const text = document.createElement('p');
-    text.id = 'capture-required-text';
-    text.textContent =
-      'Use the browser sharing bar at the top of the screen and click "Share this tab instead". ' +
-      'Once the shared tab switches to this tab, this message will disappear automatically.';
-    panel.appendChild(text);
-
-    const status = document.createElement('div');
-    status.id = 'capture-required-status';
-    status.style.marginTop = '12px';
-    status.style.minHeight = '24px';
-    panel.appendChild(status);
-
-    overlay.appendChild(panel);
-    document.body.appendChild(overlay);
-    return overlay;
-  }
-
-  function showCaptureRequiredOverlay() {
-    hideStartCaptureOverlay();
-
-    const overlay = ensureCaptureRequiredOverlay();
-    const status = overlay.querySelector('#capture-required-status');
-    if (status) status.textContent = '';
-    overlay.style.display = 'flex';
-  }
-
-  function hideCaptureRequiredOverlay() {
-    const overlay = document.getElementById('capture-required-overlay');
-    if (overlay) overlay.style.display = 'none';
-  }
-
-  function showStartCaptureOverlay() {
-    let overlay = document.getElementById('start-capture-overlay');
-
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'start-capture-overlay';
-
-      Object.assign(overlay.style, {
-        position: 'fixed',
-        inset: '0',
-        background: 'rgba(255,255,255,0.96)',
-        zIndex: '100001',
-        display: 'none',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-        boxSizing: 'border-box'
-      });
-
-      const panel = document.createElement('div');
-      Object.assign(panel.style, {
-        maxWidth: '720px',
-        background: '#fff',
-        color: '#000',
-        border: '2px solid #c00000',
-        borderRadius: '12px',
-        padding: '24px',
-        textAlign: 'center',
-        fontFamily: 'sans-serif',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.18)'
-      });
-
-      const title = document.createElement('h2');
-      title.textContent = 'Screen sharing has stopped';
-      panel.appendChild(title);
-
-      const text = document.createElement('p');
-      text.textContent =
-        'To continue the experiment, click below and choose "This Tab" in the browser sharing prompt.';
-      panel.appendChild(text);
-
-      const btn = document.createElement('button');
-      btn.textContent = 'Start sharing this tab';
-      btn.type = 'button';
-
-      btn.addEventListener('click', async () => {
-        if (isCaptureActive()) {
-          hideStartCaptureOverlay();
-          showCaptureRequiredOverlay();
-          return;
-        }
-
-        btn.disabled = true;
-        const ok = await startTabCapture();
-        btn.disabled = false;
-
-        if (ok) {
-          hideStartCaptureOverlay();
-          enforceCaptureRequirement();
-        }
-      });
-
-      panel.appendChild(btn);
-      overlay.appendChild(panel);
-      document.body.appendChild(overlay);
-    }
-
-    hideCaptureRequiredOverlay();
-    overlay.style.display = 'flex';
-  }
-
-  function hideStartCaptureOverlay() {
-    const overlay = document.getElementById('start-capture-overlay');
-    if (overlay) overlay.style.display = 'none';
-  }
-
-  function enforceCaptureRequirement() {
-    const calibrated = ls.get('webgazerCalibrated') === 'true';
-
-    if (!calibrated) {
-      hideCaptureRequiredOverlay();
-      hideStartCaptureOverlay();
-      return true;
-    }
-
-    if (!shouldCaptureFromThisTab()) {
-      hideCaptureRequiredOverlay();
-      hideStartCaptureOverlay();
-      return true;
-    }
-
-    if (isCurrentTabShared()) {
-      hideCaptureRequiredOverlay();
-      hideStartCaptureOverlay();
-      return true;
-    }
-
-    if (!isCaptureActive()) {
-      hideCaptureRequiredOverlay();
-      showStartCaptureOverlay();
-      return false;
-    }
-
-    hideStartCaptureOverlay();
-    showCaptureRequiredOverlay();
-    return false;
-  }
-
-  function onVisibilityChange() {
-    logVisibilityState();
-    enforceCaptureRequirement();
-  }
-
-  function getCaptureChannel() {
-    const path = window.location.pathname.toLowerCase();
-    if (path.includes('sensai')) return 'sensai';
-    if (path.includes('workspace')) return 'challenge';
-    return 'unknown';
-  }
-
-  function shouldCaptureFromThisTab() {
-    return document.visibilityState === 'visible' && !document.hidden;
-  }
-
-  function logVisibilityState() {
-    console.log(
-      `[capture ${getCaptureChannel()}] visibility=${document.visibilityState}, hidden=${document.hidden}`
-    );
   }
 
   function clearExpiryAlarm() {
@@ -958,84 +639,16 @@ function createTracker({
   }
 
   function finalizeCalibrationSuccess({ reason = 'measured', overall = 100 } = {}) {
-    const overlay = document.querySelector('.calibrationDiv');
-    const bg = document.querySelector('.calibrationBackground');
-    if (!overlay) return;
-
-    // Remove old calibration buttons/instructions but keep overlay alive
-    overlay.innerHTML = '';
-
-    const panel = document.createElement('div');
-    Object.assign(panel.style, {
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      background: '#fff',
-      color: '#000',
-      padding: '24px',
-      borderRadius: '12px',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-      maxWidth: '650px',
-      textAlign: 'center',
-      pointerEvents: 'auto',
-      fontFamily: 'sans-serif'
-    });
-
-    const title = document.createElement('h2');
-    title.textContent = 'Calibration complete';
-    panel.appendChild(title);
-
-    const text = document.createElement('p');
-    text.textContent =
-      `Overall accuracy: ${overall}%. ` +
-      `Before the challenge begins, click "Start Experiment" and choose "This Tab" in the browser prompt. ` +
-      `This lets us capture screenshots that match your gaze coordinates, including the workspace iframe.`;
-    panel.appendChild(text);
-
-    const note = document.createElement('p');
-    note.textContent =
-      'Important: choose "This Tab" rather than an entire screen or window.';
-    note.style.fontWeight = 'bold';
-    panel.appendChild(note);
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = 'Start Experiment';
-    Object.assign(btn.style, {
-      padding: '12px 18px',
-      fontSize: '16px',
-      borderRadius: '8px',
-      border: '1px solid #666',
-      cursor: 'pointer',
-      background: '#fff'
-    });
-
-    const status = document.createElement('div');
-    status.style.marginTop = '12px';
-    status.style.minHeight = '24px';
-
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      status.textContent = 'Requesting tab capture permission...';
-
-      const ok = await startTabCapture();
-      if (!ok) {
-        btn.disabled = false;
-        status.textContent = 'Could not start tab capture. Please try again.';
-        return;
-      }
-
-      // Now actually finalize and start the timed session.
-      overlay.remove();
-      bg?.remove();
+      // Remove calibration UI completely so a new challenge can rebuild it
+      document.querySelector('.calibrationDiv')?.remove();          
+      document.querySelector('.calibrationBackground')?.remove();
 
       webgazer
-        .showVideoPreview(false)
-        .showPredictionPoints(false)
-        .showFaceOverlay(false)
-        .showFaceFeedbackBox(false)
-        .saveDataAcrossSessions(true);
+         .showVideoPreview(false)
+         .showPredictionPoints(false)
+         .showFaceOverlay(false)
+         .showFaceFeedbackBox(false)
+         .saveDataAcrossSessions(true);
 
       const videoEl = document.getElementById('webgazerVideoContainer');
       if (videoEl?.parentNode) videoEl.parentNode.removeChild(videoEl);
@@ -1043,17 +656,13 @@ function createTracker({
       ls.set('webgazerCalibrated', 'true');
       state.gazeQueue.length = 0;
 
+      // Start the 25-minute deadline if not already set (shared across tabs)
       if (!getDeadline()) {
         setDeadline(Date.now() + CHALLENGE_TIME_MS);
       }
       scheduleExpiryAlarm();
 
       console.log(`Calibration finalized (${reason}); overall=${overall}%`);
-    });
-
-    panel.appendChild(btn);
-    panel.appendChild(status);
-    overlay.appendChild(panel);
   }
 
 
@@ -1069,7 +678,6 @@ function createTracker({
       try {
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
         if (!doc) return;
-
         const old = doc.getElementById('eventForwarder');
         if (old) old.remove();
 
@@ -1085,20 +693,118 @@ function createTracker({
               else { data.x = event.clientX; data.y = event.clientY; }
               window.parent.postMessage(data, "*");
             }
-
             document.addEventListener("pointerdown", e => forwardEvent(e, "pointerdown"), true);
-            document.addEventListener("keydown", e => forwardEvent(e, "keydown"), true);
+            document.addEventListener("keydown",     e => forwardEvent(e, "keydown"),     true);
+
+            // snapshot the iframe's visible viewport
+            async function snapshotViewport() {
+              try {
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+
+                // Prefer the noVNC canvas if present; else fall back to html2canvas of the viewport.
+                const canvas = document.querySelector('#noVNC_canvas, canvas.noVNC_canvas, #screen, canvas') || null;
+
+                let blob = null;
+                let outW = vw;
+                let outH = vh;
+
+                if (canvas && canvas.getContext) {
+                  // --- Fast path: noVNC canvas ---
+                  const rect = canvas.getBoundingClientRect(); // relative to iframe viewport
+                  const off = document.createElement('canvas');
+                  off.width = vw;
+                  off.height = vh;
+                  const ctx = off.getContext('2d');
+
+                  // Draw the source canvas so that the *visible* part lands at (0,0)-(vw,vh)
+                  ctx.drawImage(
+                    canvas,
+                    -rect.left,  // dx
+                    -rect.top    // dy
+                  );
+
+                  blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.4));
+                  outW = off.width;
+                  outH = off.height;
+
+                } else {
+                  // Try html2canvas either from this window or from the parent
+                  const hv = window.html2canvas || (window.top && window.top.html2canvas);
+
+                  if (hv) {
+                    const scale = 0.7; // a bit smaller & faster, but you can keep 1 if you want
+                    const target = document.documentElement;
+
+                    const cnv = await hv(target, {
+                      logging: false,
+                      useCORS: true,
+                      scale,
+                      x: window.scrollX,
+                      y: window.scrollY,
+                      width: vw,
+                      height: vh,
+                    });
+
+                    blob = await new Promise(res => cnv.toBlob(res, 'image/jpeg', 0.4));
+                    outW = cnv.width;
+                    outH = cnv.height;
+
+                  } else {
+                    // Last-ditch: plain white fallback canvas
+                    const off = document.createElement('canvas');
+                    off.width = vw;
+                    off.height = vh;
+                    const ctx = off.getContext('2d');
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, vw, vh);
+                    blob = await new Promise(res => off.toBlob(res, 'image/jpeg', 0.4));
+                    outW = off.width;
+                    outH = off.height;
+                  }
+                }
+
+                if (!blob) throw new Error('snapshotViewport: no blob created');
+
+                const buf = await blob.arrayBuffer();
+                window.parent.postMessage(
+                  { type: 'IFRAME_SNAPSHOT', buf, w: outW, h: outH },
+                  '*',
+                  [buf]
+                );
+
+              } catch (e) {
+                window.parent.postMessage({ type: 'IFRAME_SNAPSHOT_ERROR', error: String(e) }, '*');
+              }
+            }
+
+
+            // Listen for snapshot requests from parent
+            window.addEventListener('message', (e) => {
+              if (e?.data?.type === 'REQUEST_IFRAME_SNAPSHOT') snapshotViewport();
+            });
           }
         `;
         doc.head.appendChild(script);
       } catch (err) {
-        console.warn('Iframe is cross-origin; event injection disabled:', err);
+        console.warn('Injection failed:', err);
       }
     };
 
     iframe.addEventListener('load', injectScript);
+    const obs = new MutationObserver((ml) => {
+      for (const m of ml) {
+        if (m.type === 'attributes' && m.attributeName === 'src') {
+          injectScript();
+        }
+      }
+    });
+    obs.observe(iframe, { attributes: true });
+
+    // save cleanup
     state.cleanupFns.push(() => iframe.removeEventListener('load', injectScript));
-    return injectScript;
+    state.iframeMutationObserver = obs;
+    return injectScript; // not used externally, but handy if needed
   }
 
   // Parent window message handler
@@ -1156,201 +862,77 @@ function createTracker({
     }
   }
 
-    async function startTabCapture() {
-    if (state.captureStream && state.captureReady) return true;
-
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      alert('This browser does not support tab capture. Please use a recent Chromium-based browser.');
-      return false;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          frameRate: { ideal: 5, max: 8 }
-        },
-        audio: false,
-        preferCurrentTab: true,
-        surfaceSwitching: 'include'
-      });
-
-      const track = stream.getVideoTracks()[0];
-      if (!track) {
-        alert('No video track was returned from screen capture.');
-        return false;
-      }
-
-      const settings = track.getSettings ? track.getSettings() : {};
-      console.log('Capture track settings:', settings);
-
-      const video = document.createElement('video');
-      video.playsInline = true;
-      video.muted = true;
-      video.srcObject = stream;
-
-      await video.play();
-
-      state.captureStream = stream;
-      state.captureVideo = video;
-      state.captureTrack = track;
-      state.captureCanvas = document.createElement('canvas');
-      state.captureReady = true;
-
-      publishCapturedHandleFromTrack();
-      startCaptureHandlePolling();
-
-      if ('addEventListener' in track) {
-        track.addEventListener('capturehandlechange', () => {
-          publishCapturedHandleFromTrack();
-          enforceCaptureRequirement();
-        });
-      }
-
-      track.addEventListener('ended', () => {
-        console.warn('User stopped tab capture.');
-        state.captureReady = false;
-        state.captureTrack = null;
-        state.captureStream = null;
-        stopCaptureHandlePolling();
-
-        if (state.captureVideo) {
-          try {
-            state.captureVideo.pause();
-            state.captureVideo.srcObject = null;
-          } catch (_) {}
-        }
-        state.captureVideo = null;
-
-        clearSharedCaptureState();
-        enforceCaptureRequirement();
-      });
-
-      const surface = settings.displaySurface || 'unknown';
-      if (surface !== 'browser') {
-        alert('Please choose "This Tab" when prompted. Screen or window sharing can break gaze-to-screenshot alignment.');
-      }
-
-      enforceCaptureRequirement();
-      return true;
-    } catch (err) {
-      console.error('Failed to start tab capture:', err);
-      alert('We could not start tab capture. Please click "Start Experiment" again and choose "This Tab".');
-      return false;
-    }
-  }
-
-  function stopTabCapture() {
-    stopCaptureHandlePolling();
-    if (state.captureTrack) {
-      try { state.captureTrack.stop(); } catch (_) {}
-    }
-
-    if (state.captureStream) {
-      try {
-        state.captureStream.getTracks().forEach(t => t.stop());
-      } catch (_) {}
-    }
-
-    if (state.captureVideo) {
-      try {
-        state.captureVideo.pause();
-        state.captureVideo.srcObject = null;
-      } catch (_) {}
-    }
-
-    if (state.captureCanvas) {
-      state.captureCanvas.width = 0;
-      state.captureCanvas.height = 0;
-    }
-
-    state.captureTrack = null;
-    state.captureStream = null;
-    state.captureVideo = null;
-    state.captureCanvas = null;
-    state.captureReady = false;
-
-    clearSharedCaptureState();
-    enforceCaptureRequirement();
-  }
-
-  function getCaptureScale() {
-    const video = state.captureVideo;
-    if (!video || !video.videoWidth || !video.videoHeight) {
-      return { scaleX: 1, scaleY: 1 };
-    }
-
-    return {
-      scaleX: video.videoWidth / window.innerWidth,
-      scaleY: video.videoHeight / window.innerHeight
-    };
-  }
-
 
   async function takeScreenshot(X, Y, click = true) {
     try {
-      if (!shouldCaptureFromThisTab()) {
-        return;
-      }
-      if (!state.captureReady || !state.captureVideo || !state.captureCanvas) {
-        console.warn('Tab capture is not ready; screenshot skipped.');
-        return;
+      if (typeof html2canvas === 'undefined') {
+        console.warn('html2canvas not loaded'); return;
       }
 
-      const video = state.captureVideo;
-      if (!video.videoWidth || !video.videoHeight) {
-        console.warn('Capture video has no dimensions yet; screenshot skipped.');
-        return;
+      // Parent page: capture the visible viewport
+      const vx = window.scrollX, vy = window.scrollY;
+      const vw = window.innerWidth, vh = window.innerHeight;
+
+      const pageCanvas = await html2canvas(document.documentElement, {
+        logging: false,
+        useCORS: true,
+        scale: 1,
+        x: vx, y: vy, width: vw, height: vh
+      });
+
+      // Try to get a true iframe-viewport snapshot from inside the iframe
+      const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
+      let iframeRect = { left: 0, top: 0, width: 0, height: 0 };
+      let iframeSnapshot = null;
+
+      if (iframe && iframe.contentWindow) {
+        iframeRect = iframe.getBoundingClientRect();
+        iframeSnapshot = await requestIframeSnapshot(iframe, 45000);
       }
 
-      // Make the saved screenshot use VIEWPORT coordinates, not video coordinates.
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = pageCanvas.width;
+      finalCanvas.height = pageCanvas.height;
+      const ctx = finalCanvas.getContext('2d');
 
-      const canvas = state.captureCanvas;
-      canvas.width = vw;
-      canvas.height = vh;
+      // Base: parent viewport
+      ctx.drawImage(pageCanvas, 0, 0);
 
-      const ctx = canvas.getContext('2d', { alpha: false });
-      ctx.clearRect(0, 0, vw, vh);
+      // Overlay: iframe snapshot, scaled to match iframeRect
+      if (iframeSnapshot && iframeSnapshot.imageBitmap) {
+        const srcW = iframeSnapshot.width;
+        const srcH = iframeSnapshot.height;
 
-      // Scale the captured tab frame into viewport-sized output.
-      ctx.drawImage(video, 0, 0, vw, vh);
+        ctx.drawImage(
+          iframeSnapshot.imageBitmap,
+          0, 0, srcW, srcH,                           // source rect (scaled image)
+          iframeRect.left, iframeRect.top,            // dest x,y in parent coords
+          iframeRect.width, iframeRect.height         // dest size = real iframe size
+        );
+      }
 
-      let markerX;
-      let markerY;
-
+      // Marker in VIEWPORT coordinates
+      let markerX, markerY;
       if (click) {
-        const iframe = resolveIframe
-          ? resolveIframe()
-          : document.querySelector('#workspace_iframe, #workspace-iframe');
+        // click X,Y are relative to the iframe viewport
+        markerX = iframeRect.left + X;
+        markerY = iframeRect.top + Y;
 
-        const iframeRect = iframe
-          ? iframe.getBoundingClientRect()
-          : { left: 0, top: 0 };
-
-        // click X/Y are relative to iframe viewport
-        markerX = Math.round(iframeRect.left + X);
-        markerY = Math.round(iframeRect.top + Y);
+        ctx.beginPath();
+        ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = 'red';
+        ctx.fill();
       } else {
-        // gaze X/Y are already viewport-relative
-        markerX = Math.round(X);
-        markerY = Math.round(Y);
+        // gaze X,Y are already viewport (client) coords
+        markerX = X;
+        markerY = Y;
       }
 
-      ctx.beginPath();
-      ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
-      ctx.fillStyle = 'red';
-      ctx.fill();
-
+      // Upload
       const unixTs = Date.now();
       const isoTs = new Date(unixTs).toISOString();
 
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          console.error('Screenshot blob creation failed');
-          return;
-        }
-
+      finalCanvas.toBlob((blob) => {
         const formData = new FormData();
         formData.append('screenshot', blob, 'screenshot.jpeg');
         formData.append('X', markerX);
@@ -1361,22 +943,14 @@ function createTracker({
         formData.append('screenshot_unix', unixTs);
         formData.append('screenshot_iso', isoTs);
 
-        // Save these for debugging / later validation
-        formData.append('screenshot_width', vw);
-        formData.append('screenshot_height', vh);
-        formData.append('video_width', video.videoWidth);
-        formData.append('video_height', video.videoHeight);
-        formData.append('viewport_width', vw);
-        formData.append('viewport_height', vh);
-
-        fetch(`${urlBasePath}save_screenshot.php`, {
-          method: 'POST',
-          mode: 'cors',
-          body: formData
-        })
+        fetch(`${urlBasePath}save_screenshot.php`, { method: 'POST', mode: 'cors', body: formData })
           .then(r => r.json())
+          .then(data => {
+            //console.log('Viewport screenshot upload successful:', data);
+            finalCanvas.width = finalCanvas.height = 0;
+          })
           .catch(err => console.error('Error uploading screenshot:', err));
-      }, 'image/jpeg', 0.35);
+      }, 'image/jpeg', 0.4);
 
     } catch (err) {
       console.error('Screenshot capture failed:', err);
@@ -1510,11 +1084,6 @@ function createTracker({
   function onStorage(e) {
     if (!e || !e.key) return;
 
-    if (e.key === sharedCaptureStateKey) {
-      enforceCaptureRequirement();
-      return;
-    }
-
     /*
     // Another tab marked timeout -> enforce here too
     if (e.key === lsKey('timedOut') && e.newValue === 'true') {
@@ -1538,57 +1107,47 @@ function createTracker({
 
 
   function showIframeBlockingMessage(msg, { showRetry = true } = {}) {
-    let modal = document.getElementById('survey-check-modal');
+    const iframe = resolveIframe();
+    if (!iframe || !iframe.contentWindow) return;
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    if (!doc || !doc.body) return;
+
+    let modal = doc.getElementById('survey-check-modal');
     if (!modal) {
-      modal = document.createElement('div');
+      modal = doc.createElement('div');
       modal.id = 'survey-check-modal';
       Object.assign(modal.style, {
-        position: 'fixed',
-        inset: '0',
-        background: 'rgba(0,0,0,0.6)',
-        color: '#fff',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 99999,
-        padding: '1rem',
-        boxSizing: 'border-box',
+        position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.6)',
+        color: '#fff', display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', alignItems: 'center',
+        zIndex: 99999, padding: '1rem', boxSizing: 'border-box',
         fontSize: '1.1rem'
       });
 
-      const text = document.createElement('div');
+      const text = doc.createElement('div');
       text.id = 'survey-check-text';
       text.style.marginBottom = '1rem';
-      text.style.maxWidth = '800px';
-      text.style.textAlign = 'center';
       modal.appendChild(text);
 
-      const btn = document.createElement('button');
+      const btn = doc.createElement('button');
       btn.id = 'survey-check-retry';
       btn.type = 'button';
       btn.textContent = 'Retry check';
       Object.assign(btn.style, {
-        padding: '0.6rem 1.1rem',
-        fontSize: '1rem',
-        cursor: 'pointer',
-        borderRadius: '6px',
-        border: 'none',
-        background: '#fff',
-        color: '#000'
+        padding: '0.6rem 1.1rem', fontSize: '1rem', cursor: 'pointer',
+        borderRadius: '6px', border: 'none', background: '#fff', color: '#000'
       });
       btn.addEventListener('click', () => {
-        gateAndMaybeStart(true);
+        gateAndMaybeStart(true); // manual retry
       });
       modal.appendChild(btn);
 
-      document.body.appendChild(modal);
+      doc.body.appendChild(modal);
     }
 
-    const label = document.getElementById('survey-check-text');
+    const label = doc.getElementById('survey-check-text');
     if (label) label.textContent = msg;
-
-    const retryBtn = document.getElementById('survey-check-retry');
+    const retryBtn = doc.getElementById('survey-check-retry');
     if (retryBtn) retryBtn.style.display = showRetry ? '' : 'none';
 
     modal.style.display = 'flex';
@@ -1596,7 +1155,10 @@ function createTracker({
 
 
   function hideIframeBlockingMessage() {
-    const modal = document.getElementById('survey-check-modal');
+    const iframe = resolveIframe();
+    if (!iframe || !iframe.contentWindow) return;
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    const modal = doc?.getElementById('survey-check-modal');
     if (modal) modal.style.display = 'none';
   }
 
@@ -1626,9 +1188,6 @@ function createTracker({
     sweepStalePeers();
     state.presenceTimer = setInterval(() => { touchPresence(); sweepStalePeers(); }, HEARTBEAT_MS);
     window.addEventListener('storage', onStorage);
-    window.addEventListener('capturestatechange', enforceCaptureRequirement);
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    state.captureHeartbeatId = setInterval(enforceCaptureRequirement, 500);
 
     runWebGazer();
     attachIframeListeners();
@@ -1644,31 +1203,27 @@ function createTracker({
 
 
   function stop() {
+    // stop batching + listeners
     if (state.intervalId) { clearInterval(state.intervalId); state.intervalId = null; }
     if (state.msgHandler) { window.removeEventListener('message', state.msgHandler); state.msgHandler = null; }
     if (state.iframeMutationObserver) { state.iframeMutationObserver.disconnect(); state.iframeMutationObserver = null; }
     if (state.bannerObserver) { state.bannerObserver.disconnect(); state.bannerObserver = null; }
     if (state.bannerReadyObserver) { state.bannerReadyObserver.disconnect(); state.bannerReadyObserver = null; }
-    if (state.captureHeartbeatId) {
-      clearInterval(state.captureHeartbeatId);
-      state.captureHeartbeatId = null;
-    }
     state.cleanupFns.splice(0).forEach(fn => { try { fn(); } catch {} });
     state.running = false;
-    clearExpiryAlarm();
+    clearExpiryAlarm();  // keep the shared deadline, just stop this tab’s alarm
 
+
+    // stop presence heartbeat and remove our entry
     if (state.presenceTimer) { clearInterval(state.presenceTimer); state.presenceTimer = null; }
     window.removeEventListener('storage', onStorage);
-    window.removeEventListener('capturestatechange', enforceCaptureRequirement);
-    document.removeEventListener('visibilitychange', onVisibilityChange);
     localStorage.removeItem(presenceKey());
 
-    stopTabCapture();
-
+    // If we are the last live tab, clear calibration so next start forces recalibration
     sweepStalePeers();
     if (countLivePeers() === 0) {
       clearCalibrationKeys();
-      clearTimerKeys();
+      clearTimerKeys(); // Reset timer. Remove if we want timer to persist even after they close out of everything
     }
   }
 
@@ -1678,6 +1233,7 @@ function createTracker({
     try { webgazer?.end?.(); } catch {}
     document.querySelector('.calibrationDiv')?.remove();
     document.querySelector('.calibrationBackground')?.remove();
+    // ls.clearMine();
   }
 
 

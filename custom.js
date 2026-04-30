@@ -141,6 +141,9 @@ function createTracker({
     captureCanvas: null,
     captureTrack: null,
     captureChannel: getCaptureChannel()
+
+    captureHandlePollId: null,
+    captureHeartbeatId: null,
   };
 
 
@@ -199,13 +202,45 @@ function createTracker({
   }
 
   function setSharedHandle(value) {
-    if (value) localStorage.setItem(sharedHandleKey, value);
-    else localStorage.removeItem(sharedHandleKey);
+    if (value) {
+      localStorage.setItem(sharedHandleKey, value);
+    } else {
+      localStorage.removeItem(sharedHandleKey);
+    }
+
+    try {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: sharedHandleKey,
+        newValue: value
+      }));
+    } catch (_) {}
+
+    enforceCaptureRequirement();
+  }
+
+  function startCaptureHandlePolling() {
+    stopCaptureHandlePolling();
+
+    const publish = () => {
+      publishCapturedHandleFromTrack();
+      enforceCaptureRequirement();
+    };
+
+    publish();
+
+    state.captureHandlePollId = setInterval(publish, 250);
+  }
+
+  function stopCaptureHandlePolling() {
+    if (state.captureHandlePollId) {
+      clearInterval(state.captureHandlePollId);
+      state.captureHandlePollId = null;
+    }
   }
 
   initCaptureHandle();
 
-    function publishCapturedHandleFromTrack() {
+  function publishCapturedHandleFromTrack() {
     const track = state.captureTrack;
     if (!track || !('getCaptureHandle' in track)) {
       setSharedHandle(null);
@@ -1052,6 +1087,7 @@ function createTracker({
       state.captureReady = true;
 
       publishCapturedHandleFromTrack();
+      startCaptureHandlePolling();
 
       if ('addEventListener' in track) {
         track.addEventListener('capturehandlechange', () => {
@@ -1065,6 +1101,7 @@ function createTracker({
         state.captureReady = false;
         state.captureTrack = null;
         state.captureStream = null;
+        stopCaptureHandlePolling();
 
         if (state.captureVideo) {
           try {
@@ -1092,7 +1129,8 @@ function createTracker({
     }
   }
 
-    function stopTabCapture() {
+  function stopTabCapture() {
+    stopCaptureHandlePolling();
     if (state.captureTrack) {
       try { state.captureTrack.stop(); } catch (_) {}
     }
@@ -1479,6 +1517,7 @@ function createTracker({
     state.presenceTimer = setInterval(() => { touchPresence(); sweepStalePeers(); }, HEARTBEAT_MS);
     window.addEventListener('storage', onStorage);
     document.addEventListener('visibilitychange', onVisibilityChange);
+    state.captureHeartbeatId = setInterval(enforceCaptureRequirement, 500);
 
     runWebGazer();
     attachIframeListeners();
@@ -1499,6 +1538,10 @@ function createTracker({
     if (state.iframeMutationObserver) { state.iframeMutationObserver.disconnect(); state.iframeMutationObserver = null; }
     if (state.bannerObserver) { state.bannerObserver.disconnect(); state.bannerObserver = null; }
     if (state.bannerReadyObserver) { state.bannerReadyObserver.disconnect(); state.bannerReadyObserver = null; }
+    if (state.captureHeartbeatId) {
+      clearInterval(state.captureHeartbeatId);
+      state.captureHeartbeatId = null;
+    }
     state.cleanupFns.splice(0).forEach(fn => { try { fn(); } catch {} });
     state.running = false;
     clearExpiryAlarm();

@@ -225,37 +225,6 @@ function createTracker({
     });
   }
 
-  function publishCapturedHandleFromTrack() {
-    const track = state.captureTrack;
-
-    if (!track || track.readyState !== 'live') {
-      clearSharedCaptureState();
-      return;
-    }
-
-    let handle = null;
-
-    if ('getCaptureHandle' in track) {
-      const info = track.getCaptureHandle();
-      handle = info?.handle || null;
-    }
-
-    if (!handle) {
-      setSharedCaptureState({
-        active: false,
-        handle: null,
-        updatedAt: Date.now()
-      });
-      return;
-    }
-
-    setSharedCaptureState({
-      active: true,
-      handle,
-      updatedAt: Date.now()
-    });
-  }
-
   function isCaptureActive() {
     const s = getSharedCaptureState();
     return s.active === true;
@@ -264,27 +233,6 @@ function createTracker({
   function isCurrentTabShared() {
     const s = getSharedCaptureState();
     return s.active === true && s.handle === ownCaptureHandle;
-  }
-
-  function getSharedHandle() {
-    return localStorage.getItem(sharedCaptureStateKey);
-  }
-
-  function setSharedHandle(value) {
-    if (value) {
-      localStorage.setItem(sharedCaptureStateKey, value);
-    } else {
-      localStorage.removeItem(sharedCaptureStateKey);
-    }
-
-    try {
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: sharedCaptureStateKey,
-        newValue: value
-      }));
-    } catch (_) {}
-
-    enforceCaptureRequirement();
   }
 
   function startCaptureHandlePolling() {
@@ -331,10 +279,6 @@ function createTracker({
       owner: ownCaptureHandle,
       updatedAt: Date.now()
     });
-  }
-
-  function isCurrentTabShared() {
-    return getSharedHandle() === ownCaptureHandle;
   }
 
   function hasLiveCapture() {
@@ -1325,7 +1269,7 @@ function createTracker({
     state.captureCanvas = null;
     state.captureReady = false;
 
-    setSharedHandle(null);
+    clearSharedCaptureState();
     enforceCaptureRequirement();
   }
 

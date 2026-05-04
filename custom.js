@@ -660,7 +660,11 @@ function createTracker({
   }
 
   function finalizeCalibrationSuccess({ reason = "measured", overall = 100 } = {}) {
-    if (isWorkspacePage()) {
+    document.querySelector(".calibrationDiv")?.remove();
+    document.querySelector(".calibrationBackground")?.remove();
+    if (pageContext === 'workspace') {
+      
+      
       showParentBlockingOverlay(
         `Calibration complete with ${overall}% accuracy. Before beginning the challenge, click "Share This Tab and Start" and choose "This Tab" in the browser prompt.`,
         true
@@ -672,8 +676,6 @@ function createTracker({
   }
 
   function finalizeCalibrationAfterCapture(reason = "measured", overall = 100) {
-    document.querySelector(".calibrationDiv")?.remove();
-    document.querySelector(".calibrationBackground")?.remove();
 
     webgazer
       .showVideoPreview(false)
@@ -752,7 +754,7 @@ function createTracker({
 
         state.captureVideo = null;
 
-        if (isWorkspacePage()) {
+        if (pageContext === 'workspace') {
           showParentBlockingOverlay(
             "Tab sharing has stopped. Please share this tab again before continuing.",
             true
@@ -1097,7 +1099,7 @@ function createTracker({
     }
 
     if (pageContext === 'workspace') {
-      return takeExtensionTabScreenshot(X, Y, click);
+      return takeTabCaptureScreenshot(X, Y, click);
     }
 
     return takeHtml2CanvasScreenshot(X, Y, click);
@@ -1202,7 +1204,7 @@ function createTracker({
       if (!state.captureReady || !state.captureVideo || !state.captureCanvas) {
         console.warn("Tab capture is not ready; screenshot skipped.");
 
-        if (isWorkspacePage()) {
+        if (pageContext === 'workspace') {
           showParentBlockingOverlay(
             "Tab sharing is required before continuing. Please share this tab.",
             true

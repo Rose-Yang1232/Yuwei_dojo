@@ -710,7 +710,8 @@ function createTracker({
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          frameRate: { ideal: 5, max: 8 }
+          frameRate: { ideal: 5, max: 8 },
+          surfaceSwitching: "exclude"
         },
         audio: false,
         preferCurrentTab: true
@@ -1199,8 +1200,14 @@ function createTracker({
     }
   }
 
+  function shouldUploadWorkspaceScreenshot() {
+    return pageContext === 'workspace' && document.visibilityState === "visible" && !document.hidden;
+  }
+
   async function takeTabCaptureScreenshot(X, Y, click = true) {
     try {
+      if (!shouldUploadWorkspaceScreenshot()) {return;}
+      
       if (!state.captureReady || !state.captureVideo || !state.captureCanvas) {
         console.warn("Tab capture is not ready; screenshot skipped.");
 

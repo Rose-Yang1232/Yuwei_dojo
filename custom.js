@@ -1054,6 +1054,11 @@ function createTracker({
 
   // Periodic batch and upload
   function sendEventsToServer() {
+    if (pageContext === 'workspace' && document.hidden) {
+      state.gazeQueue.length = 0;
+      return;
+    }
+    
     // Upload events
     if (state.eventQueue.length) {
       const form = new URLSearchParams();

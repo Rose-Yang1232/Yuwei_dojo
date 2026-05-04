@@ -133,7 +133,12 @@ function createTracker({
     expireTimerId: null,
     bannerObserver: null,
     bannerReadyObserver: null,
-    domObserver: null
+    domObserver: null,
+    captureStream: null,
+    captureVideo: null,
+    captureReady: false,
+    captureCanvas: null,
+    captureTrack: null
   };
 
 
@@ -654,40 +659,247 @@ function createTracker({
     }, 5000);
   }
 
-  function finalizeCalibrationSuccess({ reason = 'measured', overall = 100 } = {}) {
-      // Remove calibration UI completely so a new challenge can rebuild it
-      document.querySelector('.calibrationDiv')?.remove();          
-      document.querySelector('.calibrationBackground')?.remove();
+  function finalizeCalibrationSuccess({ reason = "measured", overall = 100 } = {}) {
+    if (isWorkspacePage()) {
+      showParentBlockingOverlay(
+        `Calibration complete with ${overall}% accuracy. Before beginning the challenge, click "Share This Tab and Start" and choose "This Tab" in the browser prompt.`,
+        true
+      );
+      return;
+    }
 
-      webgazer
-         .showVideoPreview(false)
-         .showPredictionPoints(false)
-         .showFaceOverlay(false)
-         .showFaceFeedbackBox(false)
-         .saveDataAcrossSessions(true);
+    finalizeCalibrationAfterCapture(reason, overall);
+  }
 
-      const videoEl = document.getElementById('webgazerVideoContainer');
-      if (videoEl?.parentNode) videoEl.parentNode.removeChild(videoEl);
+  function finalizeCalibrationAfterCapture(reason = "measured", overall = 100) {
+    document.querySelector(".calibrationDiv")?.remove();
+    document.querySelector(".calibrationBackground")?.remove();
 
-      ls.set('webgazerCalibrated', 'true');
-      state.gazeQueue.length = 0;
+    webgazer
+      .showVideoPreview(false)
+      .showPredictionPoints(false)
+      .showFaceOverlay(false)
+      .showFaceFeedbackBox(false)
+      .saveDataAcrossSessions(true);
 
-      // Start the 25-minute deadline if not already set (shared across tabs)
-      if (!getDeadline()) {
-        setDeadline(Date.now() + CHALLENGE_TIME_MS);
+    const videoEl = document.getElementById("webgazerVideoContainer");
+    if (videoEl?.parentNode) videoEl.parentNode.removeChild(videoEl);
+
+    ls.set("webgazerCalibrated", "true");
+    state.gazeQueue.length = 0;
+
+    if (!getDeadline()) {
+      setDeadline(Date.now() + CHALLENGE_TIME_MS);
+    }
+
+    scheduleExpiryAlarm();
+
+    console.log(`Calibration finalized (${reason}); overall=${overall}%`);
+  }
+
+  async function startTabCapture() {
+    if (state.captureStream && state.captureReady) return true;
+
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      alert("This browser does not support tab capture. Please use a recent Chromium-based browser.");
+      return false;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          frameRate: { ideal: 5, max: 8 }
+        },
+        audio: false,
+        preferCurrentTab: true
+      });
+
+      const track = stream.getVideoTracks()[0];
+      if (!track) {
+        alert("No video track was returned from tab capture.");
+        return false;
       }
-      scheduleExpiryAlarm();
 
-      console.log(`Calibration finalized (${reason}); overall=${overall}%`);
+      const settings = track.getSettings ? track.getSettings() : {};
+      console.log("Capture track settings:", settings);
+
+      const video = document.createElement("video");
+      video.playsInline = true;
+      video.muted = true;
+      video.srcObject = stream;
+
+      await video.play();
+
+      state.captureStream = stream;
+      state.captureVideo = video;
+      state.captureTrack = track;
+      state.captureCanvas = document.createElement("canvas");
+      state.captureReady = true;
+
+      track.addEventListener("ended", () => {
+        console.warn("User stopped tab capture.");
+
+        state.captureReady = false;
+        state.captureTrack = null;
+        state.captureStream = null;
+
+        if (state.captureVideo) {
+          try {
+            state.captureVideo.pause();
+            state.captureVideo.srcObject = null;
+          } catch {}
+        }
+
+        state.captureVideo = null;
+
+        if (isWorkspacePage()) {
+          showParentBlockingOverlay(
+            "Tab sharing has stopped. Please share this tab again before continuing.",
+            true
+          );
+        }
+      });
+
+      const surface = settings.displaySurface || "unknown";
+      if (surface !== "browser") {
+        alert('Please choose "This Tab", not your whole screen or window, so gaze coordinates match screenshots.');
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Failed to start tab capture:", err);
+      alert('Could not start tab capture. Please choose "This Tab" when prompted.');
+      return false;
+    }
+  }
+
+  function stopTabCapture() {
+    if (state.captureTrack) {
+      try { state.captureTrack.stop(); } catch {}
+    }
+
+    if (state.captureStream) {
+      try {
+        state.captureStream.getTracks().forEach(t => t.stop());
+      } catch {}
+    }
+
+    if (state.captureVideo) {
+      try {
+        state.captureVideo.pause();
+        state.captureVideo.srcObject = null;
+      } catch {}
+    }
+
+    if (state.captureCanvas) {
+      state.captureCanvas.width = 0;
+      state.captureCanvas.height = 0;
+    }
+
+    state.captureTrack = null;
+    state.captureStream = null;
+    state.captureVideo = null;
+    state.captureCanvas = null;
+    state.captureReady = false;
+  }
+
+  function showParentBlockingOverlay(message, showStartButton = true) {
+    let overlay = document.getElementById("tab-capture-blocking-overlay");
+
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "tab-capture-blocking-overlay";
+
+      Object.assign(overlay.style, {
+        position: "fixed",
+        inset: "0",
+        background: "rgba(0,0,0,0.75)",
+        color: "#fff",
+        zIndex: 999999,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "2rem",
+        textAlign: "center",
+        fontFamily: "sans-serif"
+      });
+
+      const text = document.createElement("div");
+      text.id = "tab-capture-blocking-text";
+      text.style.maxWidth = "700px";
+      text.style.fontSize = "20px";
+      text.style.marginBottom = "1rem";
+      overlay.appendChild(text);
+
+      const button = document.createElement("button");
+      button.id = "tab-capture-start-button";
+      button.type = "button";
+      button.textContent = "Share This Tab and Start";
+      Object.assign(button.style, {
+        padding: "12px 18px",
+        fontSize: "16px",
+        borderRadius: "8px",
+        border: "none",
+        cursor: "pointer"
+      });
+
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        button.textContent = "Requesting tab sharing...";
+
+        const ok = await startTabCapture();
+
+        if (!ok) {
+          button.disabled = false;
+          button.textContent = "Share This Tab and Start";
+          return;
+        }
+
+        hideParentBlockingOverlay();
+        finalizeCalibrationAfterCapture();
+      });
+
+      overlay.appendChild(button);
+      document.body.appendChild(overlay);
+    }
+
+    document.getElementById("tab-capture-blocking-text").textContent = message;
+
+    const btn = document.getElementById("tab-capture-start-button");
+    btn.style.display = showStartButton ? "" : "none";
+
+    overlay.style.display = "flex";
+  }
+
+  function hideParentBlockingOverlay() {
+    const overlay = document.getElementById("tab-capture-blocking-overlay");
+    if (overlay) overlay.style.display = "none";
   }
 
 
   // ---------- Iframe listeners ----------
+  function getSameOriginIframeDocument(iframe) {
+    try {
+      return iframe.contentDocument || iframe.contentWindow?.document || null;
+    } catch (err) {
+      if (err.name === "SecurityError") return null;
+      throw err;
+    }
+  }
+  
   function attachIframeListeners() {
     const iframe = resolveIframe ? resolveIframe() : document.querySelector('#workspace_iframe, #workspace-iframe');
     if (!iframe) {
       console.warn('Iframe not found:', iframeId);
       return () => {};
+    }
+
+    const doc = getSameOriginIframeDocument(iframe);
+
+    if (!doc) {
+      console.warn("Iframe is cross-origin; event injection disabled.");
+      return;
     }
 
     const injectScript = () => {
@@ -880,6 +1092,18 @@ function createTracker({
 
 
   async function takeScreenshot(X, Y, click = true) {
+    if (pageContext === 'sensai') {
+      return takeHtml2CanvasScreenshot(X, Y, click);
+    }
+
+    if (pageContext === 'workspace') {
+      return takeExtensionTabScreenshot(X, Y, click);
+    }
+
+    return takeHtml2CanvasScreenshot(X, Y, click);
+  }
+  
+  async function takeHtml2CanvasScreenshot(X, Y, click = true) {
     try {
       if (typeof html2canvas === 'undefined') {
         console.warn('html2canvas not loaded'); return;
@@ -970,6 +1194,104 @@ function createTracker({
 
     } catch (err) {
       console.error('Screenshot capture failed:', err);
+    }
+  }
+
+  async function takeTabCaptureScreenshot(X, Y, click = true) {
+    try {
+      if (!state.captureReady || !state.captureVideo || !state.captureCanvas) {
+        console.warn("Tab capture is not ready; screenshot skipped.");
+
+        if (isWorkspacePage()) {
+          showParentBlockingOverlay(
+            "Tab sharing is required before continuing. Please share this tab.",
+            true
+          );
+        }
+
+        return;
+      }
+
+      const video = state.captureVideo;
+
+      if (!video.videoWidth || !video.videoHeight) {
+        console.warn("Capture video has no dimensions yet; screenshot skipped.");
+        return;
+      }
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      const canvas = state.captureCanvas;
+      canvas.width = vw;
+      canvas.height = vh;
+
+      const ctx = canvas.getContext("2d", { alpha: false });
+      ctx.clearRect(0, 0, vw, vh);
+
+      ctx.drawImage(video, 0, 0, vw, vh);
+
+      let markerX;
+      let markerY;
+
+      if (click) {
+        const iframe = resolveIframe
+          ? resolveIframe()
+          : document.querySelector("#workspace_iframe, #workspace-iframe");
+
+        const iframeRect = iframe
+          ? iframe.getBoundingClientRect()
+          : { left: 0, top: 0 };
+
+        markerX = Math.round(iframeRect.left + X);
+        markerY = Math.round(iframeRect.top + Y);
+      } else {
+        markerX = Math.round(X);
+        markerY = Math.round(Y);
+      }
+
+      ctx.beginPath();
+      ctx.arc(markerX, markerY, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = "red";
+      ctx.fill();
+
+      const unixTs = Date.now();
+      const isoTs = new Date(unixTs).toISOString();
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          console.error("Screenshot blob creation failed");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("screenshot", blob, "screenshot.jpeg");
+        formData.append("X", markerX);
+        formData.append("Y", markerY);
+        formData.append("userId", userId);
+        formData.append("challenge", challenge);
+        formData.append("click", click);
+        formData.append("screenshot_unix", unixTs);
+        formData.append("screenshot_iso", isoTs);
+        formData.append("capture_method", "tab_capture");
+        formData.append("screenshot_width", vw);
+        formData.append("screenshot_height", vh);
+        formData.append("video_width", video.videoWidth);
+        formData.append("video_height", video.videoHeight);
+        formData.append("viewport_width", vw);
+        formData.append("viewport_height", vh);
+
+        fetch(`${urlBasePath}save_screenshot.php`, {
+          method: "POST",
+          mode: "cors",
+          body: formData
+        })
+          .then(r => r.json())
+          .catch(err => console.error("Error uploading tab-capture screenshot:", err));
+      }, "image/jpeg", 0.35);
+
+    } catch (err) {
+      console.error("Tab-capture screenshot failed:", err);
     }
   }
 
@@ -1228,6 +1550,7 @@ function createTracker({
     state.cleanupFns.splice(0).forEach(fn => { try { fn(); } catch {} });
     state.running = false;
     clearExpiryAlarm();  // keep the shared deadline, just stop this tab’s alarm
+    stopTabCapture();
 
 
     // stop presence heartbeat and remove our entry

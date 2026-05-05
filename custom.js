@@ -191,6 +191,33 @@ function createTracker({
 
   const pageContext = getPageContext();
 
+  const ACTIVE_TAB_KEY = `gaze:${challenge || "default"}:${userId || "anon"}:activeTab`;
+
+  function markThisTabActive() {
+    localStorage.setItem(ACTIVE_TAB_KEY, JSON.stringify({
+      tabId,
+      pageContext,
+      timestamp: Date.now()
+    }));
+  }
+
+  function getActiveTabInfo() {
+    try {
+      return JSON.parse(localStorage.getItem(ACTIVE_TAB_KEY) || "null");
+    } catch {
+      return null;
+    }
+  }
+
+  function thisTabIsActive() {
+    const info = getActiveTabInfo();
+    if (!info) return false;
+
+    const recent = Date.now() - Number(info.timestamp || 0) < 10000;
+
+    return recent && info.tabId === tabId;
+  }
+
   function clearExpiryAlarm() {
     if (state.expireTimerId) {
       clearTimeout(state.expireTimerId);
@@ -710,9 +737,9 @@ function createTracker({
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          frameRate: { ideal: 5, max: 8 },
-          surfaceSwitching: "exclude"
+          frameRate: { ideal: 5, max: 8 }
         },
+        surfaceSwitching: "exclude",
         audio: false,
         preferCurrentTab: true
       });
@@ -1054,7 +1081,7 @@ function createTracker({
 
   // Periodic batch and upload
   function sendEventsToServer() {
-    if (pageContext === 'workspace' && document.hidden) {
+    if (getPageContext() === 'workspace' && !thisTabIsActive()) {
       state.gazeQueue.length = 0;
       return;
     }
@@ -1205,13 +1232,9 @@ function createTracker({
     }
   }
 
-  function shouldUploadWorkspaceScreenshot() {
-    return pageContext === 'workspace' && document.visibilityState === "visible" && !document.hidden;
-  }
-
   async function takeTabCaptureScreenshot(X, Y, click = true) {
     try {
-      if (!shouldUploadWorkspaceScreenshot()) {return;}
+      if (!thisTabIsActive()) {return;}
       
       if (!state.captureReady || !state.captureVideo || !state.captureCanvas) {
         console.warn("Tab capture is not ready; screenshot skipped.");
@@ -1540,6 +1563,16 @@ function createTracker({
     sweepStalePeers();
     state.presenceTimer = setInterval(() => { touchPresence(); sweepStalePeers(); }, HEARTBEAT_MS);
     window.addEventListener('storage', onStorage);
+    window.addEventListener("focus", markThisTabActive);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) markThisTabActive();
+    });
+    window.addEventListener("pointerdown", markThisTabActive, true);
+    window.addEventListener("keydown", markThisTabActive, true);
+
+    if (!document.hidden) {
+      markThisTabActive();
+    }
 
     runWebGazer();
     attachIframeListeners();
@@ -1570,6 +1603,9 @@ function createTracker({
     // stop presence heartbeat and remove our entry
     if (state.presenceTimer) { clearInterval(state.presenceTimer); state.presenceTimer = null; }
     window.removeEventListener('storage', onStorage);
+    window.removeEventListener("focus", markThisTabActive);
+    window.removeEventListener("pointerdown", markThisTabActive, true);
+    window.removeEventListener("keydown", markThisTabActive, true);
     localStorage.removeItem(presenceKey());
 
     // If we are the last live tab, clear calibration so next start forces recalibration

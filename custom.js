@@ -1780,7 +1780,7 @@ function createTracker({
 
 
   // Expose a tiny controller
-  return { start, stop, destroy, autoStart, checkBanner };
+  return { start, stop, destroy, autoStart, checkBanner, createCalibrationPoints };
 }
 
 
